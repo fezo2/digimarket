@@ -52,7 +52,11 @@ export async function OrderChat({
       ))}
       {!chat.messages.length && <p>لسه مفيش رسائل.</p>}
       {chat.canSend ? (
-        <ActionForm action={sendChat} button="ابعت الرسالة">
+        <ActionForm
+          uploadOrderId={orderId}
+          action={sendChat}
+          button="ابعت الرسالة"
+        >
           <input type="hidden" name="orderId" value={orderId} />
           <label className="label">
             الرسالة

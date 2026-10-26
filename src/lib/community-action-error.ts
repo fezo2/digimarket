@@ -11,6 +11,8 @@ export function communityActionError(error: unknown) {
   return { error: "حصل خطأ، جرّب تاني" };
 }
 export function optionalImage(form: FormData) {
+  const pending = form.get("imagePending");
+  if (pending) return z.string().max(250).parse(pending);
   const value = form.get("image");
   if (value === null || value === "") return undefined;
   return z.instanceof(File).parse(value);

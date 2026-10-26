@@ -1,5 +1,7 @@
 import "server-only";
+import { finalizeUpload } from "./finalize-upload";
 import { Prisma } from "@prisma/client";
+import { enqueueNotice } from "./notifications";
 import { db } from "./db";
 import { lockOrder } from "./orders";
 import { communityId, messageBody, maskContact } from "./community-rules";
@@ -66,7 +68,15 @@ async function sendAllowed(tx: Tx, order: { id: string; paidAt: Date | null }) {
     )
   );
 }
-export async function saveChatImage(orderId: string, file?: File) {
+export async function saveChatImage(
+  orderId: string,
+  file?: File | string,
+  userId?: string,
+) {
+  if (typeof file === "string") {
+    if (!userId) throw new UploadError("غير مسموح");
+    return finalizeUpload(userId, `chat/${orderId}`, "chat", file);
+  }
   if (!file || file.size === 0) return null;
   if (
     file.size > 5 * 1024 * 1024 ||
@@ -88,13 +98,13 @@ export async function sendMessage(
   userId: string,
   orderId: string,
   body: string,
-  image?: File,
+  image?: File | string,
 ) {
   const value = messageBody.parse(
     messageBody.parse(body).replace(/^(?:\[النظام\]\s*)+/u, ""),
   );
   await participant(db, userId, orderId);
-  const attachmentKey = await saveChatImage(orderId, image);
+  const attachmentKey = await saveChatImage(orderId, image, userId);
   try {
     return await db.$transaction(async (tx) => {
       await lockOrder(tx, orderId);
@@ -125,6 +135,12 @@ export async function sendMessage(
           attachmentKey,
         },
       });
+      if (access.order.buyerId === userId)
+        for (const item of access.order.items)
+          await enqueueNotice(tx, item.sellerId, "chat", {
+            orderId,
+            orderNumber: access.order.number,
+          });
       return { flagged: masked.flagged };
     });
   } catch (error) {
@@ -173,7 +189,7 @@ export async function readChat(userId: string, orderId: string) {
     };
   });
 }
-export async function readAttachment(
+export async function attachmentKey(
   userId: string,
   orderId: string,
   messageId: string,
@@ -185,7 +201,7 @@ export async function readAttachment(
     select: { attachmentKey: true },
   });
   if (!message?.attachmentKey) throw new ParticipantError("الصورة مش موجودة");
-  return readPrivateFile(message.attachmentKey);
+  return message.attachmentKey;
 }
 export async function unreadCounts(
   userId: string,
@@ -223,4 +239,12 @@ export async function unreadCounts(
     { orderId: string; count: bigint }[]
   >`SELECT m."orderId", count(*) FROM "Message" m LEFT JOIN "OrderRead" r ON r."orderId" = m."orderId" AND r."userId" = ${userId} WHERE m."orderId" IN (${Prisma.join(orders.map((o) => o.id))}) AND m."senderId" <> ${userId} AND (r."lastReadAt" IS NULL OR m."createdAt" > r."lastReadAt") GROUP BY m."orderId"`;
   return new Map(rows.map((r) => [r.orderId, Number(r.count)]));
+}
+
+export async function readAttachment(
+  userId: string,
+  orderId: string,
+  messageId: string,
+) {
+  return readPrivateFile(await attachmentKey(userId, orderId, messageId));
 }

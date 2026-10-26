@@ -1,16 +1,31 @@
 "use client";
+import { prepareUploads } from "@/lib/upload-form";
 import { useActionState } from "react";
 export type ActionState = { error?: string; success?: string };
 export function ActionForm({
   action,
   children,
   button,
+  uploadOrderId,
 }: {
   action: (state: ActionState, form: FormData) => Promise<ActionState>;
   children?: React.ReactNode;
   button: string;
+  uploadOrderId?: string;
 }) {
-  const [state, submit, pending] = useActionState(action, {});
+  const [state, submit, pending] = useActionState(
+    async (state: ActionState, form: FormData) => {
+      if (uploadOrderId) {
+        try {
+          await prepareUploads(form, "chat", ["image"], uploadOrderId);
+        } catch {
+          return { error: "رفع الصورة فشل، جرّب تاني" };
+        }
+      }
+      return action(state, form);
+    },
+    {},
+  );
   return (
     <form action={submit} className="space-y-3">
       {children}

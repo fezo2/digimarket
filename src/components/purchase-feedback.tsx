@@ -96,7 +96,11 @@ export async function PurchaseFeedback({
             item.deliveredAt &&
             Date.now() <= item.deliveredAt.getTime() + 7 * 86400000 &&
             !item.disputes.some((d) => d.status === "OPEN") && (
-              <ActionForm action={submitDispute} button="افتح شكوى">
+              <ActionForm
+                uploadOrderId={orderId}
+                action={submitDispute}
+                button="افتح شكوى"
+              >
                 <input type="hidden" name="itemId" value={item.id} />
                 <label className="label">
                   سبب الشكوى
