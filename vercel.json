@@ -2,11 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/release-expired-orders",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/send-notifications",
-      "schedule": "* * * * *"
+      "schedule": "0 2 * * *"
     },
     {
       "path": "/api/cron/cleanup",
