@@ -4,18 +4,19 @@ import { db } from "@/lib/db";
 export const metadata = { title: "لوحة الإدارة" };
 
 export default async function AdminHome() {
-  const [users, sellers, approved, pendingKyc, products] = await Promise.all([
+  const [users, sellers, approved, pendingKyc, products, pendingProducts] = await Promise.all([
     db.user.count(),
     db.sellerProfile.count(),
     db.sellerProfile.count({ where: { kycStatus: "APPROVED" } }),
     db.kycSubmission.count({ where: { status: "PENDING" } }),
     db.product.count({ where: { status: "ACTIVE" } }),
+    db.product.count({ where: { status: "PENDING_REVIEW" } }),
   ]);
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">لوحة الإدارة</h1>
-      <div className="grid gap-4 sm:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-3">
         {[
           ["المستخدمين", users],
           ["التجار", sellers],
@@ -27,6 +28,7 @@ export default async function AdminHome() {
             <p className="mt-1 text-2xl font-bold">{Number(n).toLocaleString("ar-EG")}</p>
           </div>
         ))}
+        <Link href="/admin/products" className="card border-brand-500 p-4"><p className="text-sm text-slate-500">منتجات مستنية مراجعة</p><p className="mt-1 text-2xl font-bold text-brand-700">{pendingProducts.toLocaleString("ar-EG")}</p></Link>
         <Link href="/admin/kyc" className="card border-brand-500 p-4">
           <p className="text-sm text-slate-500">توثيق مستني مراجعة</p>
           <p className="mt-1 text-2xl font-bold text-brand-700">{pendingKyc.toLocaleString("ar-EG")}</p>

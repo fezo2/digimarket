@@ -1,5 +1,5 @@
 import "server-only";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -17,11 +17,26 @@ const ALLOWED = new Map([
 
 export class UploadError extends Error {}
 
-export async function savePrivateFile(folder: string, file: File): Promise<string> {
+export async function savePrivateFile(
+  folder: string,
+  file: File,
+): Promise<string> {
   if (!file || file.size === 0) throw new UploadError("الملف مطلوب");
-  if (file.size > MAX_BYTES) throw new UploadError("حجم الملف أكبر من 8 ميجا");
-  const ext = ALLOWED.get(file.type);
-  if (!ext) throw new UploadError("نوع الملف لازم يكون صورة أو PDF");
+  const productUpload = /^products\/[^/\\]+$/.test(folder);
+  const limit = productUpload ? 50 * 1024 * 1024 : MAX_BYTES;
+  if (file.size > limit)
+    throw new UploadError(`حجم الملف أكبر من ${productUpload ? 50 : 8} ميجا`);
+  const ext =
+    productUpload &&
+    ["application/zip", "application/x-zip-compressed"].includes(file.type)
+      ? "zip"
+      : ALLOWED.get(file.type);
+  if (!ext)
+    throw new UploadError(
+      productUpload
+        ? "نوع الملف لازم يكون ZIP أو PDF أو صورة"
+        : "نوع الملف لازم يكون صورة أو PDF",
+    );
 
   const key = `${folder}/${randomUUID()}.${ext}`;
   const target = resolveKey(key);
@@ -32,8 +47,16 @@ export async function savePrivateFile(folder: string, file: File): Promise<strin
 
 export async function readPrivateFile(key: string) {
   const ext = key.split(".").pop() ?? "";
-  const type = [...ALLOWED].find(([, e]) => e === ext)?.[0] ?? "application/octet-stream";
+  const type =
+    ext === "zip"
+      ? "application/zip"
+      : ([...ALLOWED].find(([, e]) => e === ext)?.[0] ??
+        "application/octet-stream");
   return { body: await readFile(resolveKey(key)), type };
+}
+
+export async function deletePrivateFile(key: string) {
+  await rm(resolveKey(key), { force: true });
 }
 
 function resolveKey(key: string) {

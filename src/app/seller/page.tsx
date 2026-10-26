@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import { sellerBalance } from "@/lib/ledger";
 import { formatEGP } from "@/lib/money";
 import { SELLER_TIERS } from "@/lib/config";
-import { StoreProfileForm } from "./store-profile-form";
 
 export const metadata = { title: "لوحة التاجر" };
 
@@ -50,18 +49,7 @@ export default async function SellerDashboard() {
         <Stat label="قطع مباعة" value={(soldItems._sum.quantity ?? 0).toLocaleString("ar-EG")} />
       </div>
 
-      <div className="card p-6">
-        <h2 className="mb-4 font-bold">بيانات المتجر</h2>
-        <StoreProfileForm
-          defaults={{
-            description: seller.description ?? "",
-            businessHours: seller.businessHours ?? "",
-            telegramChatId: seller.telegramChatId ?? "",
-          }}
-        />
-      </div>
-
-      <p className="text-sm text-slate-500">إضافة المنتجات والطلبات والسحب جاية في المرحلة الجاية من البناء.</p>
+      <Link className="btn-primary" href="/seller/products">إدارة المنتجات</Link>
     </div>
   );
 }
