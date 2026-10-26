@@ -5,8 +5,8 @@ import { addStockCodes } from "../src/lib/product-stock";
 type StockStore = Parameters<typeof addStockCodes>[0];
 
 function stockFixture() {
-  // RESERVED is not in this phase's Prisma enum yet. The status-agnostic query
-  // must also protect codes in future states without needing a new allowlist.
+  // Every stock state is protected. Future states must also remain covered
+  // without introducing a status allowlist into deduplication.
   const rows = [
     { productId: "product-1", content: "available-code", status: "AVAILABLE" },
     { productId: "product-1", content: "reserved-code", status: "RESERVED" },

@@ -17,6 +17,7 @@ export default function SellerLayout({
         <Link className="btn-outline" href="/seller/products">
           المنتجات
         </Link>
+        <Link className="btn-outline" href="/seller/sales">المبيعات والأرباح</Link>
         <Link className="btn-outline" href="/seller/settings">
           بيانات المتجر
         </Link>

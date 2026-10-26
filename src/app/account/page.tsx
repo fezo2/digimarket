@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { orderStatusLabels } from "@/lib/order-snapshot";
+import { releaseExpiredOrders } from "@/lib/orders";
 import { formatEGP } from "@/lib/money";
 
 export const metadata = { title: "حسابي" };
 
 export default async function AccountPage() {
   const user = await requireUser("/account");
+  await releaseExpiredOrders();
   const orders = await db.order.findMany({
-    where: { buyerId: user.id, status: { not: "PENDING_PAYMENT" } },
+    where: { buyerId: user.id },
     orderBy: { createdAt: "desc" },
     include: { items: { select: { title: true, quantity: true } } },
   });
@@ -29,9 +32,9 @@ export default async function AccountPage() {
           <ul className="divide-y divide-slate-100">
             {orders.map((o) => (
               <li key={o.id} className="flex items-center justify-between py-3 text-sm">
-                <span>
-                  طلب #{o.number} · {o.items.map((i) => i.title).join("، ")}
-                </span>
+                <Link href={`/account/orders/${o.id}`} className="font-semibold text-brand-600">
+                  طلب #{o.number} · {o.items.map((i) => i.title).join("، ")} · {orderStatusLabels[o.status]}
+                </Link>
                 <span className="font-semibold">{formatEGP(o.total)}</span>
               </li>
             ))}

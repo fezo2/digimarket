@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { formatEGP } from "@/lib/money";
 
+import { quote } from "@/lib/pricing";
+import { buyProduct } from "@/app/(store)/products/[slug]/actions";
+
 type Props = {
+  productId: string;
+  slug: string;
   price: number;
   compareAtPrice: number | null;
   minQty: number;
@@ -19,7 +24,9 @@ type Props = {
   discounts: { minQty: number; percentOff: number }[];
 };
 
-export function ProductPricing({
+export function BuyBox({
+  productId,
+  slug,
   price,
   compareAtPrice,
   minQty,
@@ -28,6 +35,10 @@ export function ProductPricing({
   options,
   discounts,
 }: Props) {
+  const [state, action, pending] = useActionState(
+    buyProduct.bind(null, productId, slug),
+    undefined,
+  );
   const [selected, setSelected] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       options
@@ -36,20 +47,29 @@ export function ProductPricing({
     ),
   );
   const [quantity, setQuantity] = useState(minQty);
-  const unitPrice =
-    price +
-    options.reduce(
-      (sum, o) =>
-        sum + (o.values.find((v) => v.id === selected[o.id])?.priceDelta ?? 0),
-      0,
-    );
-  const discount =
-    discounts
-      .filter((d) => d.minQty <= quantity)
-      .sort((a, b) => b.minQty - a.minQty)[0]?.percentOff ?? 0;
-  const total = Math.round((unitPrice * quantity * (100 - discount)) / 100);
+  let pricing: ReturnType<typeof quote> | undefined;
+  let pricingError = "";
+  try {
+    pricing = quote({
+      basePrice: price,
+      optionDeltas: options.map(
+        (o) => o.values.find((v) => v.id === selected[o.id])?.priceDelta ?? 0,
+      ),
+      quantity,
+      quantityDiscounts: discounts,
+      commissionBps: 0,
+    });
+  } catch {
+    pricingError =
+      "قيمة الطلب أو الاختيارات مش صالحة. قلّل الكمية أو راجع الاختيارات.";
+  }
+  const { unitPrice, quantityDiscount, total } = pricing ?? {
+    unitPrice: price,
+    quantityDiscount: 0,
+    total: 0,
+  };
   return (
-    <div className="space-y-4">
+    <form action={action} className="space-y-4">
       <div className="flex items-baseline gap-3" aria-live="polite">
         <span className="text-2xl font-extrabold text-brand-700">
           {formatEGP(unitPrice)}
@@ -69,6 +89,7 @@ export function ProductPricing({
           {o.kind === "select" ? (
             <select
               id={`option-${o.id}`}
+              name={`${o.kind === "select" ? "select" : "text"}:${o.id}`}
               className="input"
               disabled={!inStock}
               required={o.required}
@@ -89,6 +110,7 @@ export function ProductPricing({
           ) : (
             <input
               id={`option-${o.id}`}
+              name={`${o.kind === "select" ? "select" : "text"}:${o.id}`}
               className="input"
               required={o.required}
               disabled={!inStock}
@@ -102,6 +124,7 @@ export function ProductPricing({
         </label>
         <input
           id="quantity"
+          name="quantity"
           className="input"
           type="number"
           min={minQty}
@@ -119,21 +142,30 @@ export function ProductPricing({
           }}
         />
       </div>
-      {discounts.length > 0 && (
-        <ul className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
-          {discounts.map((d) => (
-            <li key={d.minQty}>
-              اشتري {d.minQty} أو أكتر ووفّر {d.percentOff}%
-            </li>
-          ))}
-        </ul>
+      {quantityDiscount > 0 && (
+        <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
+          خصم الكمية المطبّق: {formatEGP(quantityDiscount)}
+        </p>
       )}
       <p aria-live="polite" className="font-bold">
-        الإجمالي: {formatEGP(total)}
-        {discount > 0 && (
-          <span className="ms-2 text-emerald-700">خصم {discount}% مطبّق</span>
-        )}
+        الإجمالي: {pricing ? formatEGP(total) : "—"}
       </p>
-    </div>
+      {pricingError && (
+        <p role="alert" className="text-red-700">
+          {pricingError}
+        </p>
+      )}
+      {state?.error && (
+        <p role="alert" className="text-red-700">
+          {state.error}
+        </p>
+      )}
+      <button
+        className="btn-primary w-full"
+        disabled={!inStock || pending || !pricing}
+      >
+        {!inStock ? "نفذت الكمية" : pending ? "بنحجز طلبك…" : "اشتري دلوقتي"}
+      </button>
+    </form>
   );
 }

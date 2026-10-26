@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { ProductPricing } from "@/components/product-pricing";
+import { BuyBox } from "@/components/product-pricing";
+import { releaseExpiredOrders } from "@/lib/orders";
 import { SELLER_TIERS } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ const DELIVERY_LABEL = {
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  await releaseExpiredOrders();
   const product = await db.product.findUnique({
     where: { slug: decodeURIComponent(slug) },
     include: {
@@ -26,9 +28,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       _count: { select: { stock: { where: { status: "AVAILABLE" } } } },
     },
   });
-  if (!product || product.status !== "ACTIVE" || !product.salesEnabled) notFound();
+  if (!product || product.status !== "ACTIVE" || !product.salesEnabled || product.seller.kycStatus !== "APPROVED") notFound();
 
-  const inStock = product.deliveryType !== "UNIQUE_CODES" || product._count.stock > 0;
+  const inStock = product.deliveryType !== "UNIQUE_CODES" || product._count.stock >= product.minQty;
   const positive = product.reviews.filter((r) => r.positive).length;
 
   return (
@@ -73,16 +75,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
         <div className="card space-y-4 p-6">
           <h1 className="text-xl font-bold leading-8">{product.title}</h1>
-          <ProductPricing price={product.price} compareAtPrice={product.compareAtPrice} minQty={product.minQty} maxQty={product.maxQty} inStock={inStock} options={product.options.map(o => ({ id: o.id, name: o.name, kind: o.kind, required: o.required, values: o.values.map(v => ({ id: v.id, label: v.label, priceDelta: v.priceDelta })) }))} discounts={product.quantityDiscounts.map(d => ({ minQty: d.minQty, percentOff: d.percentOff }))} />
+          <BuyBox productId={product.id} slug={product.slug} price={product.price} compareAtPrice={product.compareAtPrice} minQty={product.minQty} maxQty={product.maxQty} inStock={inStock} options={product.options.map(o => ({ id: o.id, name: o.name, kind: o.kind, required: o.required, values: o.values.map(v => ({ id: v.id, label: v.label, priceDelta: v.priceDelta })) }))} discounts={product.quantityDiscounts.map(d => ({ minQty: d.minQty, percentOff: d.percentOff }))} />
 
           <p className="text-sm text-slate-600">⚡ {DELIVERY_LABEL[product.deliveryType]}</p>
           {product.deliveryType === "UNIQUE_CODES" && (
             <p className="text-sm text-slate-500">المتاح: {product._count.stock}</p>
           )}
 
-          <button className="btn-primary w-full" disabled>
-            {inStock ? "الشراء هيتفعّل قريب" : "نفذت الكمية"}
-          </button>
+
         </div>
 
         <Link href={`/stores/${product.seller.slug}`} className="card flex items-center gap-3 p-4 hover:border-brand-500">

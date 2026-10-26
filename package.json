@@ -11,7 +11,8 @@
     "db:seed": "prisma db seed",
     "typecheck": "tsc --noEmit",
     "postinstall": "prisma generate",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "test:integration": "node --conditions=react-server --import tsx --test tests/integration/*.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
