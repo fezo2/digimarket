@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { listedProduct } from "@/lib/catalog";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { ProductCard, productCardSelect } from "@/components/product-card";
@@ -30,8 +31,7 @@ export default async function CategoryPage({
   const sortKey = (sort && sort in SORTS ? sort : "popular") as keyof typeof SORTS;
   const products = await db.product.findMany({
     where: {
-      status: "ACTIVE",
-      salesEnabled: true,
+      ...listedProduct,
       categoryId: { in: [category.id, ...category.children.map((c) => c.id)] },
     },
     orderBy: SORTS[sortKey],

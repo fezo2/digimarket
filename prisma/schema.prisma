@@ -86,14 +86,17 @@ enum DisputeStatus {
 }
 
 model User {
-  sessionVersion Int      @default(0)
-  id             String   @id @default(cuid())
-  email          String   @unique
+  sessionVersion Int       @default(0)
+  id             String    @id @default(cuid())
+  email          String    @unique
   name           String
   phone          String?
   passwordHash   String
-  role           Role     @default(BUYER)
-  createdAt      DateTime @default(now())
+  role           Role      @default(BUYER)
+  createdAt      DateTime  @default(now())
+  suspendedAt    DateTime?
+  suspendReason  String?
+  adminNote      String?
 
   seller   SellerProfile?
   orders   Order[]
@@ -124,6 +127,14 @@ model SellerProfile {
   payoutAccount    String?
   payoutHolderName String?
   payoutUpdatedAt  DateTime?
+
+  // Admin controls. Null means the platform default applies.
+  salesSuspendedAt    DateTime?
+  salesSuspendReason  String?
+  payoutsFrozenAt     DateTime?
+  payoutsFrozenReason String?
+  commissionBps       Int?
+  holdDays            Int?
 
   kycSubmissions KycSubmission[]
   products       Product[]
@@ -535,4 +546,15 @@ model ManualPayment {
 
   @@unique([method, reference])
   @@index([status, createdAt])
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  active      Boolean  @default(true)
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@index([active, createdAt])
 }

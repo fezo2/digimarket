@@ -1,4 +1,5 @@
 import { PublicReviews } from "@/components/public-reviews";
+import { isListed } from "@/lib/catalog";
 import { reviewPercent } from "@/lib/community-rules";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -36,13 +37,7 @@ export default async function ProductPage({
       _count: { select: { stock: { where: { status: "AVAILABLE" } } } },
     },
   });
-  if (
-    !product ||
-    product.status !== "ACTIVE" ||
-    !product.salesEnabled ||
-    product.seller.kycStatus !== "APPROVED"
-  )
-    notFound();
+  if (!product || !isListed(product)) notFound();
 
   const inStock =
     product.deliveryType !== "UNIQUE_CODES" ||

@@ -1,4 +1,5 @@
 import "server-only";
+import { isListed } from "./catalog";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { enqueueNotice } from "./notifications";
@@ -80,12 +81,7 @@ export async function createOrder(input: z.input<typeof orderInput>) {
         quantityDiscounts: true,
       },
     });
-    if (
-      !p ||
-      p.status !== "ACTIVE" ||
-      !p.salesEnabled ||
-      p.seller.kycStatus !== "APPROVED"
-    )
+    if (!p || !isListed(p))
       throw new OrderError("المنتج مش متاح للشراء دلوقتي");
     if (p.seller.userId === v.buyerId)
       throw new OrderError("مينفعش تشتري منتج من متجرك");
@@ -149,7 +145,7 @@ export async function createOrder(input: z.input<typeof orderInput>) {
     const q = quote({
       ...pricing,
       quantity: v.quantity,
-      commissionBps: p.category.commissionBps,
+      commissionBps: p.seller.commissionBps ?? p.category.commissionBps,
     });
     const order = await tx.order.create({
       data: {
@@ -166,7 +162,7 @@ export async function createOrder(input: z.input<typeof orderInput>) {
             quantity: v.quantity,
             unitPrice: q.unitPrice,
             total: q.total,
-            commissionBps: p.category.commissionBps,
+            commissionBps: p.seller.commissionBps ?? p.category.commissionBps,
             commissionAmount: q.commission,
             sellerNet: q.sellerNet,
             optionsJson: JSON.stringify({ choices, pricing }),
@@ -331,7 +327,11 @@ export async function markOrderPaid(
       await lockOrder(tx, orderId);
       const order = await tx.order.findUnique({
         where: { id: orderId },
-        include: { items: { include: { seller: { select: { type: true } } } } },
+        include: {
+          items: {
+            include: { seller: { select: { type: true, holdDays: true } } },
+          },
+        },
       });
       if (!order) return;
       if (order.status === "PAID") {
@@ -410,7 +410,11 @@ export async function deliverPaidOrder(
   await lockOrder(tx, orderId);
   const order = await tx.order.findUnique({
     where: { id: orderId },
-    include: { items: { include: { seller: { select: { type: true } } } } },
+    include: {
+      items: {
+        include: { seller: { select: { type: true, holdDays: true } } },
+      },
+    },
   });
   if (!order || order.status !== "PAID")
     return { error: "الطلب مش مدفوع أو اتعالج قبل كده" };
@@ -478,7 +482,9 @@ export async function deliverPaidOrder(
       type: "SALE",
       amount: item.sellerNet,
       availableAt: new Date(
-        now.getTime() + SELLER_TIERS[item.seller.type].holdDays * 86400000,
+        now.getTime() +
+          (item.seller.holdDays ?? SELLER_TIERS[item.seller.type].holdDays) *
+            86400000,
       ),
       orderItemId: item.id,
       note: `طلب #${order.number}`,

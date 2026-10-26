@@ -40,6 +40,12 @@ export async function authenticate(
         return null;
       }
       await tx.loginAttempt.deleteMany({ where: { key: keys[0] } });
+      if (user.suspendedAt)
+        throw new AccountError(
+          "حسابك موقوف من الإدارة" +
+            (user.suspendReason ? `: ${user.suspendReason}` : "") +
+            ". كلّم الدعم.",
+        );
       return user;
     },
     { timeout: 15000 },

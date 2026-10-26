@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { listedProduct } from "@/lib/catalog";
 import { db } from "@/lib/db";
 import { ProductCard, productCardSelect } from "@/components/product-card";
 import { SITE_NAME } from "@/lib/config";
@@ -9,19 +10,19 @@ export default async function HomePage() {
   const [categories, bestSellers, newest, topStores] = await Promise.all([
     db.category.findMany({ where: { parentId: null }, orderBy: { sortOrder: "asc" } }),
     db.product.findMany({
-      where: { status: "ACTIVE", salesEnabled: true },
+      where: listedProduct,
       orderBy: { soldCount: "desc" },
       take: 8,
       select: productCardSelect,
     }),
     db.product.findMany({
-      where: { status: "ACTIVE", salesEnabled: true },
+      where: listedProduct,
       orderBy: { createdAt: "desc" },
       take: 8,
       select: productCardSelect,
     }),
     db.sellerProfile.findMany({
-      where: { kycStatus: "APPROVED" },
+      where: { kycStatus: "APPROVED", salesSuspendedAt: null },
       take: 6,
       orderBy: { products: { _count: "desc" } },
       select: { slug: true, storeName: true, type: true, _count: { select: { products: true } } },
