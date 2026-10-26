@@ -99,6 +99,11 @@ export async function requestPayout(userId: string, amount: number) {
       });
       if (seller.kycStatus !== "APPROVED")
         throw new WalletError("لازم توثيق المتجر يتوافق عليه الأول");
+      if (seller.payoutsFrozenAt)
+        throw new WalletError(
+          "السحب متجمّد من الإدارة" +
+            (seller.payoutsFrozenReason ? `: ${seller.payoutsFrozenReason}` : ""),
+        );
       if (
         !seller.payoutMethod ||
         !seller.payoutAccount ||

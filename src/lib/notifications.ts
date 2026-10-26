@@ -19,7 +19,11 @@ export type NoticeEvent =
   | "payout.rejected"
   | "product.approved"
   | "product.rejected"
-  | "stock.low";
+  | "stock.low"
+  | "sales.suspended"
+  | "sales.resumed"
+  | "payouts.frozen"
+  | "payouts.unfrozen";
 const labels: Record<NoticeEvent, string> = {
   sale: "طلب مدفوع جديد",
   chat: "رسالة جديدة على طلب",
@@ -30,6 +34,10 @@ const labels: Record<NoticeEvent, string> = {
   "product.approved": "المنتج اتوافق عليه",
   "product.rejected": "المنتج اترفض",
   "stock.low": "مخزون المنتج قرب يخلص",
+  "sales.suspended": "الإدارة وقفت البيع في متجرك",
+  "sales.resumed": "الإدارة رجّعت البيع في متجرك",
+  "payouts.frozen": "الإدارة جمّدت السحب من متجرك",
+  "payouts.unfrozen": "الإدارة فكّت تجميد السحب",
 };
 export async function enqueueNotice(
   tx: Prisma.TransactionClient,

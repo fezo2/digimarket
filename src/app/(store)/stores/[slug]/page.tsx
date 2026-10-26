@@ -23,6 +23,8 @@ export default async function StorePage({
     },
   });
   if (!store || store.kycStatus !== "APPROVED") notFound();
+  // A suspended store keeps its page but lists nothing until the admin lifts it.
+  if (store.salesSuspendedAt) store.products = [];
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">

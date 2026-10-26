@@ -55,6 +55,12 @@ export default async function WalletPage({
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
       <h1 className="text-2xl font-bold">المحفظة</h1>
+      {seller.payoutsFrozenAt && (
+        <p role="alert" className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
+          الإدارة جمّدت السحب من متجرك: {seller.payoutsFrozenReason}. كلّم الدعم
+          عشان تحل المشكلة.
+        </p>
+      )}
       <p className="card p-4">مبلغ مجمّد بسبب شكوى: {formatEGP(frozen)}</p>
       <BalanceCards
         frozen={frozen}

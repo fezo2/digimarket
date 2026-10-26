@@ -65,7 +65,9 @@ export async function getCurrentUser() {
     where: { id: session.userId },
     include: { seller: true },
   });
-  return user && sessionIsCurrent(session.sessionVersion, user.sessionVersion)
+  return user &&
+    !user.suspendedAt &&
+    sessionIsCurrent(session.sessionVersion, user.sessionVersion)
     ? user
     : null;
 }

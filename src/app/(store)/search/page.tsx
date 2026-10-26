@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { listedProduct } from "@/lib/catalog";
 import { ProductCard, productCardSelect } from "@/components/product-card";
 
 export const dynamic = "force-dynamic";
@@ -8,8 +9,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const products = q
     ? await db.product.findMany({
         where: {
-          status: "ACTIVE",
-          salesEnabled: true,
+          ...listedProduct,
           OR: [
             { title: { contains: q, mode: "insensitive" } },
             { seller: { storeName: { contains: q, mode: "insensitive" } } },

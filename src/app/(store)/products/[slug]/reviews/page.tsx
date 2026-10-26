@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { listedProduct } from "@/lib/catalog";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { reviewPercent } from "@/lib/community-rules";
@@ -18,9 +19,7 @@ export default async function Page({
   const product = await db.product.findFirst({
     where: {
       slug,
-      status: "ACTIVE",
-      salesEnabled: true,
-      seller: { kycStatus: "APPROVED" },
+      ...listedProduct,
     },
     select: {
       id: true,
