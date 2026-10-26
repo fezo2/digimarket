@@ -17,12 +17,35 @@ const KYC_BANNER = {
 export default async function SellerDashboard() {
   const { seller } = await requireSeller();
   const tier = SELLER_TIERS[seller.type];
-  const [balance, productCount, soldItems, news] = await Promise.all([
+  const since = new Date(Date.now() - 29 * 86400000);
+  since.setHours(0, 0, 0, 0);
+  const [balance, productCount, soldItems, news, daily, refunds, top] = await Promise.all([
     sellerBalance(seller.id),
     db.product.count({ where: { sellerId: seller.id } }),
     db.orderItem.aggregate({ where: { sellerId: seller.id, order: { status: "PAID" } }, _sum: { quantity: true } }),
     db.announcement.findMany({ where: { active: true }, orderBy: { createdAt: "desc" }, take: 3 }),
+    db.$queryRaw<{ day: Date; net: bigint; count: bigint }[]>`
+      SELECT date_trunc('day', o."paidAt") AS day, SUM(i."sellerNet")::bigint AS net, COUNT(*)::bigint AS count
+      FROM "OrderItem" i JOIN "Order" o ON o.id = i."orderId"
+      WHERE i."sellerId" = ${seller.id} AND o.status = 'PAID' AND o."paidAt" >= ${since}
+      GROUP BY 1 ORDER BY 1`,
+    db.dispute.count({ where: { status: "RESOLVED_REFUND", orderItem: { sellerId: seller.id } } }),
+    db.orderItem.groupBy({
+      by: ["productId", "title"],
+      where: { sellerId: seller.id, order: { status: "PAID", paidAt: { gte: since } } },
+      _sum: { quantity: true, sellerNet: true },
+      orderBy: { _sum: { sellerNet: "desc" } },
+      take: 5,
+    }),
   ]);
+  const days = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(since.getTime() + i * 86400000);
+    const row = daily.find((r) => new Date(r.day).toDateString() === d.toDateString());
+    return { d, net: Number(row?.net ?? 0), count: Number(row?.count ?? 0) };
+  });
+  const max = Math.max(1, ...days.map((d) => d.net));
+  const monthNet = days.reduce((a, d) => a + d.net, 0);
+  const reviews = seller.positiveReviews + seller.negativeReviews;
   const banner = KYC_BANNER[seller.kycStatus];
 
   return (
@@ -67,6 +90,40 @@ export default async function SellerDashboard() {
         <Stat label="المنتجات" value={productCount.toLocaleString("ar-EG")} hint={`الحد: ${tier.maxActiveProducts.toLocaleString("ar-EG")}`} />
         <Stat label="قطع مباعة" value={(soldItems._sum.quantity ?? 0).toLocaleString("ar-EG")} />
       </div>
+
+      <div className="grid gap-4 sm:grid-cols-4">
+        <Stat label="صافي آخر ٣٠ يوم" value={formatEGP(monthNet)} />
+        <Stat label="تقييمات إيجابية" value={`${seller.positiveReviews.toLocaleString("ar-EG")} 👍`} />
+        <Stat label="تقييمات سلبية" value={`${seller.negativeReviews.toLocaleString("ar-EG")} 👎`} hint={reviews ? `نسبة الرضا ${Math.round((seller.positiveReviews / reviews) * 100).toLocaleString("ar-EG")}٪` : undefined} />
+        <Stat label="شكاوى اترد فلوسها" value={refunds.toLocaleString("ar-EG")} />
+      </div>
+
+      <div className="card p-4">
+        <p className="mb-3 text-sm text-slate-500">صافي المبيعات آخر ٣٠ يوم</p>
+        <div className="flex h-40 items-end gap-0.5" dir="ltr">
+          {days.map(({ d, net, count }) => (
+            <div key={d.toISOString()} className="flex flex-1 flex-col items-center gap-1" title={`${d.toLocaleDateString("ar-EG")}: ${formatEGP(net)} · ${count} طلب`}>
+              <div className="w-full rounded-t bg-brand-500" style={{ height: `${Math.max(2, (net / max) * 100)}%` }} />
+              <span className="text-[9px] text-slate-500">{d.getDate()}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {top.length > 0 && (
+        <div className="card p-4">
+          <p className="mb-2 font-bold">الأكثر مبيعاً آخر ٣٠ يوم</p>
+          <div className="divide-y text-sm">
+            {top.map((t) => (
+              <div key={t.productId} className="flex gap-3 py-2">
+                <span className="flex-1">{t.title}</span>
+                <span>{(t._sum.quantity ?? 0).toLocaleString("ar-EG")} قطعة</span>
+                <span className="font-semibold">{formatEGP(t._sum.sellerNet ?? 0)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-3"><Link className="btn-primary" href="/seller/products">إدارة المنتجات</Link><Link className="btn-outline" href="/seller/sales">المبيعات والأرباح</Link></div>
     </div>

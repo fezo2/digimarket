@@ -3,13 +3,16 @@ import { readChat } from "@/lib/chat";
 import { ParticipantError } from "@/lib/community-error";
 import { ActionForm } from "./action-form";
 import { ChatRefresh } from "./chat-refresh";
+import { ReplyPicker } from "./reply-picker";
 import { sendChat } from "@/app/account/orders/[id]/actions";
 export async function OrderChat({
   orderId,
   userId,
+  replies = [],
 }: {
   orderId: string;
   userId: string;
+  replies?: { id: string; title: string; body: string }[];
 }) {
   const chat = await readChat(userId, orderId).catch((error) => {
     if (error instanceof ParticipantError) notFound();
@@ -58,6 +61,7 @@ export async function OrderChat({
           button="ابعت الرسالة"
         >
           <input type="hidden" name="orderId" value={orderId} />
+          <ReplyPicker replies={replies} />
           <label className="label">
             الرسالة
             <textarea className="input" name="body" required maxLength={2000} />
