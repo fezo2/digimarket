@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "./db";
 import { quote } from "./pricing";
+import { formatEGP } from "./money";
 import { readOrderSnapshot } from "./order-snapshot";
 import { SELLER_TIERS } from "./config";
 
@@ -18,6 +19,13 @@ const orderInput = z.object({
 
 async function lockOrder(tx: Tx, id: string) {
   await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${id} FOR UPDATE`;
+}
+
+async function releaseOrderStock(tx: Tx, orderId: string) {
+  await tx.stockItem.updateMany({
+    where: { status: "RESERVED", orderItem: { orderId } },
+    data: { status: "AVAILABLE", orderItemId: null },
+  });
 }
 
 async function reserveStock(
@@ -108,6 +116,25 @@ export async function createOrder(input: z.input<typeof orderInput>) {
         if (value) choices.push({ name: o.name, value });
       }
     }
+    // Serialize all checkout attempts by this buyer before checking either limit.
+    await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${v.buyerId} FOR UPDATE`;
+    const pending = {
+      buyerId: v.buyerId,
+      status: "PENDING_PAYMENT" as const,
+      expiresAt: { gt: new Date() },
+    };
+    if (
+      await tx.order.count({
+        where: { ...pending, items: { some: { productId: p.id } } },
+      })
+    )
+      throw new OrderError(
+        "عندك طلب مستني الدفع للمنتج ده، كمّل دفعه أو استنى انتهاء مدته",
+      );
+    if ((await tx.order.count({ where: pending })) >= 3)
+      throw new OrderError(
+        "مسموح بـ ٣ طلبات مستنية الدفع بس، كمّل دفع طلب أو استنى انتهاء مدته",
+      );
     const pricing = {
       basePrice: p.price,
       optionDeltas: deltas,
@@ -207,6 +234,18 @@ export async function applyCoupon(
         throw new OrderError("الكوبون وصل للحد الأقصى للاستخدام");
     }
     const snapshot = readOrderSnapshot(item.optionsJson);
+    const beforeCoupon = quote({
+      ...snapshot.pricing,
+      quantity: item.quantity,
+      commissionBps: item.commissionBps,
+    });
+    if (
+      coupon &&
+      beforeCoupon.subtotal - beforeCoupon.quantityDiscount < coupon.minTotal
+    )
+      throw new OrderError(
+        `الحد الأدنى لاستخدام الكوبون هو ${formatEGP(coupon.minTotal)} بعد خصم الكمية`,
+      );
     const q = quote({
       ...snapshot.pricing,
       quantity: item.quantity,
@@ -287,7 +326,17 @@ export async function markOrderPaid(
         where: { id: orderId },
         include: { items: { include: { seller: { select: { type: true } } } } },
       });
-      if (!order || order.status === "PAID") return;
+      if (!order) return;
+      if (order.status === "PAID") {
+        if (
+          order.paymentProvider !== payment.provider ||
+          order.paymentRef !== payment.reference
+        )
+          console.error("Duplicate payment on paid order; refund required", {
+            orderId,
+          });
+        return;
+      }
       if (order.paymentProvider && order.paymentProvider !== payment.provider) {
         console.error(
           "Payment provider mismatch; order requires admin review",
@@ -328,6 +377,7 @@ export async function markOrderPaid(
       });
       if (!changed.count) return;
       if (payment.amount !== order.total) {
+        await releaseOrderStock(tx, orderId);
         console.error(
           "Payment amount mismatch: PAID but NOT delivered; admin review required",
           { orderId, expected: order.total, received: payment.amount },
@@ -336,6 +386,7 @@ export async function markOrderPaid(
       }
       const item = order.items[0];
       if (!item) {
+        await releaseOrderStock(tx, orderId);
         console.error("Paid order has no item; admin review required", {
           orderId,
         });
@@ -350,6 +401,7 @@ export async function markOrderPaid(
           coupon.usageLimit !== null &&
           coupon.usedCount >= coupon.usageLimit
         ) {
+          await releaseOrderStock(tx, orderId);
           console.error(
             "Paid order coupon exhausted; NOT delivered, admin review required",
             { orderId },
@@ -366,10 +418,7 @@ export async function markOrderPaid(
           needed < 0 ||
           (await reserveStock(tx, item.id, item.productId, needed)) !== needed
         ) {
-          await tx.stockItem.updateMany({
-            where: { orderItemId: item.id, status: "RESERVED" },
-            data: { status: "AVAILABLE", orderItemId: null },
-          });
+          await releaseOrderStock(tx, orderId);
           console.error(
             "Paid order has insufficient stock; NOT delivered, admin refund required",
             { orderId },
@@ -381,6 +430,7 @@ export async function markOrderPaid(
           data: { status: "SOLD", soldAt: now },
         });
       } else if (!item.deliveryContent) {
+        await releaseOrderStock(tx, orderId);
         console.error(
           "Paid order has no delivery snapshot; NOT delivered, admin review required",
           { orderId },

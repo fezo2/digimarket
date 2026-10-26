@@ -128,6 +128,169 @@ test("checkout transactions and payment security against PostgreSQL", async (t) 
         where: { id },
         include: { items: { include: { stockItems: true, ledger: true } } },
       });
+    await t.test(
+      "buyer limits serialize concurrent attempts and ignore expired orders",
+      async () => {
+        const limitedBuyer = await db.user.create({
+          data: {
+            email: `${key}-limited@test.local`,
+            name: "Limit test",
+            passwordHash: "test-only",
+          },
+        });
+        users.push(limitedBuyer.id);
+        const fixtures = [];
+        for (let i = 0; i < 4; i++) {
+          const p = await db.product.create({
+            data: {
+              sellerId: seller.id,
+              categoryId,
+              slug: `${key}-limit-${i}`,
+              title: "Limit test",
+              description: "Test",
+              status: "ACTIVE",
+              price: 10000,
+              deliveryType: "UNIQUE_CODES",
+              stock: {
+                create: [
+                  { content: `${key}-${i}-a` },
+                  { content: `${key}-${i}-b` },
+                ],
+              },
+            },
+          });
+          products.push(p.id);
+          fixtures.push({
+            ...input,
+            buyerId: limitedBuyer.id,
+            productId: p.id,
+            quantity: 1,
+            selections: {},
+          });
+        }
+        const same = await Promise.allSettled([
+          createOrder(fixtures[0]),
+          createOrder(fixtures[0]),
+        ]);
+        assert.equal(same.filter((r) => r.status === "fulfilled").length, 1);
+        assert.match(
+          (same.find((r) => r.status === "rejected") as PromiseRejectedResult)
+            .reason.message,
+          /عندك طلب مستني الدفع للمنتج ده/,
+        );
+        await createOrder(fixtures[1]);
+        const overall = await Promise.allSettled([
+          createOrder(fixtures[2]),
+          createOrder(fixtures[3]),
+        ]);
+        assert.equal(overall.filter((r) => r.status === "fulfilled").length, 1);
+        assert.match(
+          (
+            overall.find(
+              (r) => r.status === "rejected",
+            ) as PromiseRejectedResult
+          ).reason.message,
+          /٣ طلبات/,
+        );
+        assert.equal(
+          await db.order.count({
+            where: { buyerId: limitedBuyer.id, status: "PENDING_PAYMENT" },
+          }),
+          3,
+        );
+        assert.equal(
+          await db.stockItem.count({
+            where: {
+              productId: { in: fixtures.map((p) => p.productId) },
+              status: "RESERVED",
+            },
+          }),
+          3,
+        );
+        const first = (
+          same.find((r) => r.status === "fulfilled") as PromiseFulfilledResult<{
+            id: string;
+          }>
+        ).value;
+        await db.order.update({
+          where: { id: first.id },
+          data: { expiresAt: new Date(Date.now() - 60000) },
+        });
+        await createOrder(fixtures[0]);
+        assert.equal((await getOrder(first.id)).status, "CANCELLED");
+        assert.equal(
+          await db.order.count({
+            where: { buyerId: limitedBuyer.id, status: "PENDING_PAYMENT" },
+          }),
+          3,
+        );
+      },
+    );
+    await t.test(
+      "coupon minimum uses discounted snapshot; exhausted coupon releases reserved stock",
+      async () => {
+        const order = await createOrder({ ...input, buyerId: buyer2.id });
+        const reservedIds = (await getOrder(order.id)).items[0].stockItems.map(
+          (s) => s.id,
+        );
+        const coupon = await db.coupon.create({
+          data: {
+            code: `${key}-minimum`,
+            percentOff: 10,
+            minTotal: 23000,
+            usageLimit: 1,
+          },
+        });
+        coupons.push(coupon.id);
+        const { formatEGP } = await import("../../src/lib/money");
+        await assert.rejects(
+          applyCoupon(order.id, buyer2.id, coupon.code),
+          (err: unknown) => {
+            assert.ok(err instanceof Error);
+            assert.ok(err.message.includes(formatEGP(23000)));
+            assert.match(err.message, /الحد الأدنى/);
+            return true;
+          },
+        );
+        const unchanged = await getOrder(order.id);
+        assert.equal(unchanged.total, 22800);
+        assert.equal(unchanged.couponId, null);
+        await db.coupon.update({
+          where: { id: coupon.id },
+          data: { minTotal: 22800 },
+        });
+        await applyCoupon(order.id, buyer2.id, coupon.code);
+        assert.equal((await getOrder(order.id)).total, 20520);
+        await db.coupon.update({
+          where: { id: coupon.id },
+          data: { usedCount: 1 },
+        });
+        await markOrderPaid(order.id, {
+          provider: "test",
+          reference: `${key}-exhausted`,
+          amount: 20520,
+        });
+        const paid = await getOrder(order.id);
+        assert.equal(paid.status, "PAID");
+        assert.equal(paid.items[0].deliveredAt, null);
+        assert.equal(paid.items[0].ledger.length, 0);
+        assert.equal(paid.items[0].stockItems.length, 0);
+        const released = await db.stockItem.findMany({
+          where: { id: { in: reservedIds } },
+        });
+        assert.equal(released.length, 2);
+        assert.ok(
+          released.every(
+            (s) => s.status === "AVAILABLE" && s.orderItemId === null,
+          ),
+        );
+        assert.equal(
+          (await db.coupon.findUniqueOrThrow({ where: { id: coupon.id } }))
+            .usedCount,
+          1,
+        );
+      },
+    );
     let paidId = "";
     await t.test(
       "snapshot price, concurrent payment idempotency, stock and 3-day held earnings",
@@ -170,6 +333,42 @@ test("checkout transactions and payment security against PostgreSQL", async (t) 
             .soldCount,
           2,
         );
+      },
+    );
+    await t.test(
+      "same payment retry is silent; a different payment logs refund alert without side effects",
+      async (t) => {
+        const before = await getOrder(paidId);
+        const soldBefore = (
+          await db.product.findUniqueOrThrow({ where: { id: product.id } })
+        ).soldCount;
+        const errors = t.mock.method(console, "error", () => {});
+        try {
+          await markOrderPaid(paidId, {
+            provider: "test",
+            reference: `${key}-paid`,
+            amount: 22800,
+          });
+          assert.equal(errors.mock.callCount(), 0);
+          await markOrderPaid(paidId, {
+            provider: "test",
+            reference: `${key}-second-payment`,
+            amount: 22800,
+          });
+          assert.equal(errors.mock.callCount(), 1);
+          assert.deepEqual(errors.mock.calls[0].arguments, [
+            "Duplicate payment on paid order; refund required",
+            { orderId: paidId },
+          ]);
+          assert.deepEqual(await getOrder(paidId), before);
+          assert.equal(
+            (await db.product.findUniqueOrThrow({ where: { id: product.id } }))
+              .soldCount,
+            soldBefore,
+          );
+        } finally {
+          errors.mock.restore();
+        }
       },
     );
     await t.test(
@@ -258,6 +457,9 @@ test("checkout transactions and payment security against PostgreSQL", async (t) 
       "wrong amount records paid without delivery or ledger; reference replay rejected",
       async () => {
         const order = await createOrder(input);
+        const reservedIds = (await getOrder(order.id)).items[0].stockItems.map(
+          (s) => s.id,
+        );
         await markOrderPaid(order.id, {
           provider: "test",
           reference: key + "-mismatch",
@@ -267,6 +469,16 @@ test("checkout transactions and payment security against PostgreSQL", async (t) 
         assert.equal(paid.status, "PAID");
         assert.equal(paid.items[0].deliveredAt, null);
         assert.equal(paid.items[0].ledger.length, 0);
+        assert.equal(paid.items[0].stockItems.length, 0);
+        const released = await db.stockItem.findMany({
+          where: { id: { in: reservedIds } },
+        });
+        assert.equal(released.length, 2);
+        assert.ok(
+          released.every(
+            (s) => s.status === "AVAILABLE" && s.orderItemId === null,
+          ),
+        );
         const replay = await createOrder(input);
         await markOrderPaid(replay.id, {
           provider: "test",
@@ -472,11 +684,12 @@ test("checkout transactions and payment security against PostgreSQL", async (t) 
         assert.equal((await POST(request(obj, "invalid"))).status, 401);
         const another = await createOrder({
           ...input,
+          buyerId: buyer2.id,
           productId: p.id,
           quantity: 1,
           selections: {},
         });
-        await preparePayment(another.id, buyer.id, "paymob");
+        await preparePayment(another.id, buyer2.id, "paymob");
         assert.equal(
           (
             await POST(
