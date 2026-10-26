@@ -5,15 +5,19 @@ import { ledgerLabels } from "@/lib/ledger";
 export function BalanceCards({
   balance,
   nextAt,
+  frozen = 0,
 }: {
   balance: { available: number; held: number; total: number };
   nextAt?: Date | null;
+  frozen?: number;
 }) {
   return (
     <div className="grid gap-4 sm:grid-cols-3">
       <div className="card p-5">
         الرصيد المتاح للسحب
-        <p className="text-xl font-bold">{formatEGP(balance.available)}</p>
+        <p className="text-xl font-bold">
+          {formatEGP(balance.available - frozen)}
+        </p>
       </div>
       <div className="card p-5">
         رصيد معلّق<p className="text-xl font-bold">{formatEGP(balance.held)}</p>

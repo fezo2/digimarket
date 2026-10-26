@@ -13,6 +13,12 @@ export default async function AdminLayout({
         <Link href="/admin" className="btn-outline">
           نظرة عامة
         </Link>
+        <Link className="btn-outline" href="/admin/disputes">
+          الشكاوى
+        </Link>
+        <Link className="btn-outline" href="/admin/reviews">
+          التقييمات
+        </Link>
         <Link href="/admin/payouts" className="btn-outline">
           طلبات السحب
         </Link>

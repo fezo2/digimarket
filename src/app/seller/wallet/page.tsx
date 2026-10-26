@@ -1,3 +1,4 @@
+import { frozenAmount } from "@/lib/dispute-balance";
 import Link from "next/link";
 import { requireSeller } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -36,6 +37,7 @@ export default async function WalletPage({
       orderBy: { createdAt: "desc" },
     }),
   ]);
+  const frozen = await frozenAmount(seller.id, db);
   const now = new Date();
   const future = new Map<number, number>();
   for (const e of all)
@@ -53,7 +55,9 @@ export default async function WalletPage({
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
       <h1 className="text-2xl font-bold">المحفظة</h1>
+      <p className="card p-4">مبلغ مجمّد بسبب شكوى: {formatEGP(frozen)}</p>
       <BalanceCards
+        frozen={frozen}
         balance={computeBalance(all, now)}
         nextAt={next ? new Date(next[0]) : null}
       />

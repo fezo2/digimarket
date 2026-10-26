@@ -1,3 +1,5 @@
+import { OrderChat } from "@/components/order-chat";
+import { PurchaseFeedback } from "@/components/purchase-feedback";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
@@ -121,6 +123,10 @@ export default async function OrderPage({
           </section>
         );
       })}
+      <PurchaseFeedback orderId={id} userId={user.id} />
+      {["PAID", "REFUNDED"].includes(order.status) && (
+        <OrderChat orderId={id} userId={user.id} />
+      )}
       <Link href="/account" className="btn-outline">
         كل طلباتي
       </Link>
