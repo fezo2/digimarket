@@ -1,0 +1,56 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: digimarket_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:ci-only@localhost:5432/digimarket_test
+      DIRECT_URL: postgresql://postgres:ci-only@localhost:5432/digimarket_test
+      TEST_DATABASE_URL: postgresql://postgres:ci-only@localhost:5432/digimarket_test
+      AUTH_SECRET: ci-dummy-auth-secret-at-least-32-characters
+      APP_URL: https://example.test
+      PAYMENT_PROVIDER: paymob
+      PAYMOB_SECRET_KEY: ci-dummy
+      PAYMOB_PUBLIC_KEY: ci-dummy
+      PAYMOB_HMAC_SECRET: ci-dummy
+      PAYMOB_INTEGRATION_IDS: "1"
+      STORAGE_DRIVER: r2
+      R2_ACCOUNT_ID: cidummy
+      R2_ACCESS_KEY_ID: ci-dummy
+      R2_SECRET_ACCESS_KEY: ci-dummy
+      R2_BUCKET: ci-dummy
+      CRON_SECRET: ci-dummy-cron-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma migrate deploy
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm test
+      - run: npm run test:integration
+        env:
+          STORAGE_DRIVER: local
+          PAYMENT_PROVIDER: test
+      - run: npm run build

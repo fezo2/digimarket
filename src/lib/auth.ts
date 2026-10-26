@@ -3,8 +3,14 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT } from "jose";
 import bcrypt from "bcryptjs";
+import { sessionIsCurrent } from "./account-security";
 import { db } from "./db";
-import { SESSION_COOKIE as COOKIE, authSecret, readSessionToken, type Session } from "./session-token";
+import {
+  SESSION_COOKIE as COOKIE,
+  authSecret,
+  readSessionToken,
+  type Session,
+} from "./session-token";
 
 const MAX_AGE = 60 * 60 * 24 * 30;
 
@@ -17,7 +23,19 @@ export async function verifyPassword(password: string, hash: string) {
 }
 
 export async function createSession(session: Session) {
-  const token = await new SignJWT(session)
+  const user = await db.user.findUniqueOrThrow({
+    where: { id: session.userId },
+    select: { sessionVersion: true },
+  });
+  if (
+    session.sessionVersion !== undefined &&
+    session.sessionVersion !== user.sessionVersion
+  )
+    redirect("/login");
+  const token = await new SignJWT({
+    ...session,
+    sessionVersion: user.sessionVersion,
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE}s`)
@@ -43,10 +61,13 @@ export async function getSession() {
 export async function getCurrentUser() {
   const session = await getSession();
   if (!session) return null;
-  return db.user.findUnique({
+  const user = await db.user.findUnique({
     where: { id: session.userId },
     include: { seller: true },
   });
+  return user && sessionIsCurrent(session.sessionVersion, user.sessionVersion)
+    ? user
+    : null;
 }
 
 export async function requireUser(next = "/") {

@@ -4,6 +4,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { enqueueNotice } from "./notifications";
 import { db } from "./db";
 import { sellerBalance } from "./ledger";
 import { MIN_PAYOUT } from "./config";
@@ -192,6 +193,12 @@ export async function processPayout(
       actorId,
       status === "PAID" ? "payout.paid" : "payout.rejected",
       payoutId,
+      { amount: payout.amount },
+    );
+    await enqueueNotice(
+      tx,
+      payout.sellerId,
+      status === "PAID" ? "payout.paid" : "payout.rejected",
       { amount: payout.amount },
     );
     return true;

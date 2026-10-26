@@ -1,6 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { enqueueNotice } from "./notifications";
 import { db } from "./db";
 import { quote } from "./pricing";
 import { formatEGP } from "./money";
@@ -44,7 +45,7 @@ export async function releaseExpiredOrders() {
   return db.$transaction(async (tx) => {
     const now = new Date();
     const expired = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Order"
-      WHERE status = 'PENDING_PAYMENT' AND "expiresAt" < (${now}::timestamptz AT TIME ZONE 'UTC') FOR UPDATE SKIP LOCKED`;
+      WHERE status = 'PENDING_PAYMENT' AND "expiresAt" < (${now}::timestamptz AT TIME ZONE 'UTC') ORDER BY "createdAt" LIMIT 100 FOR UPDATE SKIP LOCKED`;
     if (!expired.length) return 0;
     const ids = expired.map((o) => o.id);
     await tx.stockItem.updateMany({
@@ -481,5 +482,21 @@ export async function deliverPaidOrder(
     where: { id: orderId, status: "PAID" },
     data: { reviewReason: null },
   });
+  await enqueueNotice(tx, item.sellerId, "sale", {
+    orderId: order.id,
+    orderNumber: order.number,
+    title: item.title,
+    amount: order.total,
+  });
+  if (
+    item.deliveryType === "UNIQUE_CODES" &&
+    (await tx.stockItem.count({
+      where: { productId: item.productId, status: "AVAILABLE" },
+    })) <= 3
+  )
+    await enqueueNotice(tx, item.sellerId, "stock.low", {
+      productId: item.productId,
+      title: item.title,
+    });
   return { delivered: true };
 }

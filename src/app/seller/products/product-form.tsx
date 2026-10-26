@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState, useRef } from "react";
-import { saveProduct } from "./actions";
+import { prepareUploads } from "@/lib/upload-form";
+import { saveProduct, type State } from "./actions";
 import { deliveryLabels } from "@/lib/product-input";
 
 type Option = {
@@ -37,7 +38,22 @@ export function ProductForm({
   defaults?: Defaults;
 }) {
   const intentRef = useRef<HTMLInputElement>(null);
-  const [state, action, pending] = useActionState(saveProduct, undefined);
+  const [state, action, pending] = useActionState(
+    async (state: State, form: FormData) => {
+      try {
+        await prepareUploads(
+          form,
+          "product",
+          ["deliveryFile"],
+          defaults?.id ?? "",
+        );
+      } catch {
+        return { error: "رفع الملف فشل، جرّب تاني" };
+      }
+      return saveProduct(state, form);
+    },
+    undefined,
+  );
   const [type, setType] = useState(defaults?.deliveryType ?? "UNIQUE_CODES");
   const [options, setOptions] = useState<Option[]>(defaults?.options ?? []);
   const [discounts, setDiscounts] = useState<Discount[]>(

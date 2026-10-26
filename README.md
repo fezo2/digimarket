@@ -9,7 +9,7 @@ A multi-vendor marketplace for digital products in Egypt, with mandatory seller 
 المتطلبات: Node.js 20+ و PostgreSQL.
 
 ```bash
-cp .env.example .env        # عدّل DATABASE_URL و AUTH_SECRET
+cp .env.example .env        # عدّل DATABASE_URL و DIRECT_URL و AUTH_SECRET
 npm install
 npm run db:migrate          # ينشئ الجداول
 npm run db:seed             # أقسام + حسابات تجريبية
@@ -90,3 +90,31 @@ npm run test:integration
 - الشكوى خلال ٧ أيام من التسليم. الأرباح المتاحة للعنصر بتتجمّد لحد الإغلاق أو قرار الإدارة، والمتاح للسحب في المحفظة بيخصم التجميد. فحص السحب جوه قفل التاجر الحالي؛ مفيش رصيد مخزّن أو تعديل لحركة مالية قديمة.
 - رد الفلوس من الشكوى بيسجل استرداد اتعمل خارج الموقع، باستخدام نفس `refundOrder` من المرحلة ٤، في معاملة واحدة مع قرار الشكوى والتدقيق ورسالة النظام. رفض الشكوى أو إغلاقها من المشتري بيفك التجميد تلقائياً.
 - اختبارات التكامل بتغطي الصلاحيات والصور الخاصة، حد الرسائل والتزامن، عدادات التقييمات، فتح الشكاوى بالتوازي، السحب مع التجميد، عدم تكرار الاسترداد، ومنع الشكاوى بعد ٣ قرارات رفض خلال ٩٠ يوم.
+
+
+## Production database / قاعدة بيانات الإنتاج
+
+استخدم PostgreSQL مُدار (Neon أو Supabase)، وخلّي `DATABASE_URL` رابط الـ pooler للتطبيق و`DIRECT_URL` الرابط المباشر للترحيلات. محلياً الاتنين ممكن يبقوا نفس الرابط. قبل كل نشر شغّل `npx prisma migrate deploy` على الرابط المباشر، وفعّل الاسترجاع لنقطة زمنية أو النسخ الاحتياطي اليومي. اختبر استرجاع نسخة في قاعدة منفصلة. الأقفال في التطبيق داخل المعاملة فقط؛ مفيش session advisory locks ولا اعتماد على session SET.
+
+Use a managed PostgreSQL database, a pooled application URL, and a direct migration URL. Run migrations before every deploy, enable PITR/daily backups, and rehearse restores in a separate database. Interactive transactions use transaction-scoped locks and work with transaction pooling.
+
+## دليل الإطلاق / Launch runbook
+
+1. **قاعدة البيانات / Database:** أنشئ Neon أو Supabase، اضبط `DATABASE_URL` و`DIRECT_URL` وشغّل `npx prisma migrate deploy`. Create the database, configure pooled/direct URLs, then apply migrations before deploying.
+2. **التخزين / Storage:** أنشئ bucket خاص في R2 من غير public access، وAPI token بصلاحية قراءة/كتابة للبكت ده فقط. اضبط متغيرات `R2_*` و`STORAGE_DRIVER=r2`. Add a lifecycle rule for the `pending/` prefix to expire objects after **1 day**. Configure bucket CORS for the exact app origin, methods PUT/GET/HEAD, allowed headers Content-Type, and expose ETag; do not allow unrelated origins. Never put secrets or signed URLs into database rows, analytics or logs. Final objects retain private keys only.
+3. **الاستضافة / Hosting:** أنشئ مشروع Vercel من الريبو وأضف كل متغيرات `.env.example` بقيم حقيقية في إعدادات المشروع فقط. استخدم `PAYMENT_PROVIDER=paymob` بمفاتيح اختبار الأول. Configure Node 22, a long random AUTH_SECRET and CRON_SECRET, HTTPS APP_URL, and R2. `vercel.json` only has daily safety-net crons, because Vercel Hobby rejects anything more frequent. Frequent jobs run from an external scheduler (for example cron-job.org, free): create two GET jobs with the header `Authorization: Bearer <CRON_SECRET>`: `<APP_URL>/api/cron/send-notifications` every minute and `<APP_URL>/api/cron/release-expired-orders` every 5 minutes. On Vercel Pro you may move them back into `vercel.json`. Vercel Hobby is for non-commercial use; switch to Pro before taking real orders. Runtime validation fails closed on incomplete production settings.
+4. **Paymob callbacks:** transaction processed callback → `<APP_URL>/api/payments/paymob/webhook`، response callback → `<APP_URL>/api/payments/paymob/return`. Browser redirects are never proof of payment.
+5. **تليجرام / Telegram:** أنشئ البوت من BotFather، واضبط `TELEGRAM_BOT_TOKEN` و`TELEGRAM_BOT_USERNAME` (من غير @) و`TELEGRAM_WEBHOOK_SECRET`. Call Telegram `setWebhook` securely with `url=<APP_URL>/api/telegram/webhook` and `secret_token=<TELEGRAM_WEBHOOK_SECRET>`; keep the token out of shell history/logs. التاجر يفتح إعدادات المتجر ويضغط «اربط تليجرام»، وبعدها Start في البوت خلال ١٥ دقيقة. Existing free-text chat IDs are cleared by the launch migration and must be linked again. Leave all three settings empty to hide this feature.
+6. **الإيميل / Email:** وثّق الدومين في Resend واضبط `RESEND_API_KEY` و`EMAIL_FROM`. Leave both empty to hide password recovery. In development only, reset links are written to the local server console instead of being sent; treat that console as private. Production never logs reset tokens. Password reset revokes old sessions and restarts the seller's 24-hour payout lock.
+7. **تجربة قبل الإطلاق / Smoke test:** بمفاتيح وكروت Paymob التجريبية اشتري منتج أكواد ومنتج ملف (جرّب ZIP بحجم ٤٠ ميجا)، وراجع التسليم والشات والتقييم والشكوى وطلب السحب وإشعار تليجرام واسترجاع الباسورد. Verify `/api/health`, wrong/right cron authorization, security headers on `/` and authorized downloads, and the presigned upload flow with your private bucket. R2 PUT URLs expire after 5 minutes and sign size/type; GET redirects expire after 60 seconds. Pending files are checked with HEAD and signature bytes before copy to final storage. Local development keeps normal multipart uploads with `STORAGE_DRIVER=local`.
+8. **الفلوس الحقيقية — صاحب المشروع فقط / Owner-only live switch:** بعد نجاح كل الاختبارات غيّر لمفاتيح Paymob الحقيقية، اعمل شراء صغير، ارجع الفلوس من لوحة Paymob وبعدين سجّل الاسترداد في الأدمن. Do not switch to live money automatically or during CI.
+
+### التشغيل والمتابعة / Operations
+
+- CI uses Node 22 and PostgreSQL 16, a fresh migrated database and dummy configuration only. Integration files run serially because expiry cleanup operates across the shared database. CI never contacts R2/Telegram/Resend: integration tests inject fake S3/fetch clients.
+- Cron: expired orders every 5 minutes and notifications every minute (external scheduler), cleanup and an expired-orders safety run daily (`vercel.json`). Batches are capped at 100 and stop against a 25-second budget. Notification delivery uses a 10-second timeout, retries after 1/5/30/120 minutes and fails after five attempts; 403 unlinks the bot. Inspect FAILED rows using authorized database operations. Delivery is at-least-once: a process crash after Telegram accepts but before the DB commit may duplicate a notification.
+- Notification payloads allow only event metadata (order number, title, amount, internal IDs), never chat bodies, delivery codes, buyer contacts or full payout accounts. URLs lead back to authenticated seller pages.
+- Deploy the `launch` migration before the new code. Existing JWTs without a session version require login again. Existing files remain on their configured storage backend; before switching an existing installation from local to R2, copy the private objects with their exact keys into the private bucket and verify authorized downloads. Do not delete the local backup until verified.
+- A signed download URL is a short-lived bearer capability: anybody who receives it can use it until expiry. Do not share it. Security headers apply to the authenticated application redirect; R2 responses use the signed response disposition/cache settings. Configure R2 CORS as above.
+
+References: [AWS SDK presigning](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-s3-request-presigner/), [Telegram Bot API](https://core.telegram.org/bots/api).

@@ -9,6 +9,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -85,6 +86,7 @@ enum DisputeStatus {
 }
 
 model User {
+  sessionVersion Int @default(0)
   id           String   @id @default(cuid())
   email        String   @unique
   name         String
@@ -101,6 +103,7 @@ model User {
 }
 
 model SellerProfile {
+  telegramLinkedAt DateTime?
   id             String     @id @default(cuid())
   userId         String     @unique
   user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -445,4 +448,45 @@ model OrderRead {
   userId String
   lastReadAt DateTime
   @@id([orderId, userId])
+}
+model TelegramLinkToken {
+  token String @id
+  sellerId String
+  expiresAt DateTime
+  usedAt DateTime?
+}
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+enum NotificationChannel {
+  TELEGRAM
+}
+model Notification {
+  id String @id @default(cuid())
+  sellerId String
+  channel NotificationChannel @default(TELEGRAM)
+  event String
+  payload String
+  status NotificationStatus @default(PENDING)
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  lastError String?
+  createdAt DateTime @default(now())
+  sentAt DateTime?
+  @@index([status, nextAttemptAt])
+}
+model LoginAttempt {
+  id String @id @default(cuid())
+  key String
+  createdAt DateTime @default(now())
+  @@index([key, createdAt])
+}
+model PasswordResetToken {
+  id String @id @default(cuid())
+  userId String
+  tokenHash String @unique
+  expiresAt DateTime
+  usedAt DateTime?
 }

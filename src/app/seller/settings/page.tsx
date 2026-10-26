@@ -1,3 +1,4 @@
+import { TelegramForm } from "./telegram-form";
 import { requireSeller } from "@/lib/auth";
 import { StoreProfileForm } from "../store-profile-form";
 
@@ -11,10 +12,12 @@ export default async function SettingsPage() {
           defaults={{
             description: seller.description ?? "",
             businessHours: seller.businessHours ?? "",
-            telegramChatId: seller.telegramChatId ?? "",
           }}
         />
       </div>
+      {process.env.TELEGRAM_BOT_TOKEN && (
+        <TelegramForm linked={!!seller.telegramLinkedAt} />
+      )}
     </div>
   );
 }

@@ -4,13 +4,13 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { moderateProduct } from "@/lib/product-moderation";
 
 export async function reviewProduct(
   _: { error?: string } | undefined,
   form: FormData,
 ) {
-  await requireAdmin();
+  const actor = await requireAdmin();
   const parsed = z
     .object({
       id: z.string().min(1),
@@ -22,17 +22,7 @@ export async function reviewProduct(
   const v = parsed.data;
   if (v.decision === "REJECTED" && !v.reviewNote)
     return { error: "اكتب سبب الرفض" };
-  const result = await db.product.updateMany({
-    where: {
-      id: v.id,
-      status: "PENDING_REVIEW",
-      seller: { kycStatus: "APPROVED" },
-    },
-    data: {
-      status: v.decision,
-      reviewNote: v.decision === "REJECTED" ? v.reviewNote : null,
-    },
-  });
+  const result = await moderateProduct(actor.id, v);
   if (!result.count) return { error: "الطلب اتراجع بالفعل أو التاجر مش موثّق" };
   revalidatePath("/", "layout");
   redirect("/admin/products");

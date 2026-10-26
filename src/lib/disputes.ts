@@ -1,5 +1,6 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
+import { enqueueNotice } from "./notifications";
 import { db } from "./db";
 import { lockOrder } from "./orders";
 import { lockSeller, refundOrder } from "./wallet";
@@ -18,7 +19,7 @@ export async function openDispute(
   userId: string,
   itemId: string,
   reason: string,
-  image?: File,
+  image?: File | string,
 ) {
   communityId.parse(itemId);
   const value = disputeReason.parse(reason);
@@ -28,7 +29,7 @@ export async function openDispute(
   });
   if (!target) throw new ParticipantError("الطلب مش موجود");
   await participant(db, userId, target.orderId);
-  const attachmentKey = await saveChatImage(target.orderId, image);
+  const attachmentKey = await saveChatImage(target.orderId, image, userId);
   try {
     return await db.$transaction(async (tx) => {
       await lockOrder(tx, target.orderId);
@@ -76,6 +77,10 @@ export async function openDispute(
           attachmentKey,
         },
       });
+      await enqueueNotice(tx, item.sellerId, "dispute.opened", {
+        orderId: item.orderId,
+        orderNumber: item.order.number,
+      });
       return dispute.id;
     });
   } catch (error) {
@@ -114,6 +119,9 @@ export async function closeDispute(userId: string, disputeId: string) {
         kind: "SYSTEM",
         body: "المشتري أكد إن المشكلة اتحلت",
       },
+    });
+    await enqueueNotice(tx, dispute.orderItem.sellerId, "dispute.resolved", {
+      orderId: dispute.orderItem.orderId,
     });
     return true;
   });
@@ -176,6 +184,9 @@ export async function resolveDispute(
         kind: "SYSTEM",
         body: `${refund ? "اتردّت الفلوس للمشتري" : "الشكوى اترفضت"}: ${value}`,
       },
+    });
+    await enqueueNotice(tx, target.orderItem.sellerId, "dispute.resolved", {
+      orderId: target.orderItem.orderId,
     });
     return true;
   });

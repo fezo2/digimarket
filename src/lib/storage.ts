@@ -1,6 +1,9 @@
 import "server-only";
 import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
+import { r2 } from "./r2";
+import { validateKey, UploadError } from "./storage-rules";
+export { UploadError } from "./storage-rules";
 import { randomUUID } from "node:crypto";
 
 // Private file storage. Local disk for development; the same interface
@@ -14,8 +17,6 @@ const ALLOWED = new Map([
   ["image/webp", "webp"],
   ["application/pdf", "pdf"],
 ]);
-
-export class UploadError extends Error {}
 
 export async function savePrivateFile(
   folder: string,
@@ -39,6 +40,10 @@ export async function savePrivateFile(
     );
 
   const key = `${folder}/${randomUUID()}.${ext}`;
+  if (process.env.STORAGE_DRIVER === "r2") {
+    await r2().put(key, new Uint8Array(await file.arrayBuffer()), file.type);
+    return key;
+  }
   const target = resolveKey(key);
   await mkdir(path.dirname(target), { recursive: true });
   await writeFile(target, Buffer.from(await file.arrayBuffer()));
@@ -52,14 +57,27 @@ export async function readPrivateFile(key: string) {
       ? "application/zip"
       : ([...ALLOWED].find(([, e]) => e === ext)?.[0] ??
         "application/octet-stream");
-  return { body: await readFile(resolveKey(key)), type };
+  validateKey(key);
+  return {
+    body:
+      process.env.STORAGE_DRIVER === "r2"
+        ? await r2().read(key)
+        : await readFile(resolveKey(key)),
+    type,
+  };
 }
 
 export async function deletePrivateFile(key: string) {
+  validateKey(key);
+  if (process.env.STORAGE_DRIVER === "r2") {
+    await r2().remove(key);
+    return;
+  }
   await rm(resolveKey(key), { force: true });
 }
 
 function resolveKey(key: string) {
+  validateKey(key);
   const target = path.resolve(ROOT, key);
   if (!target.startsWith(ROOT + path.sep)) throw new UploadError("Invalid key");
   return target;

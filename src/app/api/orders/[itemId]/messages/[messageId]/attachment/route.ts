@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth";
-import { readAttachment } from "@/lib/chat";
+import { privateDownload } from "@/lib/private-download";
+import { attachmentKey } from "@/lib/chat";
 import { communityId } from "@/lib/community-rules";
 import { z } from "zod";
 export const runtime = "nodejs";
@@ -12,15 +13,10 @@ export async function GET(
     const v = z
       .object({ itemId: communityId, messageId: communityId })
       .parse(await params);
-    const file = await readAttachment(user.id, v.itemId, v.messageId);
-    return new Response(new Uint8Array(file.body), {
-      headers: {
-        "Content-Type": file.type,
-        "Cache-Control": "private, no-store",
-        "X-Content-Type-Options": "nosniff",
-        "Content-Disposition": "inline",
-      },
-    });
+    return await privateDownload(
+      await attachmentKey(user.id, v.itemId, v.messageId),
+      true,
+    );
   } catch {
     return new Response(null, { status: 404 });
   }

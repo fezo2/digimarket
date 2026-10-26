@@ -9,7 +9,8 @@ import { db } from "@/lib/db";
 import { productInput } from "@/lib/product-input";
 import { productSaveStatus } from "@/lib/product-review";
 import { addStockCodes } from "@/lib/product-stock";
-import { savePrivateFile, deletePrivateFile, UploadError } from "@/lib/storage";
+import { deletePrivateFile, UploadError } from "@/lib/storage";
+import { finalizeUpload } from "@/lib/finalize-upload";
 import { SELLER_TIERS } from "@/lib/config";
 import { slugify, uniqueSuffix } from "@/lib/slug";
 
@@ -41,7 +42,7 @@ function failure(error: unknown): State {
 }
 
 export async function saveProduct(_: State, form: FormData): Promise<State> {
-  const { seller } = await requireSeller();
+  const { user, seller } = await requireSeller();
   if (seller.kycStatus !== "APPROVED")
     return { error: "لازم توثّق حسابك الأول" };
   const id = String(form.get("id") ?? "");
@@ -72,8 +73,11 @@ export async function saveProduct(_: State, form: FormData): Promise<State> {
   let savedId = "";
   let uploadedFileKey: string | undefined;
   try {
-    const file = form.get("deliveryFile");
-    if (v.deliveryType === "FILE" && file instanceof File && file.size) {
+    const file = form.get("deliveryFilePending") || form.get("deliveryFile");
+    if (
+      v.deliveryType === "FILE" &&
+      ((file instanceof File && file.size) || typeof file === "string")
+    ) {
       // Check ownership before writing; recheck it inside the transaction too.
       if (
         id &&
@@ -83,7 +87,12 @@ export async function saveProduct(_: State, form: FormData): Promise<State> {
         }))
       )
         throw new ProductError("المنتج غير موجود");
-      uploadedFileKey = await savePrivateFile(`products/${seller.id}`, file);
+      uploadedFileKey = await finalizeUpload(
+        user.id,
+        `products/${seller.id}`,
+        "product",
+        file as File | string,
+      );
     }
     savedId = await db.$transaction(
       async (tx) => {

@@ -1,17 +1,17 @@
 import { getCurrentUser } from "@/lib/auth";
-import { readPrivateFile } from "@/lib/storage";
+import { privateDownload } from "@/lib/private-download";
 
 // Serves private KYC documents to admins only.
-export async function GET(_: Request, { params }: { params: Promise<{ key: string[] }> }) {
+export async function GET(
+  _: Request,
+  { params }: { params: Promise<{ key: string[] }> },
+) {
   const user = await getCurrentUser();
   if (user?.role !== "ADMIN") return new Response("Not found", { status: 404 });
 
   const { key } = await params;
   try {
-    const file = await readPrivateFile(key.join("/"));
-    return new Response(new Uint8Array(file.body), {
-      headers: { "Content-Type": file.type, "Cache-Control": "private, no-store" },
-    });
+    return await privateDownload(key.join("/"));
   } catch {
     return new Response("Not found", { status: 404 });
   }

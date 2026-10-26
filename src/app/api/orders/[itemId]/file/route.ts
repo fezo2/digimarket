@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { readPrivateFile } from "@/lib/storage";
+import { privateDownload } from "@/lib/private-download";
 
 export const runtime = "nodejs";
 export async function GET(
@@ -21,15 +21,7 @@ export async function GET(
   });
   if (!item?.deliveryContent) return new Response(null, { status: 404 });
   try {
-    const file = await readPrivateFile(item.deliveryContent);
-    return new Response(new Uint8Array(file.body), {
-      headers: {
-        "Content-Type": file.type,
-        "Content-Disposition": "attachment",
-        "Cache-Control": "private, no-store",
-        "X-Content-Type-Options": "nosniff",
-      },
-    });
+    return await privateDownload(item.deliveryContent);
   } catch {
     return new Response(null, { status: 404 });
   }
