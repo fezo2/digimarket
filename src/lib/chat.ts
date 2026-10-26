@@ -90,7 +90,9 @@ export async function sendMessage(
   body: string,
   image?: File,
 ) {
-  const value = messageBody.parse(body);
+  const value = messageBody.parse(
+    messageBody.parse(body).replace(/^(?:\[النظام\]\s*)+/u, ""),
+  );
   await participant(db, userId, orderId);
   const attachmentKey = await saveChatImage(orderId, image);
   try {
@@ -115,7 +117,13 @@ export async function sendMessage(
         ? { body: value, flagged: false }
         : maskContact(value);
       await tx.message.create({
-        data: { orderId, senderId: userId, ...masked, attachmentKey },
+        data: {
+          orderId,
+          senderId: userId,
+          kind: "USER",
+          ...masked,
+          attachmentKey,
+        },
       });
       return { flagged: masked.flagged };
     });
@@ -126,7 +134,6 @@ export async function sendMessage(
 }
 export async function readChat(userId: string, orderId: string) {
   return db.$transaction(async (tx) => {
-    await lockOrder(tx, orderId);
     const access = await participant(tx, userId, orderId);
     const messages = await tx.message.findMany({
       where: { orderId },
@@ -134,6 +141,7 @@ export async function readChat(userId: string, orderId: string) {
       select: {
         id: true,
         body: true,
+        kind: true,
         flagged: true,
         attachmentKey: true,
         createdAt: true,
@@ -151,6 +159,7 @@ export async function readChat(userId: string, orderId: string) {
       messages: messages.map((m) => ({
         id: m.id,
         body: m.body,
+        kind: m.kind,
         createdAt: m.createdAt,
         flagged: access.admin && m.flagged,
         hasAttachment: Boolean(m.attachmentKey),

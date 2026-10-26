@@ -354,6 +354,11 @@ model Review {
   @@index([sellerId, createdAt])
 }
 
+enum MessageKind {
+  USER
+  SYSTEM
+}
+
 model Message {
   id        String   @id @default(cuid())
   orderId   String
@@ -361,6 +366,7 @@ model Message {
   senderId  String
   sender    User     @relation(fields: [senderId], references: [id])
   body      String
+  kind MessageKind @default(USER)
   attachmentKey String?
   flagged Boolean @default(false)
   createdAt DateTime @default(now())

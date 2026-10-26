@@ -20,9 +20,17 @@ export async function OrderChat({
       <ChatRefresh />
       <h2 className="text-xl font-bold">محادثة الطلب</h2>
       {chat.messages.map((m) => (
-        <article className="rounded-lg border p-3" key={m.id}>
+        <article
+          className={
+            m.kind === "SYSTEM"
+              ? "rounded-lg border border-sky-300 bg-sky-50 p-3 text-sky-950"
+              : "rounded-lg border p-3"
+          }
+          key={m.id}
+        >
           <p className="font-semibold">
-            {m.role} · {m.createdAt.toLocaleString("ar-EG")}
+            {m.kind === "SYSTEM" ? "النظام" : m.role} ·{" "}
+            {m.createdAt.toLocaleString("ar-EG")}
           </p>
           <p className="whitespace-pre-wrap break-words">{m.body}</p>
           {m.flagged && (

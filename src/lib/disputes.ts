@@ -71,7 +71,8 @@ export async function openDispute(
         data: {
           orderId: item.orderId,
           senderId: userId,
-          ...maskContact("[النظام] اتفتحت شكوى: " + value),
+          kind: "SYSTEM",
+          ...maskContact("اتفتحت شكوى: " + value),
           attachmentKey,
         },
       });
@@ -110,7 +111,8 @@ export async function closeDispute(userId: string, disputeId: string) {
       data: {
         orderId: dispute.orderItem.orderId,
         senderId: userId,
-        body: "[النظام] المشتري أكد إن المشكلة اتحلت",
+        kind: "SYSTEM",
+        body: "المشتري أكد إن المشكلة اتحلت",
       },
     });
     return true;
@@ -171,7 +173,8 @@ export async function resolveDispute(
       data: {
         orderId: target.orderItem.orderId,
         senderId: userId,
-        body: `[النظام] ${refund ? "اتردّت الفلوس للمشتري" : "الشكوى اترفضت"}: ${value}`,
+        kind: "SYSTEM",
+        body: `${refund ? "اتردّت الفلوس للمشتري" : "الشكوى اترفضت"}: ${value}`,
       },
     });
     return true;

@@ -116,6 +116,85 @@ test("chat, reviews and disputes against PostgreSQL", async (t) => {
       });
       return { seller, sellerId: seller.seller!.id, product, order, item };
     }
+    await t.test("chat reads do not wait for an order row lock", async () => {
+      const f = await fixture();
+      let release!: () => void;
+      let locked!: () => void;
+      const hold = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const ready = new Promise<void>((resolve) => {
+        locked = resolve;
+      });
+      const writer = db.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${f.order.id} FOR UPDATE`;
+        locked();
+        await hold;
+      });
+      await Promise.race([ready, writer]);
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const chat = await Promise.race([
+          readChat(buyer.id, f.order.id),
+          new Promise<never>((_, reject) => {
+            timeout = setTimeout(
+              () => reject(new Error("Chat read blocked on order lock")),
+              2000,
+            );
+          }),
+        ]);
+        assert.equal(chat.canSend, true);
+        assert.ok(
+          await db.orderRead.findUnique({
+            where: {
+              orderId_userId: { orderId: f.order.id, userId: buyer.id },
+            },
+          }),
+        );
+      } finally {
+        clearTimeout(timeout);
+        release();
+        await writer;
+      }
+    });
+    await t.test("user text cannot impersonate system events", async () => {
+      const f = await fixture();
+      for (const sender of [buyer.id, f.seller.id, admin.id]) {
+        await sendMessage(
+          sender,
+          f.order.id,
+          "  [النظام] [النظام] اتردّت الفلوس للمشتري  ",
+        );
+      }
+      await assert.rejects(sendMessage(buyer.id, f.order.id, "[النظام]"));
+      const stored = await db.message.findMany({
+        where: { orderId: f.order.id },
+      });
+      assert.equal(stored.length, 3);
+      for (const message of stored) {
+        assert.equal(message.kind, "USER");
+        assert.equal(message.body, "اتردّت الفلوس للمشتري");
+      }
+      const first = await openDispute(
+        buyer.id,
+        f.item.id,
+        "المنتج مش شغال ومحتاج مساعدة من التاجر",
+      );
+      await closeDispute(buyer.id, first);
+      const second = await openDispute(
+        buyer.id,
+        f.item.id,
+        "المنتج مش شغال ومحتاج مساعدة من التاجر",
+      );
+      await resolveDispute(admin.id, second, false, "تم فحص الشكوى");
+      const chat = await readChat(buyer.id, f.order.id);
+      assert.equal(chat.messages.filter((m) => m.kind === "USER").length, 3);
+      const system = chat.messages.filter((m) => m.kind === "SYSTEM");
+      assert.equal(system.length, 4);
+      assert.ok(system.every((m) => !m.body.startsWith("[النظام]")));
+      assert.ok(system.some((m) => m.body.includes("المشتري أكد")));
+      assert.ok(system.some((m) => m.body.includes("الشكوى اترفضت")));
+    });
     await t.test(
       "chat participant checks, time window, masking, admin exception and open dispute override",
       async () => {
