@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { siteHref } from "@/lib/sites";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { orderStatusLabels } from "@/lib/order-snapshot";
@@ -44,7 +45,7 @@ export default async function AccountPage() {
       {!user.seller && (
         <div className="card flex flex-wrap items-center gap-3 p-6">
           <p className="flex-1">عندك منتجات رقمية عايز تبيعها؟</p>
-          <Link href="/seller/join" className="btn-primary">ابدأ البيع</Link>
+          <Link href={siteHref("seller", "/seller/join")} className="btn-primary">ابدأ البيع</Link>
         </div>
       )}
     </div>

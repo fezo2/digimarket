@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SITE_NAME, SITE_NAME_EN } from "@/lib/config";
+import { siteHref } from "@/lib/sites";
 
 export function Footer() {
   return (
@@ -21,7 +22,7 @@ export function Footer() {
         <div>
           <p className="mb-2 font-semibold text-slate-900">للتجار</p>
           <ul className="space-y-1">
-            <li><Link href="/seller/join">ابدأ البيع</Link></li>
+            <li><Link href={siteHref("seller", "/seller/join")}>ابدأ البيع</Link></li>
             <li><Link href="/pages/terms">الشروط والأحكام</Link></li>
           </ul>
         </div>

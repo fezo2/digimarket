@@ -1,0 +1,31 @@
+// Arabic names for audit actions; unknown actions show their raw code.
+const LABELS: Record<string, string> = {
+  "announcement.created": "نشر إعلان",
+  "announcement.hidden": "إخفاء إعلان",
+  "announcement.shown": "إظهار إعلان",
+  "dispute.opened": "فتح شكوى",
+  "dispute.resolved": "قرار شكوى",
+  "ledger.adjustment": "تسوية رصيد",
+  "manual_payment.confirmed": "تأكيد تحويل يدوي",
+  "manual_payment.rejected": "رفض تحويل يدوي",
+  "order.redelivered": "إعادة تسليم طلب",
+  "order.refunded": "استرداد طلب",
+  "payout.paid": "دفع طلب سحب",
+  "payout.rejected": "رفض طلب سحب",
+  "product.approved": "قبول منتج",
+  "product.rejected": "رفض منتج",
+  "review.hidden": "إخفاء تقييم",
+  "review.unhidden": "إظهار تقييم",
+  "seller.payout_account_changed": "تغيير حساب استلام الأرباح",
+  "seller.payouts_frozen": "تجميد السحب",
+  "seller.payouts_unfrozen": "فك تجميد السحب",
+  "seller.sales_resumed": "رجوع البيع",
+  "seller.sales_suspended": "إيقاف البيع",
+  "seller.terms_changed": "تغيير العمولة أو مدة التعليق",
+  "user.signed_out": "خروج من كل الأجهزة",
+  "user.suspended": "إيقاف حساب",
+  "user.unsuspended": "رجوع حساب",
+  "user.updated": "تعديل بيانات حساب",
+};
+
+export const auditLabel = (action: string) => LABELS[action] ?? action;

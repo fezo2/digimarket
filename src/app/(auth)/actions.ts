@@ -5,13 +5,21 @@ import { z } from "zod";
 import { headers } from "next/headers";
 import { authenticate, AccountError } from "@/lib/account-security";
 import { db } from "@/lib/db";
-import { createSession, destroySession, hashPassword } from "@/lib/auth";
+import {
+  createSession,
+  currentSite,
+  destroySession,
+  hashPassword,
+} from "@/lib/auth";
+import { SITE_HOME } from "@/lib/sites";
 
 export type FormState = { error?: string } | undefined;
 
-function safeNext(value: FormDataEntryValue | null) {
+async function safeNext(value: FormDataEntryValue | null) {
   const next = typeof value === "string" ? value : "";
-  return next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  return next.startsWith("/") && !next.startsWith("//") && next !== "/"
+    ? next
+    : SITE_HOME[await currentSite()];
 }
 
 const registerSchema = z.object({
@@ -24,6 +32,8 @@ export async function register(
   _: FormState,
   form: FormData,
 ): Promise<FormState> {
+  if ((await currentSite()) === "admin")
+    return { error: "حسابات الإدارة مش بتتعمل من هنا" };
   const parsed = registerSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
@@ -40,7 +50,11 @@ export async function register(
     role: user.role,
     sessionVersion: user.sessionVersion,
   });
-  redirect(safeNext(form.get("next")));
+  redirect(
+    (await currentSite()) === "seller"
+      ? "/seller/join"
+      : await safeNext(form.get("next")),
+  );
 }
 
 export async function login(_: FormState, form: FormData): Promise<FormState> {
@@ -61,12 +75,14 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
     throw e;
   }
   if (!user) return { error: "الإيميل أو الباسورد غلط" };
+  if ((await currentSite()) === "admin" && user.role !== "ADMIN")
+    return { error: "الحساب ده مش حساب إدارة" };
   await createSession({
     userId: user.id,
     role: user.role,
     sessionVersion: user.sessionVersion,
   });
-  redirect(safeNext(form.get("next")));
+  redirect(await safeNext(form.get("next")));
 }
 
 export async function logout() {

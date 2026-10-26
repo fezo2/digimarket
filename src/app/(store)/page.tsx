@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { siteHref } from "@/lib/sites";
 import { listedProduct } from "@/lib/catalog";
 import { db } from "@/lib/db";
 import { ProductCard, productCardSelect } from "@/components/product-card";
@@ -40,7 +41,7 @@ export default async function HomePage() {
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link href="#categories" className="btn bg-white text-brand-700 hover:bg-brand-50">تصفّح الأقسام</Link>
-          <Link href="/seller/join" className="btn border border-white/40 text-white hover:bg-white/10">ابدأ البيع</Link>
+          <Link href={siteHref("seller", "/seller/join")} className="btn border border-white/40 text-white hover:bg-white/10">ابدأ البيع</Link>
         </div>
       </section>
 

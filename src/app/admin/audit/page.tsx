@@ -1,3 +1,4 @@
+import { auditLabel } from "@/lib/audit-labels";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -40,8 +41,8 @@ export default async function Audit({
         {logs.map((l) => (
           <div key={l.id} className="flex flex-wrap gap-3 p-3">
             <span className="font-semibold">{name.get(l.actorId) ?? l.actorId}</span>
-            <span className="font-mono" dir="ltr">
-              {l.action}
+            <span className="font-semibold" title={l.action}>
+              {auditLabel(l.action)}
             </span>
             <span className="font-mono text-slate-500" dir="ltr">
               {l.targetId}

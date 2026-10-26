@@ -70,7 +70,8 @@ export function noticeText(event: NoticeEvent, raw: string) {
     p.orderNumber ? "#" + p.orderNumber : "",
     p.title || "",
     p.amount === undefined ? "" : formatEGP(p.amount),
-    (process.env.APP_URL || "").replace(/\/$/, "") + path,
+    (process.env.SELLER_URL || process.env.APP_URL || "").replace(/\/$/, "") +
+      path,
   ]
     .filter(Boolean)
     .join("\n");
