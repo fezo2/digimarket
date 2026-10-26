@@ -5,7 +5,7 @@ import { OrderError } from "../orders";
 import { paymentConfig } from "./config";
 
 export interface PaymentProvider {
-  name: "test" | "paymob";
+  name: "test" | "paymob" | "manual";
   createPayment(order: {
     id: string;
     number: number;
@@ -27,6 +27,13 @@ export function readPaymobIntent(value: string | null) {
 
 export function getPaymentProvider(): PaymentProvider {
   const config = paymentConfig();
+  if (config.name === "manual")
+    return {
+      name: "manual",
+      async createPayment(order) {
+        return `/pay/manual/${order.id}`;
+      },
+    };
   if (config.name === "test")
     return {
       name: "test",

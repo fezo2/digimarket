@@ -45,7 +45,9 @@ export async function releaseExpiredOrders() {
   return db.$transaction(async (tx) => {
     const now = new Date();
     const expired = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Order"
-      WHERE status = 'PENDING_PAYMENT' AND "expiresAt" < (${now}::timestamptz AT TIME ZONE 'UTC') ORDER BY "createdAt" LIMIT 100 FOR UPDATE SKIP LOCKED`;
+      WHERE status = 'PENDING_PAYMENT' AND "expiresAt" < (${now}::timestamptz AT TIME ZONE 'UTC')
+        AND NOT EXISTS (SELECT 1 FROM "ManualPayment" m WHERE m."orderId" = "Order".id AND m.status IN ('SUBMITTED', 'CONFIRMED'))
+      ORDER BY "createdAt" LIMIT 100 FOR UPDATE SKIP LOCKED`;
     if (!expired.length) return 0;
     const ids = expired.map((o) => o.id);
     await tx.stockItem.updateMany({
@@ -277,7 +279,7 @@ export async function applyCoupon(
 export async function preparePayment(
   orderId: string,
   buyerId: string,
-  provider: "test" | "paymob",
+  provider: "test" | "paymob" | "manual",
 ) {
   await releaseExpiredOrders();
   return db.$transaction(async (tx) => {
@@ -310,7 +312,11 @@ export async function preparePayment(
 
 export async function markOrderPaid(
   orderId: string,
-  payment: { provider: "test" | "paymob"; reference: string; amount: number },
+  payment: {
+    provider: "test" | "paymob" | "manual";
+    reference: string;
+    amount: number;
+  },
 ) {
   if (
     !payment.reference ||

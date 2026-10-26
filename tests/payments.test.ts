@@ -69,3 +69,23 @@ test("test payments default only in development and are forbidden in production"
     paymentConfig({ NODE_ENV: "development", PAYMENT_PROVIDER: "unknown" }),
   );
 });
+test("manual payments need a valid InstaPay address or wallet number", () => {
+  const prod = { NODE_ENV: "production", PAYMENT_PROVIDER: "manual" } as const;
+  assert.throws(() => paymentConfig(prod), /MANUAL_INSTAPAY or MANUAL_WALLET/);
+  assert.deepEqual(
+    paymentConfig({ ...prod, MANUAL_INSTAPAY: "digiegy@instapay" }),
+    { name: "manual", instapay: "digiegy@instapay", wallet: "" },
+  );
+  assert.equal(
+    paymentConfig({ ...prod, MANUAL_WALLET: "01012345678" }).name,
+    "manual",
+  );
+  assert.throws(
+    () => paymentConfig({ ...prod, MANUAL_INSTAPAY: "not an address" }),
+    /Invalid MANUAL_INSTAPAY/,
+  );
+  assert.throws(
+    () => paymentConfig({ ...prod, MANUAL_WALLET: "0101234" }),
+    /Invalid MANUAL_WALLET/,
+  );
+});

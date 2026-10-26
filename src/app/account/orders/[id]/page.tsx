@@ -24,6 +24,8 @@ export default async function OrderPage({
       number: true,
       status: true,
       total: true,
+      paymentProvider: true,
+      manualPayment: { select: { status: true, reviewNote: true } },
       items: {
         select: { id: true, title: true, quantity: true, deliveredAt: true },
       },
@@ -57,7 +59,17 @@ export default async function OrderPage({
       <p>
         الحالة: {orderStatusLabels[order.status]} · {formatEGP(order.total)}
       </p>
-      {order.status === "PENDING_PAYMENT" && (
+      {order.manualPayment?.status === "SUBMITTED" && (
+        <p className="rounded-xl bg-amber-50 p-4">
+          بنراجع التحويل بتاعك. أول ما الإدارة تأكده المنتج هيظهر هنا.
+        </p>
+      )}
+      {order.manualPayment?.status === "REJECTED" && (
+        <p className="rounded-xl bg-red-50 p-4 whitespace-pre-wrap">
+          التحويل اترفض: {order.manualPayment.reviewNote}
+        </p>
+      )}
+      {order.status === "PENDING_PAYMENT" && !order.manualPayment && (
         <>
           <PaymentPolling />
           <Link className="btn-primary" href={`/checkout/${id}`}>
@@ -65,8 +77,8 @@ export default async function OrderPage({
           </Link>
         </>
       )}
-      {order.status === "CANCELLED" && (
-        <p>مدة حجز الطلب انتهت. لو دفعت، استنى تأكيد بوابة الدفع.</p>
+      {order.status === "CANCELLED" && !order.manualPayment && (
+        <p>مدة حجز الطلب انتهت. لو دفعت، استنى تأكيد الدفع أو كلّم الدعم.</p>
       )}
       {order.items.map((item) => {
         const content = delivered.find((d) => d.id === item.id);
