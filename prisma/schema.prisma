@@ -1,0 +1,383 @@
+// Digimarket data model.
+// Money is stored as integer piasters (1 EGP = 100 piasters).
+// Commission rates are stored in basis points (1000 = 10%).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+enum SellerType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum KycStatus {
+  NOT_SUBMITTED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PayoutMethod {
+  INSTAPAY
+  BANK_TRANSFER
+  MOBILE_WALLET
+}
+
+enum DeliveryType {
+  UNIQUE_CODES // each buyer receives a different code / account from stock
+  FILE // same file for every buyer
+  TEXT // same text / instructions for every buyer
+  LINK // external link revealed after payment
+}
+
+enum ProductStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  REJECTED
+  PAUSED
+}
+
+enum StockStatus {
+  AVAILABLE
+  SOLD
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum LedgerType {
+  SALE
+  REFUND
+  PAYOUT
+  ADJUSTMENT
+}
+
+enum PayoutStatus {
+  REQUESTED
+  PAID
+  REJECTED
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED_REFUND
+  RESOLVED_NO_REFUND
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  phone        String?
+  passwordHash String
+  role         Role     @default(BUYER)
+  createdAt    DateTime @default(now())
+
+  seller   SellerProfile?
+  orders   Order[]
+  reviews  Review[]
+  messages Message[]
+  disputes Dispute[]
+}
+
+model SellerProfile {
+  id             String     @id @default(cuid())
+  userId         String     @unique
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeName      String
+  slug           String     @unique
+  description    String?
+  logoUrl        String?
+  type           SellerType @default(INDIVIDUAL)
+  kycStatus      KycStatus  @default(NOT_SUBMITTED)
+  verifiedAt     DateTime?
+  telegramChatId String?
+  businessHours  String?
+  createdAt      DateTime   @default(now())
+
+  kycSubmissions KycSubmission[]
+  products       Product[]
+  orderItems     OrderItem[]
+  ledger         LedgerEntry[]
+  payouts        Payout[]
+  coupons        Coupon[]
+  reviews        Review[]
+}
+
+model KycSubmission {
+  id       String        @id @default(cuid())
+  sellerId String
+  seller   SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  type     SellerType
+
+  fullName   String
+  nationalId String
+  phone      String
+  idFrontKey String
+  idBackKey  String
+  selfieKey  String
+
+  // Companies only
+  companyName      String?
+  commercialRegNo  String?
+  taxCardNo        String?
+  commercialRegKey String?
+  taxCardKey       String?
+
+  payoutMethod      PayoutMethod
+  payoutAccount     String
+  payoutAccountName String
+
+  status       KycStatus @default(PENDING)
+  reviewNote   String?
+  reviewedById String?
+  submittedAt  DateTime  @default(now())
+  reviewedAt   DateTime?
+
+  @@index([status, submittedAt])
+}
+
+model Category {
+  id            String     @id @default(cuid())
+  slug          String     @unique
+  nameAr        String
+  nameEn        String
+  icon          String?
+  parentId      String?
+  parent        Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children      Category[] @relation("CategoryTree")
+  commissionBps Int        @default(1000)
+  sortOrder     Int        @default(0)
+  products      Product[]
+}
+
+model Product {
+  id              String        @id @default(cuid())
+  sellerId        String
+  seller          SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  categoryId      String
+  category        Category      @relation(fields: [categoryId], references: [id])
+  slug            String        @unique
+  title           String
+  description     String
+  imageUrl        String?
+  price           Int
+  compareAtPrice  Int?
+  deliveryType    DeliveryType
+  // Content revealed after payment for FILE / TEXT / LINK products.
+  deliveryContent String?
+  instructions    String?
+  status          ProductStatus @default(DRAFT)
+  reviewNote      String?
+  salesEnabled    Boolean       @default(true)
+  minQty          Int           @default(1)
+  maxQty          Int           @default(10)
+  soldCount       Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  options           ProductOption[]
+  stock             StockItem[]
+  quantityDiscounts QuantityDiscount[]
+  orderItems        OrderItem[]
+  reviews           Review[]
+
+  @@index([status, categoryId])
+  @@index([sellerId])
+}
+
+// Buyer-facing choice such as duration ("1 month" / "12 months") that can change the price,
+// or a text field the buyer must fill (e.g. the email to upgrade).
+model ProductOption {
+  id        String               @id @default(cuid())
+  productId String
+  product   Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  kind      String               @default("select") // "select" | "text"
+  required  Boolean              @default(true)
+  sortOrder Int                  @default(0)
+  values    ProductOptionValue[]
+}
+
+model ProductOptionValue {
+  id         String        @id @default(cuid())
+  optionId   String
+  option     ProductOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  label      String
+  priceDelta Int           @default(0)
+  sortOrder  Int           @default(0)
+}
+
+model QuantityDiscount {
+  id         String  @id @default(cuid())
+  productId  String
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  minQty     Int
+  percentOff Int
+}
+
+model StockItem {
+  id          String      @id @default(cuid())
+  productId   String
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  content     String
+  status      StockStatus @default(AVAILABLE)
+  orderItemId String?
+  orderItem   OrderItem?  @relation(fields: [orderItemId], references: [id])
+  createdAt   DateTime    @default(now())
+  soldAt      DateTime?
+
+  @@index([productId, status])
+}
+
+model Coupon {
+  id         String         @id @default(cuid())
+  code       String         @unique
+  sellerId   String?
+  seller     SellerProfile? @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  percentOff Int?
+  amountOff  Int?
+  minTotal   Int            @default(0)
+  usageLimit Int?
+  usedCount  Int            @default(0)
+  expiresAt  DateTime?
+  active     Boolean        @default(true)
+  orders     Order[]
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  number          Int         @unique @default(autoincrement())
+  buyerId         String
+  buyer           User        @relation(fields: [buyerId], references: [id])
+  status          OrderStatus @default(PENDING_PAYMENT)
+  subtotal        Int
+  discount        Int         @default(0)
+  total           Int
+  couponId        String?
+  coupon          Coupon?     @relation(fields: [couponId], references: [id])
+  paymentProvider String?
+  paymentRef      String?
+  paidAt          DateTime?
+  createdAt       DateTime    @default(now())
+  items           OrderItem[]
+  messages        Message[]
+}
+
+model OrderItem {
+  id               String        @id @default(cuid())
+  orderId          String
+  order            Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId        String
+  product          Product       @relation(fields: [productId], references: [id])
+  sellerId         String
+  seller           SellerProfile @relation(fields: [sellerId], references: [id])
+  title            String
+  quantity         Int
+  unitPrice        Int
+  total            Int
+  commissionBps    Int
+  commissionAmount Int
+  sellerNet        Int
+  optionsJson      String?
+  refundedAmount   Int           @default(0)
+  deliveredAt      DateTime?
+
+  stockItems StockItem[]
+  review     Review?
+  disputes   Dispute[]
+  ledger     LedgerEntry[]
+}
+
+model Review {
+  id          String        @id @default(cuid())
+  orderItemId String        @unique
+  orderItem   OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sellerId    String
+  seller      SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  buyerId     String
+  buyer       User          @relation(fields: [buyerId], references: [id])
+  positive    Boolean
+  comment     String?
+  sellerReply String?
+  createdAt   DateTime      @default(now())
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model Dispute {
+  id          String        @id @default(cuid())
+  orderItemId String
+  orderItem   OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  buyerId     String
+  buyer       User          @relation(fields: [buyerId], references: [id])
+  reason      String
+  status      DisputeStatus @default(OPEN)
+  resolution  String?
+  createdAt   DateTime      @default(now())
+  resolvedAt  DateTime?
+}
+
+// Every money movement for a seller. Balance = sum(amount);
+// withdrawable = sum(amount where availableAt <= now).
+model LedgerEntry {
+  id          String        @id @default(cuid())
+  sellerId    String
+  seller      SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  type        LedgerType
+  amount      Int
+  availableAt DateTime      @default(now())
+  orderItemId String?
+  orderItem   OrderItem?    @relation(fields: [orderItemId], references: [id])
+  payoutId    String?
+  payout      Payout?       @relation(fields: [payoutId], references: [id])
+  note        String?
+  createdAt   DateTime      @default(now())
+
+  @@index([sellerId, createdAt])
+}
+
+model Payout {
+  id          String        @id @default(cuid())
+  sellerId    String
+  seller      SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  amount      Int
+  method      PayoutMethod
+  account     String
+  status      PayoutStatus  @default(REQUESTED)
+  reference   String?
+  note        String?
+  createdAt   DateTime      @default(now())
+  processedAt DateTime?
+  ledger      LedgerEntry[]
+}
