@@ -13,7 +13,7 @@ export async function createUploadUrl(
   const user = await requireUser();
   const v = z
     .object({
-      kind: z.enum(["product", "kyc", "chat"]),
+      kind: z.enum(["product", "kyc", "chat", "receipt"]),
       size: z.number().int().positive(),
       type: z.string().max(100),
       context: z.string().max(100),
@@ -21,7 +21,20 @@ export async function createUploadUrl(
     .parse({ kind, size, type, context });
   if (process.env.STORAGE_DRIVER !== "r2") return { local: true } as const;
   if (v.kind === "chat") await participant(db, user.id, v.context);
-  else {
+  else if (v.kind === "receipt") {
+    if (
+      !(await db.order.findFirst({
+        where: {
+          id: v.context,
+          buyerId: user.id,
+          status: "PENDING_PAYMENT",
+          paymentProvider: "manual",
+          manualPayment: null,
+        },
+      }))
+    )
+      throw new Error("غير مسموح");
+  } else {
     if (
       !user.seller ||
       (v.kind === "product" && user.seller.kycStatus !== "APPROVED")

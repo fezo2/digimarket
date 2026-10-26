@@ -1,5 +1,5 @@
 export class UploadError extends Error {}
-export type UploadKind = "product" | "kyc" | "chat";
+export type UploadKind = "product" | "kyc" | "chat" | "receipt";
 const types: Record<string, string> = {
   "application/zip": "zip",
   "application/x-zip-compressed": "zip",
@@ -10,7 +10,7 @@ const types: Record<string, string> = {
 };
 export function validateKey(key: string) {
   if (
-    !/^(kyc|products|chat|pending)\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\.(jpg|png|webp|pdf|zip)$/.test(
+    !/^(kyc|products|chat|receipts|pending)\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\.(jpg|png|webp|pdf|zip)$/.test(
       key,
     ) ||
     key.includes("..")
@@ -19,7 +19,7 @@ export function validateKey(key: string) {
   return key;
 }
 export function uploadSpec(kind: UploadKind, size: number, type: string) {
-  const limit = kind === "product" ? 50 : kind === "chat" ? 5 : 8;
+  const limit = kind === "product" ? 50 : kind === "kyc" ? 8 : 5;
   const ext = types[type];
   if (
     !Number.isSafeInteger(size) ||
@@ -27,7 +27,7 @@ export function uploadSpec(kind: UploadKind, size: number, type: string) {
     size > limit * 1024 * 1024 ||
     !ext ||
     (kind !== "product" && ext === "zip") ||
-    (kind === "chat" && ext === "pdf")
+    ((kind === "chat" || kind === "receipt") && ext === "pdf")
   )
     throw new UploadError("نوع أو حجم الملف مش مسموح");
   return ext;

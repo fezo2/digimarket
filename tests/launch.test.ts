@@ -30,6 +30,13 @@ test("upload kinds enforce size, MIME and file signatures", () => {
   );
   assert.throws(() => uploadSpec("chat", 6 * 1024 * 1024, "image/png"));
   assert.throws(() => uploadSpec("chat", 12, "application/pdf"));
+  assert.equal(uploadSpec("receipt", 1024, "image/jpeg"), "jpg");
+  assert.throws(() => uploadSpec("receipt", 12, "application/pdf"));
+  assert.throws(() => uploadSpec("receipt", 6 * 1024 * 1024, "image/png"));
+  assert.equal(
+    validateKey("receipts/order1/a-b.png"),
+    "receipts/order1/a-b.png",
+  );
   assert.throws(() => checkMagic(Buffer.from("<script>"), "image/png"));
   checkMagic(Buffer.from([80, 75, 3, 4]), "application/zip");
   checkMagic(Buffer.from("%PDF-1.4"), "application/pdf");

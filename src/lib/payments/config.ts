@@ -1,8 +1,9 @@
 export function paymentConfig(env: NodeJS.ProcessEnv = process.env) {
   const name =
     env.PAYMENT_PROVIDER ?? (env.NODE_ENV === "production" ? "paymob" : "test");
-  if (name !== "test" && name !== "paymob")
+  if (name !== "test" && name !== "paymob" && name !== "manual")
     throw new Error("Invalid PAYMENT_PROVIDER");
+  if (name === "manual") return manualConfig(env);
   if (name === "test") {
     if (env.NODE_ENV === "production")
       throw new Error("The test payment provider is forbidden in production");
@@ -42,4 +43,20 @@ export function paymentConfig(env: NodeJS.ProcessEnv = process.env) {
     integrationIds,
     appUrl: url.origin,
   } as const;
+}
+
+// Buyers transfer by hand to these accounts; an admin confirms each transfer.
+export function manualConfig(env: NodeJS.ProcessEnv = process.env) {
+  const instapay = env.MANUAL_INSTAPAY?.trim() || "";
+  const wallet = env.MANUAL_WALLET?.trim() || "";
+  if (!instapay && !wallet)
+    throw new Error("Manual payments need MANUAL_INSTAPAY or MANUAL_WALLET");
+  if (
+    instapay &&
+    !/^([A-Za-z0-9._-]+@instapay|01[0125]\d{8})$/.test(instapay)
+  )
+    throw new Error("Invalid MANUAL_INSTAPAY");
+  if (wallet && !/^01[0125]\d{8}$/.test(wallet))
+    throw new Error("Invalid MANUAL_WALLET");
+  return { name: "manual", instapay, wallet } as const;
 }

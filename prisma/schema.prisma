@@ -7,8 +7,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -86,14 +86,14 @@ enum DisputeStatus {
 }
 
 model User {
-  sessionVersion Int @default(0)
-  id           String   @id @default(cuid())
-  email        String   @unique
-  name         String
-  phone        String?
-  passwordHash String
-  role         Role     @default(BUYER)
-  createdAt    DateTime @default(now())
+  sessionVersion Int      @default(0)
+  id             String   @id @default(cuid())
+  email          String   @unique
+  name           String
+  phone          String?
+  passwordHash   String
+  role           Role     @default(BUYER)
+  createdAt      DateTime @default(now())
 
   seller   SellerProfile?
   orders   Order[]
@@ -104,26 +104,26 @@ model User {
 
 model SellerProfile {
   telegramLinkedAt DateTime?
-  id             String     @id @default(cuid())
-  userId         String     @unique
-  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  storeName      String
-  slug           String     @unique
-  description    String?
-  logoUrl        String?
-  type           SellerType @default(INDIVIDUAL)
-  kycStatus      KycStatus  @default(NOT_SUBMITTED)
-  verifiedAt     DateTime?
-  telegramChatId String?
-  businessHours  String?
-  createdAt      DateTime   @default(now())
+  id               String     @id @default(cuid())
+  userId           String     @unique
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeName        String
+  slug             String     @unique
+  description      String?
+  logoUrl          String?
+  type             SellerType @default(INDIVIDUAL)
+  kycStatus        KycStatus  @default(NOT_SUBMITTED)
+  verifiedAt       DateTime?
+  telegramChatId   String?
+  businessHours    String?
+  createdAt        DateTime   @default(now())
 
-  positiveReviews Int @default(0)
-  negativeReviews Int @default(0)
-  payoutMethod PayoutMethod?
-  payoutAccount String?
+  positiveReviews  Int           @default(0)
+  negativeReviews  Int           @default(0)
+  payoutMethod     PayoutMethod?
+  payoutAccount    String?
   payoutHolderName String?
-  payoutUpdatedAt DateTime?
+  payoutUpdatedAt  DateTime?
 
   kycSubmissions KycSubmission[]
   products       Product[]
@@ -203,8 +203,8 @@ model Product {
   minQty          Int           @default(1)
   maxQty          Int           @default(10)
   soldCount       Int           @default(0)
-  positiveReviews Int @default(0)
-  negativeReviews Int @default(0)
+  positiveReviews Int           @default(0)
+  negativeReviews Int           @default(0)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -278,27 +278,28 @@ model Coupon {
 }
 
 model Order {
-  id              String      @id @default(cuid())
-  number          Int         @unique @default(autoincrement())
+  id              String         @id @default(cuid())
+  number          Int            @unique @default(autoincrement())
   buyerId         String
-  buyer           User        @relation(fields: [buyerId], references: [id])
-  status          OrderStatus @default(PENDING_PAYMENT)
+  buyer           User           @relation(fields: [buyerId], references: [id])
+  status          OrderStatus    @default(PENDING_PAYMENT)
   subtotal        Int
-  discount        Int         @default(0)
+  discount        Int            @default(0)
   total           Int
   couponId        String?
-  coupon          Coupon?     @relation(fields: [couponId], references: [id])
+  coupon          Coupon?        @relation(fields: [couponId], references: [id])
   paymentProvider String?
   paymentRef      String?
   paidAt          DateTime?
-  createdAt       DateTime    @default(now())
+  createdAt       DateTime       @default(now())
   items           OrderItem[]
   messages        Message[]
   expiresAt       DateTime
-  refundedAt DateTime?
-  refundNote String?
-  reviewReason String?
-  paidAmount Int?
+  refundedAt      DateTime?
+  refundNote      String?
+  reviewReason    String?
+  paidAmount      Int?
+  manualPayment   ManualPayment?
 
   @@index([status, expiresAt])
   @@index([buyerId, createdAt])
@@ -335,24 +336,25 @@ model OrderItem {
 }
 
 model Review {
-  id          String        @id @default(cuid())
-  orderItemId String        @unique
-  orderItem   OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
-  productId   String
-  product     Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
-  sellerId    String
-  seller      SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  buyerId     String
-  buyer       User          @relation(fields: [buyerId], references: [id])
-  positive    Boolean
-  comment     String?
-  sellerReply String?
-  updatedAt DateTime?
-  editedOnce Boolean @default(false)
+  id            String        @id @default(cuid())
+  orderItemId   String        @unique
+  orderItem     OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sellerId      String
+  seller        SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  buyerId       String
+  buyer         User          @relation(fields: [buyerId], references: [id])
+  positive      Boolean
+  comment       String?
+  sellerReply   String?
+  updatedAt     DateTime?
+  editedOnce    Boolean       @default(false)
   sellerReplyAt DateTime?
-  hiddenAt DateTime?
-  hiddenReason String?
-  createdAt   DateTime      @default(now())
+  hiddenAt      DateTime?
+  hiddenReason  String?
+  createdAt     DateTime      @default(now())
+
   @@index([productId, createdAt])
   @@index([sellerId, createdAt])
 }
@@ -363,32 +365,33 @@ enum MessageKind {
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  senderId  String
-  sender    User     @relation(fields: [senderId], references: [id])
-  body      String
-  kind MessageKind @default(USER)
+  id            String      @id @default(cuid())
+  orderId       String
+  order         Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  senderId      String
+  sender        User        @relation(fields: [senderId], references: [id])
+  body          String
+  kind          MessageKind @default(USER)
   attachmentKey String?
-  flagged Boolean @default(false)
-  createdAt DateTime @default(now())
+  flagged       Boolean     @default(false)
+  createdAt     DateTime    @default(now())
 
   @@index([orderId, createdAt])
 }
 
 model Dispute {
-  id          String        @id @default(cuid())
-  orderItemId String
-  orderItem   OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
-  buyerId     String
-  buyer       User          @relation(fields: [buyerId], references: [id])
-  reason      String
-  status      DisputeStatus @default(OPEN)
-  resolution  String?
-  createdAt   DateTime      @default(now())
-  resolvedAt  DateTime?
+  id           String        @id @default(cuid())
+  orderItemId  String
+  orderItem    OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  buyerId      String
+  buyer        User          @relation(fields: [buyerId], references: [id])
+  reason       String
+  status       DisputeStatus @default(OPEN)
+  resolution   String?
+  createdAt    DateTime      @default(now())
+  resolvedAt   DateTime?
   resolvedById String?
+
   @@index([status, createdAt])
   @@index([orderItemId])
 }
@@ -414,79 +417,122 @@ model LedgerEntry {
 }
 
 model Payout {
-  id          String        @id @default(cuid())
-  sellerId    String
-  seller      SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  amount      Int
-  method      PayoutMethod
-  account     String
-  status      PayoutStatus  @default(REQUESTED)
-  reference   String?
-  note        String?
-  createdAt   DateTime      @default(now())
-  processedAt DateTime?
-  ledger      LedgerEntry[]
-  holderName String
-  rejectReason String?
+  id            String        @id @default(cuid())
+  sellerId      String
+  seller        SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  amount        Int
+  method        PayoutMethod
+  account       String
+  status        PayoutStatus  @default(REQUESTED)
+  reference     String?
+  note          String?
+  createdAt     DateTime      @default(now())
+  processedAt   DateTime?
+  ledger        LedgerEntry[]
+  holderName    String
+  rejectReason  String?
   processedById String?
+
   @@index([status, createdAt])
   @@index([sellerId, createdAt])
 }
 
 model AuditLog {
-  id String @id @default(cuid())
-  actorId String
-  action String
-  targetId String
-  data String?
+  id        String   @id @default(cuid())
+  actorId   String
+  action    String
+  targetId  String
+  data      String?
   createdAt DateTime @default(now())
+
   @@index([targetId, createdAt])
 }
 
 model OrderRead {
-  orderId String
-  userId String
+  orderId    String
+  userId     String
   lastReadAt DateTime
+
   @@id([orderId, userId])
 }
+
 model TelegramLinkToken {
-  token String @id
-  sellerId String
+  token     String    @id
+  sellerId  String
   expiresAt DateTime
-  usedAt DateTime?
+  usedAt    DateTime?
 }
+
 enum NotificationStatus {
   PENDING
   SENT
   FAILED
 }
+
 enum NotificationChannel {
   TELEGRAM
 }
+
 model Notification {
-  id String @id @default(cuid())
-  sellerId String
-  channel NotificationChannel @default(TELEGRAM)
-  event String
-  payload String
-  status NotificationStatus @default(PENDING)
-  attempts Int @default(0)
-  nextAttemptAt DateTime @default(now())
-  lastError String?
-  createdAt DateTime @default(now())
-  sentAt DateTime?
+  id            String              @id @default(cuid())
+  sellerId      String
+  channel       NotificationChannel @default(TELEGRAM)
+  event         String
+  payload       String
+  status        NotificationStatus  @default(PENDING)
+  attempts      Int                 @default(0)
+  nextAttemptAt DateTime            @default(now())
+  lastError     String?
+  createdAt     DateTime            @default(now())
+  sentAt        DateTime?
+
   @@index([status, nextAttemptAt])
 }
+
 model LoginAttempt {
-  id String @id @default(cuid())
-  key String
+  id        String   @id @default(cuid())
+  key       String
   createdAt DateTime @default(now())
+
   @@index([key, createdAt])
 }
+
 model PasswordResetToken {
-  id String @id @default(cuid())
-  userId String
-  tokenHash String @unique
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
   expiresAt DateTime
-  usedAt DateTime?
+  usedAt    DateTime?
+}
+
+enum ManualMethod {
+  INSTAPAY
+  WALLET
+}
+
+enum ManualPaymentStatus {
+  SUBMITTED
+  CONFIRMED
+  REJECTED
+}
+
+// A buyer's claim that they transferred the order total by hand; an admin
+// confirms it against the real InstaPay / wallet statement.
+model ManualPayment {
+  id             String              @id @default(cuid())
+  orderId        String              @unique
+  order          Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method         ManualMethod
+  senderAccount  String
+  reference      String
+  receiptKey     String
+  status         ManualPaymentStatus @default(SUBMITTED)
+  receivedAmount Int?
+  reviewNote     String?
+  reviewedById   String?
+  createdAt      DateTime            @default(now())
+  reviewedAt     DateTime?
+
+  @@unique([method, reference])
+  @@index([status, createdAt])
 }
