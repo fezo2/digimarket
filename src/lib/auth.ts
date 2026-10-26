@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT } from "jose";
@@ -59,7 +60,8 @@ export async function getSession() {
 }
 
 // Loads the user fresh from the database so role changes apply immediately.
-export async function getCurrentUser() {
+// Cached per request: the layout, header and page all ask for it.
+export const getCurrentUser = cache(async function getCurrentUser() {
   const session = await getSession();
   if (!session) return null;
   const user = await db.user.findUnique({
@@ -71,7 +73,7 @@ export async function getCurrentUser() {
     sessionIsCurrent(session.sessionVersion, user.sessionVersion)
     ? user
     : null;
-}
+});
 
 export async function requireUser(next = "/") {
   const user = await getCurrentUser();

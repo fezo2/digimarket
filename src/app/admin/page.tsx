@@ -97,7 +97,7 @@ export default async function AdminHome() {
 
       <section className="space-y-3">
         <h2 className="text-lg font-bold">محتاج منك</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {queues.map(([label, n, href]) => (
             <Link
               key={href}
@@ -141,7 +141,7 @@ export default async function AdminHome() {
             {days.map(({ d, total }) => (
               <div
                 key={d.toISOString()}
-                className="flex flex-1 flex-col items-center gap-1"
+                className="flex h-full flex-1 flex-col items-center justify-end gap-1"
                 title={`${d.toLocaleDateString("ar-EG")}: ${formatEGP(total)}`}
               >
                 <div

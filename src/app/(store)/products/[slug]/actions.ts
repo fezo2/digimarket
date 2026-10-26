@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { PricingError } from "@/lib/pricing";
@@ -22,6 +23,9 @@ export async function buyProduct(
     if (key.startsWith("select:")) selections[key.slice(7)] = value;
     if (key.startsWith("text:")) textInputs[key.slice(5)] = value;
   }
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0].trim().slice(0, 64);
+  const country = h.get("x-vercel-ip-country")?.slice(0, 8);
   let id: string;
   try {
     id = (
@@ -31,6 +35,8 @@ export async function buyProduct(
         quantity: parsed.data,
         selections,
         textInputs,
+        buyerIp: ip || undefined,
+        buyerCountry: country || undefined,
       })
     ).id;
   } catch (error) {

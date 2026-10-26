@@ -39,3 +39,23 @@ body {
 @utility badge {
   @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
 }
+
+/* One table look everywhere: quiet header row, roomy cells. */
+@layer base {
+  /* Tailwind v4 borders default to the text colour; keep every divider and
+     outline a soft grey instead. */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-slate-200);
+  }
+  th {
+    @apply bg-slate-50 px-4 py-3 text-start text-xs font-semibold whitespace-nowrap text-slate-500;
+  }
+  td {
+    @apply px-4 py-3 align-middle;
+  }
+  h1 {
+    @apply text-slate-900;
+  }
+}

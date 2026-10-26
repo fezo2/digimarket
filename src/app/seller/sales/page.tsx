@@ -31,7 +31,14 @@ export default async function SellerSales({
         sellerNet: true,
         deliveredAt: true,
         refundedAmount: true,
-        order: { select: { id: true, number: true, paidAt: true } },
+        order: {
+          select: {
+            id: true,
+            number: true,
+            paidAt: true,
+            buyer: { select: { email: true } },
+          },
+        },
       },
     }),
     db.ledgerEntry.findMany({
@@ -99,6 +106,7 @@ export default async function SellerSales({
               {[
                 "التاريخ",
                 "الطلب",
+                "المشتري",
                 "المنتج",
                 "الكمية",
                 "الإجمالي",
@@ -125,6 +133,9 @@ export default async function SellerSales({
                   >
                     #{i.order.number}
                   </Link>
+                </td>
+                <td dir="ltr" className="text-start">
+                  {i.order.buyer.email}
                 </td>
                 <td>{i.title}</td>
                 <td>{i.quantity}</td>

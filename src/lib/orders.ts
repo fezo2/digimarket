@@ -17,6 +17,8 @@ const orderInput = z.object({
   quantity: z.number().int().min(1).max(10000),
   selections: z.record(z.string(), z.string().max(200)),
   textInputs: z.record(z.string(), z.string().trim().max(2000)),
+  buyerIp: z.string().max(64).optional(),
+  buyerCountry: z.string().max(8).optional(),
 });
 
 export async function lockOrder(tx: Tx, id: string) {
@@ -150,6 +152,8 @@ export async function createOrder(input: z.input<typeof orderInput>) {
     const order = await tx.order.create({
       data: {
         buyerId: v.buyerId,
+        buyerIp: v.buyerIp,
+        buyerCountry: v.buyerCountry,
         subtotal: q.subtotal,
         discount: q.subtotal - q.total,
         total: q.total,

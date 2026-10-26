@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { unreadCounts } from "@/lib/chat";
-import Link from "next/link";
+import { db } from "@/lib/db";
+import { PortalNav } from "@/components/portal-nav";
 
 export default async function SellerLayout({
   children,
@@ -8,41 +9,43 @@ export default async function SellerLayout({
   children: React.ReactNode;
 }) {
   const user = await getCurrentUser();
-  const unread = user
-    ? [...(await unreadCounts(user.id, false, "seller")).values()].reduce(
-        (a, b) => a + b,
-        0,
-      )
-    : 0;
+  const sellerId = user?.seller?.id;
+  const [unread, disputes] = sellerId
+    ? await Promise.all([
+        unreadCounts(user.id, false, "seller").then((m) =>
+          [...m.values()].filter((n) => n > 0).length,
+        ),
+        db.dispute.count({
+          where: { status: "OPEN", orderItem: { sellerId } },
+        }),
+      ])
+    : [0, 0];
+  // Before joining there is no store yet, so no menu.
+  if (!sellerId) return children;
   return (
-    <>
-      <nav
-        aria-label="لوحة التاجر"
-        className="mx-auto flex max-w-5xl flex-wrap gap-2 px-4 pt-6"
-      >
-        <Link className="btn-outline" href="/seller">
-          لوحة التحكم
-        </Link>
-        <Link className="btn-outline" href="/seller/products">
-          المنتجات
-        </Link>
-        <Link className="btn-outline" href="/seller/sales">
-          المبيعات {unread > 0 && <span className="badge">{unread}</span>}
-        </Link>
-        <Link className="btn-outline" href="/seller/reviews">
-          التقييمات
-        </Link>
-        <Link className="btn-outline" href="/seller/disputes">
-          الشكاوى
-        </Link>
-        <Link className="btn-outline" href="/seller/wallet">
-          المحفظة
-        </Link>
-        <Link className="btn-outline" href="/seller/settings">
-          الإعدادات
-        </Link>
-      </nav>
-      {children}
-    </>
+    <div className="flex min-h-[calc(100vh-4rem)] flex-col lg:flex-row">
+      <PortalNav
+        groups={[
+          {
+            items: [
+              { href: "/seller", label: "لوحة التحكم", icon: "📊", exact: true },
+              { href: "/seller/sales", label: "المبيعات", icon: "🧾" },
+              { href: "/seller/messages", label: "الرسائل", icon: "💬", count: unread },
+              { href: "/seller/disputes", label: "الشكاوى", icon: "⚠️", count: disputes },
+              { href: "/seller/reviews", label: "التقييمات", icon: "⭐" },
+            ],
+          },
+          {
+            title: "المتجر",
+            items: [
+              { href: "/seller/products", label: "المنتجات", icon: "📦" },
+              { href: "/seller/wallet", label: "المحفظة والسحب", icon: "💰" },
+              { href: "/seller/settings", label: "الإعدادات", icon: "⚙️" },
+            ],
+          },
+        ]}
+      />
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
   );
 }
