@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { formatEGP } from "@/lib/money";
+import { ProductPricing } from "@/components/product-pricing";
 import { SELLER_TIERS } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +26,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       _count: { select: { stock: { where: { status: "AVAILABLE" } } } },
     },
   });
-  if (!product || product.status !== "ACTIVE") notFound();
+  if (!product || product.status !== "ACTIVE" || !product.salesEnabled) notFound();
 
   const inStock = product.deliveryType !== "UNIQUE_CODES" || product._count.stock > 0;
   const positive = product.reviews.filter((r) => r.positive).length;
@@ -73,38 +73,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
         <div className="card space-y-4 p-6">
           <h1 className="text-xl font-bold leading-8">{product.title}</h1>
-          <div className="flex items-baseline gap-3">
-            <span className="text-2xl font-extrabold text-brand-700">{formatEGP(product.price)}</span>
-            {product.compareAtPrice && product.compareAtPrice > product.price && (
-              <span className="text-slate-400 line-through">{formatEGP(product.compareAtPrice)}</span>
-            )}
-          </div>
-
-          {product.options.map((o) => (
-            <div key={o.id}>
-              <label className="label">{o.name}</label>
-              {o.kind === "select" ? (
-                <select className="input" disabled={!inStock}>
-                  {o.values.map((v) => (
-                    <option key={v.id}>
-                      {v.label}
-                      {v.priceDelta !== 0 && ` (${v.priceDelta > 0 ? "+" : ""}${formatEGP(v.priceDelta)})`}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input className="input" disabled={!inStock} />
-              )}
-            </div>
-          ))}
-
-          {product.quantityDiscounts.length > 0 && (
-            <ul className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
-              {product.quantityDiscounts.map((d) => (
-                <li key={d.id}>اشتري {d.minQty} أو أكتر ووفّر {d.percentOff}%</li>
-              ))}
-            </ul>
-          )}
+          <ProductPricing price={product.price} compareAtPrice={product.compareAtPrice} minQty={product.minQty} maxQty={product.maxQty} inStock={inStock} options={product.options.map(o => ({ id: o.id, name: o.name, kind: o.kind, required: o.required, values: o.values.map(v => ({ id: v.id, label: v.label, priceDelta: v.priceDelta })) }))} discounts={product.quantityDiscounts.map(d => ({ minQty: d.minQty, percentOff: d.percentOff }))} />
 
           <p className="text-sm text-slate-600">⚡ {DELIVERY_LABEL[product.deliveryType]}</p>
           {product.deliveryType === "UNIQUE_CODES" && (

@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   experimental: {
-    // KYC uploads: up to 5 documents of 8 MB each.
-    serverActions: { bodySizeLimit: "45mb" },
+    // Product uploads: 50 MB plus multipart overhead; per-folder limits remain in storage.
+    serverActions: { bodySizeLimit: "55mb" },
   },
 };
 
