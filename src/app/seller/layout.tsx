@@ -1,10 +1,19 @@
+import { getCurrentUser } from "@/lib/auth";
+import { unreadCounts } from "@/lib/chat";
 import Link from "next/link";
 
-export default function SellerLayout({
+export default async function SellerLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await getCurrentUser();
+  const unread = user
+    ? [...(await unreadCounts(user.id, false, "seller")).values()].reduce(
+        (a, b) => a + b,
+        0,
+      )
+    : 0;
   return (
     <>
       <nav
@@ -18,7 +27,13 @@ export default function SellerLayout({
           المنتجات
         </Link>
         <Link className="btn-outline" href="/seller/sales">
-          المبيعات والأرباح
+          المبيعات {unread > 0 && <span className="badge">{unread}</span>}
+        </Link>
+        <Link className="btn-outline" href="/seller/reviews">
+          التقييمات
+        </Link>
+        <Link className="btn-outline" href="/seller/disputes">
+          الشكاوى
         </Link>
         <Link className="btn-outline" href="/seller/wallet">
           المحفظة

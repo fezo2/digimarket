@@ -1,3 +1,4 @@
+import { unreadCounts } from "@/lib/chat";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { retryDelivery, recordRefund } from "./actions";
@@ -13,7 +14,8 @@ export default async function AdminOrders({
   searchParams: Promise<{ review?: string; order?: string }>;
 }) {
   const query = await searchParams;
-  await requireAdmin();
+  const actor = await requireAdmin();
+  const unread = await unreadCounts(actor.id, true);
   await releaseExpiredOrders();
   const orders = await db.order.findMany({
     where: {
@@ -77,7 +79,14 @@ export default async function AdminOrders({
                   key={o.id}
                   className={`border-t ${review ? "bg-red-50 text-red-800" : ""}`}
                 >
-                  <td className="p-3">#{o.number}</td>
+                  <td className="p-3">
+                    <Link className="underline" href={`/admin/orders/${o.id}`}>
+                      #{o.number}
+                    </Link>
+                    {Boolean(unread.get(o.id)) && (
+                      <span className="badge">{unread.get(o.id)}</span>
+                    )}
+                  </td>
                   <td>
                     {orderStatusLabels[o.status]}
                     {review && (

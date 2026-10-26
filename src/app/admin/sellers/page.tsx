@@ -5,7 +5,17 @@ export default async function Sellers() {
   await requireAdmin();
   const sellers = await db.sellerProfile.findMany({
     orderBy: { createdAt: "desc" },
-    select: { id: true, storeName: true },
+    select: {
+      id: true,
+      storeName: true,
+      orderItems: {
+        select: {
+          _count: {
+            select: { disputes: { where: { status: "RESOLVED_REFUND" } } },
+          },
+        },
+      },
+    },
   });
   return (
     <div className="space-y-4">
@@ -16,7 +26,8 @@ export default async function Sellers() {
           className="card block p-4"
           href={`/admin/sellers/${s.id}/ledger`}
         >
-          {s.storeName}
+          {s.storeName} · شكاوى اتردّت:{" "}
+          {s.orderItems.reduce((sum, item) => sum + item._count.disputes, 0)}
         </Link>
       ))}
     </div>

@@ -1,3 +1,5 @@
+import { frozenAmount } from "./dispute-balance";
+import { hideRefundedReviews } from "./review-cache";
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -110,7 +112,7 @@ export async function requestPayout(userId: string, amount: number) {
       const balance = await sellerBalance(seller.id, tx);
       if (amount < MIN_PAYOUT)
         throw new WalletError("الحد الأدنى للسحب ١٠٠ ج.م");
-      if (amount > balance.available)
+      if (amount > balance.available - (await frozenAmount(seller.id, tx)))
         throw new WalletError("الرصيد المتاح مش كفاية");
       if (
         await tx.payout.findFirst({
@@ -199,10 +201,11 @@ export async function refundOrder(
   actorId: string,
   orderId: string,
   note: string,
+  transaction?: Tx,
 ) {
   idSchema.parse(orderId);
   const value = noteSchema.parse(note);
-  return db.$transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     await admin(tx, actorId);
     await lockOrder(tx, orderId);
     const order = await tx.order.findUnique({
@@ -243,11 +246,13 @@ export async function refundOrder(
           data: { soldCount: { decrement: item.quantity } },
         });
     }
+    await hideRefundedReviews(tx, orderId);
     await audit(tx, actorId, "order.refunded", orderId, {
       amount: order.total,
     });
     return true;
-  });
+  };
+  return transaction ? execute(transaction) : db.$transaction(execute);
 }
 export async function redeliverOrder(actorId: string, orderId: string) {
   idSchema.parse(orderId);

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireSeller } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sellerBalance } from "@/lib/ledger";
@@ -28,7 +29,7 @@ export default async function SellerSales({
         commissionAmount: true,
         sellerNet: true,
         deliveredAt: true,
-        order: { select: { number: true, paidAt: true } },
+        order: { select: { id: true, number: true, paidAt: true } },
       },
     }),
     db.ledgerEntry.findMany({
@@ -84,7 +85,14 @@ export default async function SellerSales({
                 <td className="p-3">
                   {i.order.paidAt?.toLocaleString("ar-EG")}
                 </td>
-                <td>#{i.order.number}</td>
+                <td>
+                  <Link
+                    className="underline"
+                    href={`/seller/sales/${i.order.id}`}
+                  >
+                    #{i.order.number}
+                  </Link>
+                </td>
                 <td>{i.title}</td>
                 <td>{i.quantity}</td>
                 <td>{formatEGP(i.total)}</td>

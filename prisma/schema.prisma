@@ -81,6 +81,7 @@ enum DisputeStatus {
   OPEN
   RESOLVED_REFUND
   RESOLVED_NO_REFUND
+  CLOSED_BY_BUYER
 }
 
 model User {
@@ -114,6 +115,8 @@ model SellerProfile {
   businessHours  String?
   createdAt      DateTime   @default(now())
 
+  positiveReviews Int @default(0)
+  negativeReviews Int @default(0)
   payoutMethod PayoutMethod?
   payoutAccount String?
   payoutHolderName String?
@@ -197,6 +200,8 @@ model Product {
   minQty          Int           @default(1)
   maxQty          Int           @default(10)
   soldCount       Int           @default(0)
+  positiveReviews Int @default(0)
+  negativeReviews Int @default(0)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -339,7 +344,14 @@ model Review {
   positive    Boolean
   comment     String?
   sellerReply String?
+  updatedAt DateTime?
+  editedOnce Boolean @default(false)
+  sellerReplyAt DateTime?
+  hiddenAt DateTime?
+  hiddenReason String?
   createdAt   DateTime      @default(now())
+  @@index([productId, createdAt])
+  @@index([sellerId, createdAt])
 }
 
 model Message {
@@ -349,6 +361,8 @@ model Message {
   senderId  String
   sender    User     @relation(fields: [senderId], references: [id])
   body      String
+  attachmentKey String?
+  flagged Boolean @default(false)
   createdAt DateTime @default(now())
 
   @@index([orderId, createdAt])
@@ -365,6 +379,9 @@ model Dispute {
   resolution  String?
   createdAt   DateTime      @default(now())
   resolvedAt  DateTime?
+  resolvedById String?
+  @@index([status, createdAt])
+  @@index([orderItemId])
 }
 
 // Every money movement for a seller. Balance = sum(amount);
@@ -415,4 +432,11 @@ model AuditLog {
   data String?
   createdAt DateTime @default(now())
   @@index([targetId, createdAt])
+}
+
+model OrderRead {
+  orderId String
+  userId String
+  lastReadAt DateTime
+  @@id([orderId, userId])
 }
