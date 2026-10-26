@@ -22,6 +22,7 @@ export default async function AccountPage() {
       <div>
         <h1 className="text-2xl font-bold">أهلاً {user.name}</h1>
         <p className="text-sm text-slate-500" dir="ltr">{user.email}</p>
+        <Link href="/account/security" className="text-sm font-semibold text-brand-600">تغيير الباسورد</Link>
       </div>
       <div className="card p-6">
         <h2 className="mb-4 font-bold">مكتبتي (مشترياتي)</h2>

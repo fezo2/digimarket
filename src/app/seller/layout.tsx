@@ -39,7 +39,7 @@ export default async function SellerLayout({
           المحفظة
         </Link>
         <Link className="btn-outline" href="/seller/settings">
-          بيانات المتجر
+          الإعدادات
         </Link>
       </nav>
       {children}

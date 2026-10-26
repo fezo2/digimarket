@@ -10,7 +10,10 @@ import {
   currentSite,
   destroySession,
   hashPassword,
+  requireUser,
 } from "@/lib/auth";
+import { changePassword, toolError } from "@/lib/seller-tools";
+import type { ActionState } from "@/components/action-form";
 import { SITE_HOME } from "@/lib/sites";
 
 export type FormState = { error?: string } | undefined;
@@ -88,4 +91,26 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
 export async function logout() {
   await destroySession();
   redirect("/");
+}
+
+export async function updatePassword(
+  _: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const user = await requireUser();
+  try {
+    const fresh = await changePassword(user.id, {
+      current: String(form.get("current") ?? ""),
+      next: String(form.get("next") ?? ""),
+    });
+    // Re-issue this device's cookie; every other session is now invalid.
+    await createSession({
+      userId: fresh.id,
+      role: fresh.role,
+      sessionVersion: fresh.sessionVersion,
+    });
+    return { success: "الباسورد اتغيّر، وكل الأجهزة التانية اتعمل لها خروج" };
+  } catch (error) {
+    return toolError(error);
+  }
 }

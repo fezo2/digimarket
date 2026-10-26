@@ -143,6 +143,19 @@ model SellerProfile {
   payouts        Payout[]
   coupons        Coupon[]
   reviews        Review[]
+  replies        SellerReply[]
+}
+
+// Canned chat answers a seller drops into an order conversation.
+model SellerReply {
+  id        String        @id @default(cuid())
+  sellerId  String
+  seller    SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  createdAt DateTime      @default(now())
+
+  @@index([sellerId, createdAt])
 }
 
 model KycSubmission {

@@ -15,7 +15,7 @@ export default async function Page({
   const order = await db.order.findFirst({
     where: {
       id: id.data,
-      status: { in: ["PAID", "REFUNDED"] },
+      status: { in: ["PAID", "REFUNDED", "PARTIALLY_REFUNDED"] },
       items: { some: { sellerId: seller.id } },
     },
     select: {
@@ -29,6 +29,11 @@ export default async function Page({
     },
   });
   if (!order) notFound();
+  const replies = await db.sellerReply.findMany({
+    where: { sellerId: seller.id },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, title: true, body: true },
+  });
   return (
     <div className="mx-auto max-w-4xl space-y-5 p-6">
       <h1 className="text-2xl font-bold">طلب #{order.number}</h1>
@@ -38,7 +43,7 @@ export default async function Page({
         </p>
       )}
       <SellerReviewList sellerId={seller.id} orderId={id.data} />
-      <OrderChat userId={user.id} orderId={id.data} />
+      <OrderChat userId={user.id} orderId={id.data} replies={replies} />
     </div>
   );
 }
