@@ -1,6 +1,7 @@
 import type { SellerType } from "@prisma/client";
 
-export const SITE_NAME = "Digiegy";
+export const SITE_NAME = "ديجي مصر";
+export const SITE_NAME_EN = "Digiegy";
 
 // Benefits differ by seller type: verified companies get paid out faster
 // and can list more products.
