@@ -7,7 +7,9 @@ import { revalidatePath } from "next/cache";
 import { requireSeller } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { productInput } from "@/lib/product-input";
-import { savePrivateFile, UploadError } from "@/lib/storage";
+import { productSaveStatus } from "@/lib/product-review";
+import { addStockCodes } from "@/lib/product-stock";
+import { savePrivateFile, deletePrivateFile, UploadError } from "@/lib/storage";
 import { SELLER_TIERS } from "@/lib/config";
 import { slugify, uniqueSuffix } from "@/lib/slug";
 
@@ -68,12 +70,32 @@ export async function saveProduct(_: State, form: FormData): Promise<State> {
   }
   const v = parsed.data;
   let savedId = "";
+  let uploadedFileKey: string | undefined;
   try {
+    const file = form.get("deliveryFile");
+    if (v.deliveryType === "FILE" && file instanceof File && file.size) {
+      // Check ownership before writing; recheck it inside the transaction too.
+      if (
+        id &&
+        !(await db.product.findFirst({
+          where: { id, sellerId: seller.id },
+          select: { id: true },
+        }))
+      )
+        throw new ProductError("المنتج غير موجود");
+      uploadedFileKey = await savePrivateFile(`products/${seller.id}`, file);
+    }
     savedId = await db.$transaction(
       async (tx) => {
         const currentSeller = await lockSeller(tx, seller.id);
         const old = id
-          ? await tx.product.findFirst({ where: { id, sellerId: seller.id } })
+          ? await tx.product.findFirst({
+              where: { id, sellerId: seller.id },
+              include: {
+                options: { include: { values: true } },
+                quantityDiscounts: true,
+              },
+            })
           : null;
         if (id && !old) throw new ProductError("المنتج غير موجود");
         if (!(await tx.category.findUnique({ where: { id: v.categoryId } })))
@@ -81,21 +103,17 @@ export async function saveProduct(_: State, form: FormData): Promise<State> {
         let content: string | null =
           v.deliveryType === "UNIQUE_CODES" ? null : v.deliveryContent;
         if (v.deliveryType === "FILE") {
-          const file = form.get("deliveryFile");
           // Never accept a storage key supplied by the browser.
-          content = old?.deliveryType === "FILE" ? old.deliveryContent : null;
-          if (file instanceof File && file.size)
-            content = await savePrivateFile(`products/${seller.id}`, file);
+          content =
+            uploadedFileKey ??
+            (old?.deliveryType === "FILE" ? old.deliveryContent : null);
           if (!content) throw new ProductError("ارفع ملف التسليم");
         }
-        const status =
-          old?.status === "ACTIVE" &&
-          (old.title !== v.title ||
-            old.description !== v.description ||
-            old.price !== v.price ||
-            old.deliveryContent !== content)
-            ? "PENDING_REVIEW"
-            : v.intent;
+        const status = productSaveStatus(
+          old,
+          { ...v, deliveryContent: content, quantityDiscounts: v.discounts },
+          v.intent,
+        );
         if (status === "PENDING_REVIEW") {
           const count = await tx.product.count({
             where: {
@@ -160,6 +178,17 @@ export async function saveProduct(_: State, form: FormData): Promise<State> {
       { timeout: 30000 },
     );
   } catch (error) {
+    // Only remove this attempt's upload; an existing file can be shared by clones.
+    if (uploadedFileKey) {
+      try {
+        await deletePrivateFile(uploadedFileKey);
+      } catch (cleanupError) {
+        throw new AggregateError(
+          [error, cleanupError],
+          "Product save failed and its delivery upload could not be removed",
+        );
+      }
+    }
     return failure(error);
   }
   refresh();
@@ -220,7 +249,7 @@ export async function manageProduct(_: State, form: FormData): Promise<State> {
           minQty: p.minQty,
           maxQty: p.maxQty,
           status: "DRAFT",
-          salesEnabled: false,
+          salesEnabled: true,
           options: {
             create: p.options.map((o) => ({
               name: o.name,
@@ -300,25 +329,8 @@ export async function manageStock(_: State, form: FormData): Promise<State> {
         if (!result.count) throw new ProductError("الكود مش متاح للحذف");
         return "الكود اتحذف";
       }
-      const existing = await tx.stockItem.findMany({
-        where: {
-          productId: p.id,
-          status: "AVAILABLE",
-          content: { in: [...new Set(lines)] },
-        },
-        select: { content: true },
-      });
-      const seen = new Set(existing.map((x) => x.content));
-      const fresh = lines.filter((x) => {
-        if (seen.has(x)) return false;
-        seen.add(x);
-        return true;
-      });
-      if (fresh.length)
-        await tx.stockItem.createMany({
-          data: fresh.map((content) => ({ productId: p.id, content })),
-        });
-      return `اتضاف ${fresh.length}، اتشال ${lines.length - fresh.length} مكرر`;
+      const result = await addStockCodes(tx.stockItem, p.id, lines);
+      return `اتضاف ${result.added}، اتشال ${result.duplicates} مكرر`;
     });
     refresh();
     return { message };
