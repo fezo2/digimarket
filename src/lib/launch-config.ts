@@ -37,6 +37,14 @@ export function launchConfig(env: NodeJS.ProcessEnv = process.env) {
     const url = new URL(env.APP_URL || "");
     if (url.protocol !== "https:" || url.username || url.password)
       throw new Error("APP_URL must be HTTPS");
+    for (const key of ["SELLER_URL", "ADMIN_URL"] as const) {
+      if (!env[key]) continue;
+      const portal = new URL(env[key]);
+      if (portal.protocol !== "https:" || portal.username || portal.password)
+        throw new Error(key + " must be HTTPS");
+    }
+    if (!!env.SELLER_URL !== !!env.ADMIN_URL)
+      throw new Error("Set both SELLER_URL and ADMIN_URL, or neither");
     if (driver !== "r2" || !env.CRON_SECRET)
       throw new Error("Production requires R2 and CRON_SECRET");
     if (!env.DATABASE_URL || !env.DIRECT_URL)

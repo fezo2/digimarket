@@ -1,10 +1,11 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT } from "jose";
 import bcrypt from "bcryptjs";
 import { sessionIsCurrent } from "./account-security";
 import { db } from "./db";
+import { siteForHost, type Site } from "./sites";
 import {
   SESSION_COOKIE as COOKIE,
   authSecret,
@@ -78,9 +79,16 @@ export async function requireUser(next = "/") {
   return user;
 }
 
+// Which portal this request is on: store, seller or admin.
+export async function currentSite(): Promise<Site> {
+  return siteForHost((await headers()).get("host"));
+}
+
 export async function requireAdmin() {
   const user = await requireUser("/admin");
-  if (user.role !== "ADMIN") redirect("/");
+  // On the admin host "/" is the admin panel itself, so send them to sign in.
+  if (user.role !== "ADMIN")
+    redirect((await currentSite()) === "admin" ? "/login" : "/");
   return user;
 }
 

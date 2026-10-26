@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { SITE_NAME } from "@/lib/config";
 import { logout } from "@/app/(auth)/actions";
+import { portalHref, siteHref } from "@/lib/sites";
 
 export async function Header() {
   const user = await getCurrentUser();
@@ -33,17 +34,17 @@ export async function Header() {
 
         <nav className="ms-auto flex items-center gap-2 text-sm font-medium">
           {user?.role === "ADMIN" && (
-            <Link href="/admin" className="btn-outline">
+            <Link href={portalHref("admin")} className="btn-outline">
               لوحة الإدارة
             </Link>
           )}
           {user?.seller ? (
-            <Link href="/seller" className="btn-outline">
+            <Link href={portalHref("seller")} className="btn-outline">
               لوحة التاجر
             </Link>
           ) : (
             <Link
-              href="/seller/join"
+              href={siteHref("seller", "/seller/join")}
               className="hidden text-slate-600 hover:text-brand-600 sm:inline"
             >
               بيع على {SITE_NAME}

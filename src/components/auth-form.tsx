@@ -8,16 +8,18 @@ type Props = {
   mode: "login" | "register";
   action: (state: FormState, form: FormData) => Promise<FormState>;
   next?: string;
+  title?: string;
+  allowSignup?: boolean;
 };
 
-export function AuthForm({ mode, action, next }: Props) {
+export function AuthForm({ mode, action, next, title, allowSignup = true }: Props) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const isRegister = mode === "register";
 
   return (
     <div className="mx-auto max-w-md px-4 py-12">
       <div className="card p-6 sm:p-8">
-        <h1 className="mb-6 text-2xl font-bold">{isRegister ? "حساب جديد" : "تسجيل الدخول"}</h1>
+        <h1 className="mb-6 text-2xl font-bold">{title ?? (isRegister ? "حساب جديد" : "تسجيل الدخول")}</h1>
         <form action={formAction} className="space-y-4">
           <input type="hidden" name="next" value={next ?? "/"} />
           {isRegister && (
@@ -48,7 +50,7 @@ export function AuthForm({ mode, action, next }: Props) {
             {pending ? "لحظة…" : isRegister ? "إنشاء الحساب" : "دخول"}
           </button>
         </form>
-        <p className="mt-6 text-center text-sm text-slate-600">
+        {allowSignup && <p className="mt-6 text-center text-sm text-slate-600">
           {isRegister ? "عندك حساب؟ " : "معندكش حساب؟ "}
           <Link
             href={`${isRegister ? "/login" : "/register"}${next ? `?next=${encodeURIComponent(next)}` : ""}`}
@@ -56,7 +58,7 @@ export function AuthForm({ mode, action, next }: Props) {
           >
             {isRegister ? "سجّل دخول" : "اعمل حساب"}
           </Link>
-        </p>
+        </p>}
       </div>
     </div>
   );

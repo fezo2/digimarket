@@ -1,3 +1,4 @@
+import { auditLabel } from "@/lib/audit-labels";
 export function AuditList({
   logs,
 }: {
@@ -9,8 +10,8 @@ export function AuditList({
       <div className="divide-y text-sm">
         {logs.map((l) => (
           <div key={l.id} className="flex flex-wrap gap-3 py-2">
-            <span className="font-mono" dir="ltr">
-              {l.action}
+            <span className="font-semibold" title={l.action}>
+              {auditLabel(l.action)}
             </span>
             <span className="min-w-0 flex-1 truncate text-slate-500" dir="ltr">
               {l.data}
