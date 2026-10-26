@@ -17,11 +17,11 @@ const orderInput = z.object({
   textInputs: z.record(z.string(), z.string().trim().max(2000)),
 });
 
-async function lockOrder(tx: Tx, id: string) {
+export async function lockOrder(tx: Tx, id: string) {
   await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${id} FOR UPDATE`;
 }
 
-async function releaseOrderStock(tx: Tx, orderId: string) {
+export async function releaseOrderStock(tx: Tx, orderId: string) {
   await tx.stockItem.updateMany({
     where: { status: "RESERVED", orderItem: { orderId } },
     data: { status: "AVAILABLE", orderItemId: null },
@@ -350,7 +350,7 @@ export async function markOrderPaid(
             id: { not: orderId },
             paymentProvider: payment.provider,
             paymentRef: payment.reference,
-            status: "PAID",
+            status: { in: ["PAID", "REFUNDED", "PARTIALLY_REFUNDED"] },
           },
         })
       ) {
@@ -371,98 +371,115 @@ export async function markOrderPaid(
         data: {
           status: "PAID",
           paidAt: now,
+          paidAmount: payment.amount,
           paymentProvider: payment.provider,
           paymentRef: payment.reference,
         },
       });
       if (!changed.count) return;
-      if (payment.amount !== order.total) {
+      const result = await deliverPaidOrder(tx, orderId);
+      if (result.error) {
         await releaseOrderStock(tx, orderId);
-        console.error(
-          "Payment amount mismatch: PAID but NOT delivered; admin review required",
-          { orderId, expected: order.total, received: payment.amount },
-        );
-        return;
-      }
-      const item = order.items[0];
-      if (!item) {
-        await releaseOrderStock(tx, orderId);
-        console.error("Paid order has no item; admin review required", {
+        await tx.order.updateMany({
+          where: { id: orderId, status: "PAID" },
+          data: { reviewReason: result.error },
+        });
+        console.error("Paid order NOT delivered; admin review required", {
           orderId,
+          reason: result.error,
         });
-        return;
       }
-      if (order.couponId) {
-        await tx.$queryRaw`SELECT id FROM "Coupon" WHERE id = ${order.couponId} FOR UPDATE`;
-        const coupon = await tx.coupon.findUniqueOrThrow({
-          where: { id: order.couponId },
-        });
-        if (
-          coupon.usageLimit !== null &&
-          coupon.usedCount >= coupon.usageLimit
-        ) {
-          await releaseOrderStock(tx, orderId);
-          console.error(
-            "Paid order coupon exhausted; NOT delivered, admin review required",
-            { orderId },
-          );
-          return;
-        }
-      }
-      if (item.deliveryType === "UNIQUE_CODES") {
-        const reserved = await tx.stockItem.count({
-          where: { orderItemId: item.id, status: "RESERVED" },
-        });
-        const needed = item.quantity - reserved;
-        if (
-          needed < 0 ||
-          (await reserveStock(tx, item.id, item.productId, needed)) !== needed
-        ) {
-          await releaseOrderStock(tx, orderId);
-          console.error(
-            "Paid order has insufficient stock; NOT delivered, admin refund required",
-            { orderId },
-          );
-          return;
-        }
-        await tx.stockItem.updateMany({
-          where: { orderItemId: item.id, status: "RESERVED" },
-          data: { status: "SOLD", soldAt: now },
-        });
-      } else if (!item.deliveryContent) {
-        await releaseOrderStock(tx, orderId);
-        console.error(
-          "Paid order has no delivery snapshot; NOT delivered, admin review required",
-          { orderId },
-        );
-        return;
-      }
-      await tx.orderItem.update({
-        where: { id: item.id },
-        data: { deliveredAt: now },
-      });
-      await tx.product.update({
-        where: { id: item.productId },
-        data: { soldCount: { increment: item.quantity } },
-      });
-      if (order.couponId)
-        await tx.coupon.update({
-          where: { id: order.couponId },
-          data: { usedCount: { increment: 1 } },
-        });
-      await tx.ledgerEntry.create({
-        data: {
-          sellerId: item.sellerId,
-          type: "SALE",
-          amount: item.sellerNet,
-          availableAt: new Date(
-            now.getTime() + SELLER_TIERS[item.seller.type].holdDays * 86400000,
-          ),
-          orderItemId: item.id,
-          note: `طلب #${order.number}`,
-        },
-      });
     },
     { timeout: 15000 },
   );
+}
+
+// All checks precede writes: an unsuccessful admin retry changes no data.
+// The order lock serializes payment, admin retries and refunds.
+export async function deliverPaidOrder(
+  tx: Tx,
+  orderId: string,
+): Promise<{ error?: string; delivered?: boolean }> {
+  await lockOrder(tx, orderId);
+  const order = await tx.order.findUnique({
+    where: { id: orderId },
+    include: { items: { include: { seller: { select: { type: true } } } } },
+  });
+  if (!order || order.status !== "PAID")
+    return { error: "الطلب مش مدفوع أو اتعالج قبل كده" };
+  const item = order.items[0];
+  if (!item || order.items.length !== 1)
+    return { error: "بيانات تسليم الطلب ناقصة" };
+  const sale = await tx.ledgerEntry.findFirst({
+    where: { orderItemId: item.id, type: "SALE" },
+  });
+  if (item.deliveredAt && sale) return { delivered: false };
+  if (item.deliveredAt || sale)
+    return { error: "بيانات التسليم والأرباح محتاجة مراجعة" };
+  if (order.paidAmount === null)
+    return { error: "المبلغ المدفوع مش مسجل، راجع الدفع قبل التسليم" };
+  if (order.paidAmount !== order.total)
+    return { error: "المبلغ المدفوع مختلف عن إجمالي الطلب" };
+  if (order.couponId) {
+    await tx.$queryRaw`SELECT id FROM "Coupon" WHERE id = ${order.couponId} FOR UPDATE`;
+    const coupon = await tx.coupon.findUniqueOrThrow({
+      where: { id: order.couponId },
+    });
+    if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit)
+      return { error: "الكوبون وصل للحد الأقصى للاستخدام" };
+  }
+  let extra: { id: string }[] = [];
+  if (item.deliveryType === "UNIQUE_CODES") {
+    const reserved = await tx.stockItem.count({
+      where: { orderItemId: item.id, status: "RESERVED" },
+    });
+    const needed = item.quantity - reserved;
+    if (needed < 0) return { error: "حجز المخزون محتاج مراجعة" };
+    extra = await tx.$queryRaw<
+      { id: string }[]
+    >`SELECT id FROM "StockItem" WHERE "productId" = ${item.productId} AND status = 'AVAILABLE' ORDER BY "createdAt", id LIMIT ${needed} FOR UPDATE SKIP LOCKED`;
+    if (extra.length !== needed)
+      return { error: "المخزون مش كفاية لتسليم الطلب" };
+  } else if (!item.deliveryContent)
+    return { error: "بيانات تسليم الطلب ناقصة" };
+  const now = new Date();
+  if (extra.length)
+    await tx.stockItem.updateMany({
+      where: { id: { in: extra.map((s) => s.id) }, status: "AVAILABLE" },
+      data: { status: "RESERVED", orderItemId: item.id },
+    });
+  await tx.stockItem.updateMany({
+    where: { orderItemId: item.id, status: "RESERVED" },
+    data: { status: "SOLD", soldAt: now },
+  });
+  await tx.orderItem.updateMany({
+    where: { id: item.id, deliveredAt: null },
+    data: { deliveredAt: now },
+  });
+  await tx.product.update({
+    where: { id: item.productId },
+    data: { soldCount: { increment: item.quantity } },
+  });
+  if (order.couponId)
+    await tx.coupon.update({
+      where: { id: order.couponId },
+      data: { usedCount: { increment: 1 } },
+    });
+  await tx.ledgerEntry.create({
+    data: {
+      sellerId: item.sellerId,
+      type: "SALE",
+      amount: item.sellerNet,
+      availableAt: new Date(
+        now.getTime() + SELLER_TIERS[item.seller.type].holdDays * 86400000,
+      ),
+      orderItemId: item.id,
+      note: `طلب #${order.number}`,
+    },
+  });
+  await tx.order.updateMany({
+    where: { id: orderId, status: "PAID" },
+    data: { reviewReason: null },
+  });
+  return { delivered: true };
 }

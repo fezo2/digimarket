@@ -10,9 +10,13 @@ export function formatEGP(piasters: number): string {
 }
 
 export function toPiasters(egp: string | number): number {
-  const value = typeof egp === "number" ? egp : Number.parseFloat(egp);
-  if (!Number.isFinite(value)) throw new Error("Invalid amount");
-  return Math.round(value * 100);
+  const text = String(egp);
+  if (!/^-?\d+(\.\d{1,2})?$/.test(text)) throw new Error("Invalid amount");
+  const [whole, fraction = ""] = text.replace(/^-/, "").split(".");
+  return (
+    (text.startsWith("-") ? -1 : 1) *
+    (Number(whole) * 100 + Number(fraction.padEnd(2, "0")))
+  );
 }
 
 export function commissionFor(amount: number, bps: number): number {
@@ -21,4 +25,9 @@ export function commissionFor(amount: number, bps: number): number {
 
 export function formatBps(bps: number): string {
   return `${bps / 100}%`;
+}
+
+export function parseEGP(value: string): number {
+  if (!/^\d{1,7}(\.\d{1,2})?$/.test(value)) throw new Error("Invalid amount");
+  return toPiasters(value);
 }
