@@ -49,7 +49,7 @@ export default async function SellerDashboard() {
         <Stat label="قطع مباعة" value={(soldItems._sum.quantity ?? 0).toLocaleString("ar-EG")} />
       </div>
 
-      <Link className="btn-primary" href="/seller/products">إدارة المنتجات</Link>
+      <div className="flex gap-3"><Link className="btn-primary" href="/seller/products">إدارة المنتجات</Link><Link className="btn-outline" href="/seller/sales">المبيعات والأرباح</Link></div>
     </div>
   );
 }

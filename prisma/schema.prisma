@@ -52,6 +52,7 @@ enum ProductStatus {
 
 enum StockStatus {
   AVAILABLE
+  RESERVED
   SOLD
 }
 
@@ -280,6 +281,10 @@ model Order {
   createdAt       DateTime    @default(now())
   items           OrderItem[]
   messages        Message[]
+  expiresAt       DateTime
+
+  @@index([status, expiresAt])
+  @@index([buyerId, createdAt])
 }
 
 model OrderItem {
@@ -300,11 +305,16 @@ model OrderItem {
   optionsJson      String?
   refundedAmount   Int           @default(0)
   deliveredAt      DateTime?
+  deliveryType     DeliveryType
+  deliveryContent  String?
+  instructions     String?
 
   stockItems StockItem[]
   review     Review?
   disputes   Dispute[]
   ledger     LedgerEntry[]
+
+  @@index([sellerId])
 }
 
 model Review {
