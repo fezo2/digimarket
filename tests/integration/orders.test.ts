@@ -325,7 +325,7 @@ test("checkout transactions and payment security against PostgreSQL", async (t) 
         assert.equal(new Set(item.stockItems.map((s) => s.content)).size, 2);
         assert.ok(item.stockItems.every((s) => s.status === "SOLD"));
         assert.equal(
-          item.ledger[0].availableAt.getTime() - paid.paidAt!.getTime(),
+          item.ledger[0].availableAt.getTime() - item.deliveredAt!.getTime(),
           3 * 86400000,
         );
         assert.equal(
@@ -585,7 +585,7 @@ test("checkout transactions and payment security against PostgreSQL", async (t) 
         assert.equal(item.commissionBps, 1500);
         assert.equal(item.commissionAmount, 1350);
         assert.equal(
-          item.ledger[0].availableAt.getTime() - paid.paidAt!.getTime(),
+          item.ledger[0].availableAt.getTime() - item.deliveredAt!.getTime(),
           7 * 86400000,
         );
         assert.equal(

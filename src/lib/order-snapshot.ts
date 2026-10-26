@@ -17,6 +17,6 @@ export const orderStatusLabels = {
   PENDING_PAYMENT: "مستني الدفع",
   PAID: "مدفوع",
   CANCELLED: "ملغي",
-  REFUNDED: "مسترد",
+  REFUNDED: "اتردّت الفلوس",
   PARTIALLY_REFUNDED: "مسترد جزئيًا",
 };

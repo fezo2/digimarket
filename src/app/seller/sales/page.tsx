@@ -3,12 +3,21 @@ import { db } from "@/lib/db";
 import { sellerBalance } from "@/lib/ledger";
 import { formatEGP, formatBps } from "@/lib/money";
 
-export default async function SellerSales() {
+export default async function SellerSales({
+  searchParams,
+}: {
+  searchParams: Promise<{ order?: string }>;
+}) {
+  const query = await searchParams;
   const { seller } = await requireSeller();
   const [balance, items, ledger] = await Promise.all([
     sellerBalance(seller.id),
     db.orderItem.findMany({
-      where: { sellerId: seller.id, order: { status: "PAID" } },
+      where: {
+        sellerId: seller.id,
+        ...(query.order ? { orderId: query.order } : {}),
+        order: { status: { in: ["PAID", "REFUNDED"] } },
+      },
       orderBy: { order: { paidAt: "desc" } },
       select: {
         id: true,
