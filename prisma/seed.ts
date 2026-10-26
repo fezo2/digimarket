@@ -39,15 +39,15 @@ async function main() {
 
   const password = await bcrypt.hash("password123", 12);
   await db.user.upsert({
-    where: { email: "admin@digimarket.test" },
+    where: { email: "admin@digiegy.test" },
     update: {},
-    create: { email: "admin@digimarket.test", name: "الإدارة", role: "ADMIN", passwordHash: password },
+    create: { email: "admin@digiegy.test", name: "الإدارة", role: "ADMIN", passwordHash: password },
   });
 
   const sellerUser = await db.user.upsert({
-    where: { email: "seller@digimarket.test" },
+    where: { email: "seller@digiegy.test" },
     update: {},
-    create: { email: "seller@digimarket.test", name: "تاجر تجريبي", role: "SELLER", passwordHash: password },
+    create: { email: "seller@digiegy.test", name: "تاجر تجريبي", role: "SELLER", passwordHash: password },
   });
   const seller = await db.sellerProfile.upsert({
     where: { userId: sellerUser.id },
@@ -65,9 +65,9 @@ async function main() {
   });
 
   await db.user.upsert({
-    where: { email: "buyer@digimarket.test" },
+    where: { email: "buyer@digiegy.test" },
     update: {},
-    create: { email: "buyer@digimarket.test", name: "مشتري تجريبي", passwordHash: password },
+    create: { email: "buyer@digiegy.test", name: "مشتري تجريبي", passwordHash: password },
   });
 
   for (const [i, p] of PRODUCTS.entries()) {
@@ -111,7 +111,7 @@ async function main() {
       },
     });
   }
-  console.log("Seeded. Logins (password: password123): admin@, seller@, buyer@digimarket.test");
+  console.log("Seeded. Logins (password: password123): admin@, seller@, buyer@digiegy.test");
 }
 
 main().finally(() => db.$disconnect());

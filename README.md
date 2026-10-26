@@ -1,4 +1,4 @@
-# ديجي ماركت (Digimarket)
+# Digiegy
 
 سوق مصري متعدد التجار للمنتجات الرقمية فقط (اشتراكات، حسابات، برامج ومفاتيح تفعيل)، مع توثيق هوية إلزامي للتجار (KYC).
 
@@ -20,9 +20,9 @@ npm run dev
 
 | الدور | الإيميل |
 | --- | --- |
-| أدمن | admin@digimarket.test |
-| تاجر موثّق | seller@digimarket.test |
-| مشتري | buyer@digimarket.test |
+| أدمن | admin@digiegy.test |
+| تاجر موثّق | seller@digiegy.test |
+| مشتري | buyer@digiegy.test |
 
 ## التقنيات
 
