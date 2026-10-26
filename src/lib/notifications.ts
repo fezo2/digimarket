@@ -167,3 +167,15 @@ export async function sendNotifications(
   }
   return count;
 }
+
+// Best-effort ping to the platform owner's own Telegram chat, for queues an
+// admin has to work by hand (manual transfers). Never throws.
+export async function alertAdmin(text: string, fetcher: typeof fetch = fetch) {
+  const chatId = process.env.ADMIN_TELEGRAM_CHAT_ID;
+  if (!chatId || !process.env.TELEGRAM_BOT_TOKEN) return false;
+  try {
+    return (await telegramSend(chatId, text, fetcher)).ok;
+  } catch {
+    return false;
+  }
+}

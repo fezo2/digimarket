@@ -323,6 +323,9 @@ model Order {
   refundNote      String?
   reviewReason    String?
   paidAmount      Int?
+  // Where the buyer checked out from, shown on the seller's order page.
+  buyerIp         String?
+  buyerCountry    String?
   manualPayment   ManualPayment?
 
   @@index([status, expiresAt])

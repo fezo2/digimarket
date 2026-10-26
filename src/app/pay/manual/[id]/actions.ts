@@ -1,5 +1,10 @@
 "use server";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
+import { formatEGP } from "@/lib/money";
+import { alertAdmin } from "@/lib/notifications";
+import { siteHref } from "@/lib/sites";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { manualActionError, submitManualPayment } from "@/lib/manual-payments";
@@ -32,5 +37,19 @@ export async function sendManualPayment(
     return manualActionError(error);
   }
   revalidatePath("/admin/payments");
+  after(async () => {
+    const order = await db.order.findUnique({
+      where: { id },
+      select: { number: true, total: true },
+    });
+    if (order)
+      await alertAdmin(
+        [
+          "💳 تحويل يدوي جديد مستني تأكيدك",
+          `طلب #${order.number} · ${formatEGP(order.total)}`,
+          siteHref("admin", "/admin/payments"),
+        ].join("\n"),
+      );
+  });
   redirect(`/account/orders/${id}`);
 }

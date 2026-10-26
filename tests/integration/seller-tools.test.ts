@@ -92,9 +92,15 @@ test("seller tools against PostgreSQL", async (t) => {
         quantity: 1,
         selections: {},
         textInputs: {},
+        buyerIp: "41.33.12.7",
+        buyerCountry: "EG",
       });
       await markOrderPaid(order.id, { provider: "test", reference: key, amount: 10000 });
-      const { number } = await db.order.findUniqueOrThrow({ where: { id: order.id } });
+      const { number, buyerIp, buyerCountry } = await db.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+      assert.equal(buyerIp, "41.33.12.7");
+      assert.equal(buyerCountry, "EG");
       const find = (f: Parameters<typeof tools.salesWhere>[1]) =>
         db.orderItem.count({ where: tools.salesWhere(seller.id, f) });
       assert.equal(await find({}), 1);
@@ -109,6 +115,30 @@ test("seller tools against PostgreSQL", async (t) => {
         await db.orderItem.count({ where: tools.salesWhere("other", {}) }),
         0,
       );
+    });
+
+    await t.test("admin alert is best-effort and needs a chat id", async () => {
+      const { alertAdmin } = await import("../../src/lib/notifications");
+      const saved = { ...process.env };
+      const sent: string[] = [];
+      const fake = (async (_url: string, init: RequestInit) => {
+        sent.push(String(init.body));
+        return new Response(JSON.stringify({ ok: true }));
+      }) as typeof fetch;
+      try {
+        delete process.env.ADMIN_TELEGRAM_CHAT_ID;
+        process.env.TELEGRAM_BOT_TOKEN = "test-token";
+        assert.equal(await alertAdmin("x", fake), false);
+        process.env.ADMIN_TELEGRAM_CHAT_ID = "123";
+        assert.equal(await alertAdmin("تحويل جديد", fake), true);
+        assert.match(sent[0], /"chat_id":"123"/);
+        const broken = (async () => {
+          throw new Error("network");
+        }) as typeof fetch;
+        assert.equal(await alertAdmin("x", broken), false);
+      } finally {
+        process.env = saved;
+      }
     });
 
     await t.test("csv quotes text and defuses formulas", () => {

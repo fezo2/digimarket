@@ -84,14 +84,14 @@ export default async function SellerDashboard() {
         </div>
       ))}
 
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="قابل للسحب" value={formatEGP(balance.available)} accent />
         <Stat label="معلّق" value={formatEGP(balance.held)} hint={`بيتاح بعد ${seller.holdDays ?? tier.holdDays} أيام من البيع`} />
         <Stat label="المنتجات" value={productCount.toLocaleString("ar-EG")} hint={`الحد: ${tier.maxActiveProducts.toLocaleString("ar-EG")}`} />
         <Stat label="قطع مباعة" value={(soldItems._sum.quantity ?? 0).toLocaleString("ar-EG")} />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="صافي آخر ٣٠ يوم" value={formatEGP(monthNet)} />
         <Stat label="تقييمات إيجابية" value={`${seller.positiveReviews.toLocaleString("ar-EG")} 👍`} />
         <Stat label="تقييمات سلبية" value={`${seller.negativeReviews.toLocaleString("ar-EG")} 👎`} hint={reviews ? `نسبة الرضا ${Math.round((seller.positiveReviews / reviews) * 100).toLocaleString("ar-EG")}٪` : undefined} />
@@ -102,7 +102,7 @@ export default async function SellerDashboard() {
         <p className="mb-3 text-sm text-slate-500">صافي المبيعات آخر ٣٠ يوم</p>
         <div className="flex h-40 items-end gap-0.5" dir="ltr">
           {days.map(({ d, net, count }) => (
-            <div key={d.toISOString()} className="flex flex-1 flex-col items-center gap-1" title={`${d.toLocaleDateString("ar-EG")}: ${formatEGP(net)} · ${count} طلب`}>
+            <div key={d.toISOString()} className="flex h-full flex-1 flex-col items-center justify-end gap-1" title={`${d.toLocaleDateString("ar-EG")}: ${formatEGP(net)} · ${count} طلب`}>
               <div className="w-full rounded-t bg-brand-500" style={{ height: `${Math.max(2, (net / max) * 100)}%` }} />
               <span className="text-[9px] text-slate-500">{d.getDate()}</span>
             </div>
