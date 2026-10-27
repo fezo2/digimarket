@@ -10,19 +10,9 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: [
-        "/account",
-        "/checkout",
-        "/pay",
-        "/api",
-        "/seller",
-        "/admin",
-        "/login",
-        "/register",
-        "/forgot-password",
-        "/reset-password",
-        "/search",
-      ],
+      // Private pages carry noindex themselves; list only what crawlers
+      // would otherwise waste time on.
+      disallow: ["/account", "/checkout", "/pay", "/api", "/search"],
     },
     sitemap: absolute("/sitemap.xml"),
   };

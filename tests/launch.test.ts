@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { validateKey, uploadSpec, checkMagic } from "../src/lib/storage-rules";
-import { tokenHash, secretMatches, securityHeaders } from "../src/lib/security";
+import {
+  tokenHash,
+  secretMatches,
+  securityHeaders,
+} from "../src/lib/security";
+import { contentSecurityPolicy } from "../src/lib/csp";
 import { launchConfig } from "../src/lib/launch-config";
 test("private keys reject traversal, absolute paths and unknown prefixes", () => {
   for (const key of [
@@ -56,14 +61,21 @@ test("production headers deny framing and eval, allow required hosts", () => {
   assert.equal(headers["X-Frame-Options"], "DENY");
   assert.equal(headers["X-Content-Type-Options"], "nosniff");
   assert.ok(headers["Strict-Transport-Security"]);
-  assert.ok(!headers["Content-Security-Policy"].includes("unsafe-eval"));
+  const csp = contentSecurityPolicy("abc123", {
+    NODE_ENV: "production",
+    R2_ACCOUNT_ID: "testaccount",
+  });
+  assert.ok(!csp.includes("unsafe-eval"));
+  const scripts = csp.split("; ").find((d) => d.startsWith("script-src"))!;
+  assert.ok(!scripts.includes("unsafe-inline"));
+  assert.ok(scripts.includes("'nonce-abc123'"));
   for (const host of [
     "fonts.googleapis.com",
     "fonts.gstatic.com",
     "accept.paymob.com",
     "testaccount.r2.cloudflarestorage.com",
   ])
-    assert.ok(headers["Content-Security-Policy"].includes(host));
+    assert.ok(csp.includes(host));
   assert.ok(
     !securityHeaders({ NODE_ENV: "development" })["Strict-Transport-Security"],
   );
