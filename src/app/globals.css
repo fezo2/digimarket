@@ -44,6 +44,12 @@ body {
 @utility label {
   @apply mb-1.5 block text-sm font-medium text-slate-700;
 }
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
 @utility badge {
   @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
 }
