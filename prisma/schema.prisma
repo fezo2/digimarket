@@ -321,6 +321,9 @@ model Order {
   expiresAt       DateTime
   refundedAt      DateTime?
   refundNote      String?
+  // When the buyer actually got the money back. Admin refunds are recorded
+  // after paying; seller refunds wait here until the admin transfers.
+  refundPaidAt    DateTime?
   reviewReason    String?
   paidAmount      Int?
   // Where the buyer checked out from, shown on the seller's order page.

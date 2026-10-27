@@ -20,6 +20,8 @@ export default async function OrderPage({
   const order = await db.order.findFirst({
     where: { id, buyerId: user.id },
     select: {
+      refundNote: true,
+      refundPaidAt: true,
       id: true,
       number: true,
       status: true,
@@ -59,6 +61,14 @@ export default async function OrderPage({
       <p>
         الحالة: {orderStatusLabels[order.status]} · {formatEGP(order.total)}
       </p>
+      {order.status === "REFUNDED" && (
+        <p className="rounded-xl bg-emerald-50 p-4 text-emerald-900">
+          {order.refundPaidAt
+            ? `فلوس الطلب رجعت لك ${order.refundPaidAt.toLocaleString("ar-EG")}.`
+            : "التاجر وافق على الاسترداد، والإدارة هتحوّل لك الفلوس على نفس وسيلة الدفع قريب."}
+          {order.refundNote && <span className="block text-sm">السبب: {order.refundNote}</span>}
+        </p>
+      )}
       {order.manualPayment?.status === "SUBMITTED" && (
         <p className="rounded-xl bg-amber-50 p-4">
           بنراجع التحويل بتاعك. أول ما الإدارة تأكده المنتج هيظهر هنا.

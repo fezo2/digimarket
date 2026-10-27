@@ -117,6 +117,41 @@ test("seller tools against PostgreSQL", async (t) => {
       );
     });
 
+    await t.test("seller refunds their own sale, admin then pays the buyer", async () => {
+      const wallet = await import("../../src/lib/wallet");
+      const { sellerBalance } = await import("../../src/lib/ledger");
+      const item = await db.orderItem.findFirstOrThrow({
+        where: { sellerId: seller.id },
+        include: { order: true },
+      });
+      const orderId = item.orderId;
+      await assert.rejects(wallet.sellerRefundOrder(buyer.id, orderId, "x"), /غير مسموح/);
+      await assert.rejects(wallet.sellerRefundOrder(sellerUser.id, orderId, " "), /السبب/);
+      const before = await sellerBalance(seller.id);
+      const done = await wallet.sellerRefundOrder(sellerUser.id, orderId, "الكود مش شغال");
+      assert.equal(done && done.number, item.order.number);
+      assert.equal(await wallet.sellerRefundOrder(sellerUser.id, orderId, "تاني"), null);
+      const after = await sellerBalance(seller.id);
+      assert.equal(before.total - after.total, item.sellerNet);
+      const order = await db.order.findUniqueOrThrow({ where: { id: orderId } });
+      assert.equal(order.status, "REFUNDED");
+      assert.equal(order.refundPaidAt, null);
+      assert.equal(
+        (await db.orderItem.findUniqueOrThrow({ where: { id: item.id } })).refundedAmount,
+        item.total,
+      );
+      assert.ok(
+        await db.message.findFirst({ where: { orderId, kind: "SYSTEM", body: { contains: "الكود مش شغال" } } }),
+      );
+      await assert.rejects(wallet.markRefundPaid(sellerUser.id, orderId), /غير مسموح/);
+      const admin = await db.user.create({
+        data: { email: `${key}-admin@test.local`, name: "ادمن", passwordHash: "x", role: "ADMIN" },
+      });
+      users.push(admin.id);
+      assert.equal(await wallet.markRefundPaid(admin.id, orderId), true);
+      assert.equal(await wallet.markRefundPaid(admin.id, orderId), false);
+    });
+
     await t.test("admin alert is best-effort and needs a chat id", async () => {
       const { alertAdmin } = await import("../../src/lib/notifications");
       const saved = { ...process.env };
@@ -148,6 +183,7 @@ test("seller tools against PostgreSQL", async (t) => {
       );
     });
   } finally {
+    await db.auditLog.deleteMany({ where: { actorId: { in: users } } });
     await db.order.deleteMany({ where: { buyerId: { in: users } } });
     await db.ledgerEntry.deleteMany({ where: { seller: { userId: { in: users } } } });
     await db.product.deleteMany({ where: { categoryId } });

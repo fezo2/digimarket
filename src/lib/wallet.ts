@@ -219,52 +219,132 @@ export async function refundOrder(
   const value = noteSchema.parse(note);
   const execute = async (tx: Tx) => {
     await admin(tx, actorId);
-    await lockOrder(tx, orderId);
-    const order = await tx.order.findUnique({
-      where: { id: orderId },
-      include: { items: true },
-    });
-    if (!order) throw new WalletError("الطلب مش موجود");
-    if (order.status !== "PAID") return false;
-    for (const sellerId of [
-      ...new Set(order.items.map((i) => i.sellerId)),
-    ].sort())
-      await lockSeller(tx, sellerId);
-    const changed = await tx.order.updateMany({
-      where: { id: orderId, status: "PAID" },
-      data: { status: "REFUNDED", refundedAt: new Date(), refundNote: value },
-    });
-    if (!changed.count) return false;
-    await releaseOrderStock(tx, orderId);
-    for (const item of order.items) {
-      const sale = await tx.ledgerEntry.findFirst({
-        where: { orderItemId: item.id, type: "SALE" },
-        orderBy: { createdAt: "asc" },
-      });
-      if (sale)
-        await tx.ledgerEntry.create({
-          data: {
-            sellerId: item.sellerId,
-            type: "REFUND",
-            amount: -item.sellerNet,
-            availableAt: sale.availableAt,
-            orderItemId: item.id,
-            note: `استرداد طلب #${order.number}`,
-          },
-        });
-      if (item.deliveredAt)
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { soldCount: { decrement: item.quantity } },
-        });
-    }
-    await hideRefundedReviews(tx, orderId);
-    await audit(tx, actorId, "order.refunded", orderId, {
-      amount: order.total,
-    });
+    const order = await refundPaidOrder(tx, actorId, orderId, value, "order.refunded");
+    if (!order) return false;
+    await tx.order.update({ where: { id: orderId }, data: { refundPaidAt: new Date() } });
     return true;
   };
   return transaction ? execute(transaction) : db.$transaction(execute);
+}
+
+// The seller refunds a buyer from their own panel. The sale comes back out
+// of the seller's balance and the admin pays the buyer back by hand.
+export async function sellerRefundOrder(
+  userId: string,
+  orderId: string,
+  note: string,
+) {
+  idSchema.parse(orderId);
+  const value = noteSchema.parse(note);
+  return db.$transaction(async (tx) => {
+    const seller = await tx.sellerProfile.findUnique({ where: { userId } });
+    if (!seller) throw new WalletError("غير مسموح");
+    const items = await tx.orderItem.findMany({
+      where: { orderId },
+      select: { sellerId: true },
+    });
+    if (!items.some((i) => i.sellerId === seller.id))
+      throw new WalletError("الطلب مش موجود");
+    if (items.some((i) => i.sellerId !== seller.id))
+      throw new WalletError(
+        "الطلب فيه منتجات من متاجر تانية، كلم الإدارة عشان تعمل الاسترداد",
+      );
+    const order = await refundPaidOrder(
+      tx,
+      userId,
+      orderId,
+      value,
+      "order.refunded_by_seller",
+    );
+    if (!order) return null;
+    // A refund settles any open complaint on the order.
+    await tx.dispute.updateMany({
+      where: { orderItem: { orderId }, status: "OPEN" },
+      data: {
+        status: "RESOLVED_REFUND",
+        resolution: value,
+        resolvedById: userId,
+        resolvedAt: new Date(),
+      },
+    });
+    await tx.message.create({
+      data: {
+        orderId,
+        senderId: userId,
+        kind: "SYSTEM",
+        body: `التاجر رجّع فلوس الطلب، والإدارة هتحوّلها لك: ${value}`,
+      },
+    });
+    return order;
+  });
+}
+
+// Admin confirms the money from a seller refund reached the buyer.
+export async function markRefundPaid(actorId: string, orderId: string) {
+  idSchema.parse(orderId);
+  return db.$transaction(async (tx) => {
+    await admin(tx, actorId);
+    const changed = await tx.order.updateMany({
+      where: { id: orderId, status: "REFUNDED", refundPaidAt: null },
+      data: { refundPaidAt: new Date() },
+    });
+    if (!changed.count) return false;
+    await audit(tx, actorId, "order.refund_paid", orderId);
+    return true;
+  });
+}
+
+async function refundPaidOrder(
+  tx: Tx,
+  actorId: string,
+  orderId: string,
+  note: string,
+  action: string,
+) {
+  await lockOrder(tx, orderId);
+  const order = await tx.order.findUnique({
+    where: { id: orderId },
+    include: { items: true },
+  });
+  if (!order) throw new WalletError("الطلب مش موجود");
+  if (order.status !== "PAID") return false;
+  for (const sellerId of [...new Set(order.items.map((i) => i.sellerId))].sort())
+    await lockSeller(tx, sellerId);
+  const changed = await tx.order.updateMany({
+    where: { id: orderId, status: "PAID" },
+    data: { status: "REFUNDED", refundedAt: new Date(), refundNote: note },
+  });
+  if (!changed.count) return false;
+  await releaseOrderStock(tx, orderId);
+  for (const item of order.items) {
+    await tx.orderItem.update({
+      where: { id: item.id },
+      data: { refundedAmount: item.total },
+    });
+    const sale = await tx.ledgerEntry.findFirst({
+      where: { orderItemId: item.id, type: "SALE" },
+      orderBy: { createdAt: "asc" },
+    });
+    if (sale)
+      await tx.ledgerEntry.create({
+        data: {
+          sellerId: item.sellerId,
+          type: "REFUND",
+          amount: -item.sellerNet,
+          availableAt: sale.availableAt,
+          orderItemId: item.id,
+          note: `استرداد طلب #${order.number}`,
+        },
+      });
+    if (item.deliveredAt)
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { soldCount: { decrement: item.quantity } },
+      });
+  }
+  await hideRefundedReviews(tx, orderId);
+  await audit(tx, actorId, action, orderId, { amount: order.total });
+  return order;
 }
 export async function redeliverOrder(actorId: string, orderId: string) {
   idSchema.parse(orderId);

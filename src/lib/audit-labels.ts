@@ -10,6 +10,8 @@ const LABELS: Record<string, string> = {
   "manual_payment.rejected": "رفض تحويل يدوي",
   "order.redelivered": "إعادة تسليم طلب",
   "order.refunded": "استرداد طلب",
+  "order.refunded_by_seller": "استرداد من التاجر",
+  "order.refund_paid": "تحويل الاسترداد للمشتري",
   "payout.paid": "دفع طلب سحب",
   "payout.rejected": "رفض طلب سحب",
   "product.approved": "قبول منتج",
