@@ -1,9 +1,9 @@
+import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { disputeLabels } from "@/lib/disputes";
 import { sellerBalance } from "@/lib/ledger";
-import { formatEGP } from "@/lib/money";
 import { ActionForm } from "@/components/action-form";
 import { OrderChat } from "@/components/order-chat";
 import { decideDispute } from "./actions";
@@ -12,6 +12,7 @@ export default async function Page({
 }: {
   searchParams: Promise<{ id?: string }>;
 }) {
+  const { t, money } = await i18n();
   const user = await requireAdmin();
   const query = await searchParams;
   const disputes = await db.dispute.findMany({
@@ -29,29 +30,29 @@ export default async function Page({
   });
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold">الشكاوى</h1>
+      <h1 className="text-2xl font-bold">{t("الشكاوى")}</h1>
       {await Promise.all(
         disputes.map(async (d) => {
           const balance = await sellerBalance(d.orderItem.sellerId);
           return (
             <section className="card space-y-4 p-5" key={d.id}>
               <h2 className="font-bold">
-                طلب #{d.orderItem.order.number} · {disputeLabels[d.status]}
+                {t("طلب #")}{d.orderItem.order.number} · {t(disputeLabels[d.status])}
               </h2>
               <p className="whitespace-pre-wrap">{d.reason}</p>
               <p className="whitespace-pre-wrap">{d.resolution}</p>
               <p>
-                رصيد التاجر: {formatEGP(balance.available)} متاح ·{" "}
-                {formatEGP(balance.held)} معلّق
+                {t("رصيد التاجر: ")}{money(balance.available)}{t(" متاح ·")}{" "}
+                {money(balance.held)}{t(" معلّق")}
               </p>
               <Link
                 className="underline"
                 href={`/admin/orders/${d.orderItem.orderId}`}
               >
-                افتح محادثة الطلب
+                {t("افتح محادثة الطلب")}
               </Link>
               <details>
-                <summary>محتوى التسليم للإدارة</summary>
+                <summary>{t("محتوى التسليم للإدارة")}</summary>
                 {d.orderItem.stockItems.map((s, i) => (
                   <pre className="whitespace-pre-wrap" key={i}>
                     {s.content}
@@ -69,8 +70,8 @@ export default async function Page({
                       action={decideDispute}
                       button={
                         refund
-                          ? "رد الفلوس للمشتري — تأكيد الاسترداد الخارجي"
-                          : "رفض الشكوى"
+                          ? t("رد الفلوس للمشتري — تأكيد الاسترداد الخارجي")
+                          : t("رفض الشكوى")
                       }
                     >
                       <input type="hidden" name="id" value={d.id} />
@@ -81,12 +82,11 @@ export default async function Page({
                       />
                       {refund && (
                         <p>
-                          بتأكيد الإجراء أنت بتؤكد إنك رجّعت الفلوس فعليًا
-                          للمشتري خارج الموقع.
+                          {t("بتأكيد الإجراء أنت بتؤكد إنك رجّعت الفلوس فعليًا للمشتري خارج الموقع.")}
                         </p>
                       )}
                       <label className="label">
-                        ملاحظة القرار
+                        {t("ملاحظة القرار")}
                         <textarea
                           className="input"
                           name="note"
@@ -102,7 +102,7 @@ export default async function Page({
                 <OrderChat orderId={d.orderItem.orderId} userId={user.id} />
               ) : (
                 <Link className="btn-outline" href={`?id=${d.id}`}>
-                  تفاصيل الشكوى والصور والمحادثة
+                  {t("تفاصيل الشكوى والصور والمحادثة")}
                 </Link>
               )}
             </section>

@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import { safeRedirectPath } from "@/lib/sites";
 import Link from "next/link";
 import { AuthForm } from "@/components/auth-form";
@@ -10,13 +11,16 @@ const TITLES = {
   admin: "دخول الإدارة",
 } as const;
 
-export const metadata = { title: "تسجيل الدخول" };
+export async function generateMetadata() {
+  return { title: (await i18n()).t("تسجيل الدخول") };
+}
 
 export default async function LoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ next?: string }>;
 }) {
+  const { t } = await i18n();
   const { next } = await searchParams;
   const site = await currentSite();
   return (
@@ -25,13 +29,13 @@ export default async function LoginPage({
         mode="login"
         action={login}
         next={safeRedirectPath(next) ?? undefined}
-        title={TITLES[site]}
+        title={t(TITLES[site])}
         allowSignup={site !== "admin"}
       />
       {process.env.RESEND_API_KEY && process.env.EMAIL_FROM && (
         <p className="text-center">
           <Link className="underline" href="/forgot-password">
-            نسيت الباسورد
+            {t("نسيت الباسورد")}
           </Link>
         </p>
       )}

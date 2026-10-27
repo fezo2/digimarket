@@ -1,8 +1,11 @@
+import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { requireSeller } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-export const metadata = { title: "الرسائل" };
+export async function generateMetadata() {
+  return { title: (await i18n()).t("الرسائل") };
+}
 
 // Every order conversation in one inbox, newest first, unread on top.
 export default async function SellerMessages({
@@ -10,6 +13,7 @@ export default async function SellerMessages({
 }: {
   searchParams: Promise<{ q?: string; unread?: string }>;
 }) {
+  const { t, num, date } = await i18n();
   const { user, seller } = await requireSeller();
   const { q = "", unread } = await searchParams;
   const term = q.trim().slice(0, 100);
@@ -40,16 +44,16 @@ export default async function SellerMessages({
       AND (${term} = '' OR u.email ILIKE '%' || ${term} || '%' OR o.number::text = ${term.replace(/^#/, "")})
     ORDER BY last."createdAt" DESC
     LIMIT 200`;
-  const list = unread === "1" ? threads.filter((t) => t.unread > 0) : threads;
-  const unreadCount = threads.filter((t) => t.unread > 0).length;
+  const list = unread === "1" ? threads.filter((th) => th.unread > 0) : threads;
+  const unreadCount = threads.filter((th) => th.unread > 0).length;
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 px-4 py-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold">الرسائل</h1>
+        <h1 className="text-2xl font-bold">{t("الرسائل")}</h1>
         {unreadCount > 0 && (
           <span className="badge bg-brand-600 text-white">
-            {unreadCount.toLocaleString("ar-EG")} محادثة جديدة
+            {num(unreadCount)}{t(" محادثة جديدة")}
           </span>
         )}
       </div>
@@ -58,42 +62,42 @@ export default async function SellerMessages({
           className="input max-w-sm"
           name="q"
           defaultValue={term}
-          placeholder="إيميل المشتري أو رقم الطلب"
+          placeholder={t("إيميل المشتري أو رقم الطلب")}
         />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="unread" value="1" defaultChecked={unread === "1"} />
-          غير المقروء بس
+          {t("غير المقروء بس")}
         </label>
-        <button className="btn-primary">بحث</button>
+        <button className="btn-primary">{t("بحث")}</button>
       </form>
       <div className="card divide-y">
-        {list.map((t) => (
+        {list.map((th) => (
           <Link
-            key={t.orderId}
-            href={`/seller/sales/${t.orderId}`}
-            className={`flex gap-4 p-4 hover:bg-slate-50 ${t.unread > 0 ? "bg-brand-50/40" : ""}`}
+            key={th.orderId}
+            href={`/seller/sales/${th.orderId}`}
+            className={`flex gap-4 p-4 hover:bg-slate-50 ${th.unread > 0 ? "bg-brand-50/40" : ""}`}
           >
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="font-semibold" dir="ltr">{t.email}</span>
-                <span className="text-slate-500">طلب #{t.number}</span>
+                <span className="font-semibold" dir="ltr">{th.email}</span>
+                <span className="text-slate-500">{t("طلب #")}{th.number}</span>
               </div>
-              <p className={`mt-1 truncate text-sm ${t.unread > 0 ? "font-semibold" : "text-slate-600"}`}>
-                {t.fromMe && <span className="text-slate-400">أنت: </span>}
-                {t.body}
+              <p className={`mt-1 truncate text-sm ${th.unread > 0 ? "font-semibold" : "text-slate-600"}`}>
+                {th.fromMe && <span className="text-slate-400">{t("أنت: ")}</span>}
+                {th.body}
               </p>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-slate-500">
-              {t.at.toLocaleString("ar-EG", { dateStyle: "short", timeStyle: "short" })}
-              {t.unread > 0 && (
+              {date(th.at)}
+              {th.unread > 0 && (
                 <span className="badge bg-brand-600 text-white">
-                  {Number(t.unread).toLocaleString("ar-EG")}
+                  {num(Number(th.unread))}
                 </span>
               )}
             </div>
           </Link>
         ))}
-        {!list.length && <p className="p-6 text-slate-500">مفيش رسائل</p>}
+        {!list.length && <p className="p-6 text-slate-500">{t("مفيش رسائل")}</p>}
       </div>
     </div>
   );

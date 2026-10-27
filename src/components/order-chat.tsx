@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import { notFound } from "next/navigation";
 import { readChat } from "@/lib/chat";
 import { ParticipantError } from "@/lib/community-error";
@@ -14,6 +15,7 @@ export async function OrderChat({
   userId: string;
   replies?: { id: string; title: string; body: string }[];
 }) {
+  const { t, date } = await i18n();
   const chat = await readChat(userId, orderId).catch((error) => {
     if (error instanceof ParticipantError) notFound();
     throw error;
@@ -21,7 +23,7 @@ export async function OrderChat({
   return (
     <section className="card space-y-4 p-5">
       <ChatRefresh />
-      <h2 className="text-xl font-bold">محادثة الطلب</h2>
+      <h2 className="text-xl font-bold">{t("محادثة الطلب")}</h2>
       {chat.messages.map((m) => (
         <article
           className={
@@ -32,13 +34,13 @@ export async function OrderChat({
           key={m.id}
         >
           <p className="font-semibold">
-            {m.kind === "SYSTEM" ? "النظام" : m.role} ·{" "}
-            {m.createdAt.toLocaleString("ar-EG")}
+            {m.kind === "SYSTEM" ? t("النظام") : m.role} ·{" "}
+            {date(m.createdAt)}
           </p>
           <p className="whitespace-pre-wrap break-words">{m.body}</p>
           {m.flagged && (
             <p className="text-red-700">
-              رسالة معلّمة: اتشالت وسائل تواصل خارج الموقع
+              {t("رسالة معلّمة: اتشالت وسائل تواصل خارج الموقع")}
             </p>
           )}
           {m.hasAttachment && (
@@ -48,26 +50,26 @@ export async function OrderChat({
               target="_blank"
               rel="noopener noreferrer"
             >
-              عرض الصورة المرفقة
+              {t("عرض الصورة المرفقة")}
             </a>
           )}
         </article>
       ))}
-      {!chat.messages.length && <p>لسه مفيش رسائل.</p>}
+      {!chat.messages.length && <p>{t("لسه مفيش رسائل.")}</p>}
       {chat.canSend ? (
         <ActionForm
           uploadOrderId={orderId}
           action={sendChat}
-          button="ابعت الرسالة"
+          button={t("ابعت الرسالة")}
         >
           <input type="hidden" name="orderId" value={orderId} />
           <ReplyPicker replies={replies} />
           <label className="label">
-            الرسالة
+            {t("الرسالة")}
             <textarea className="input" name="body" required maxLength={2000} />
           </label>
           <label className="label">
-            صورة اختيارية (٥ ميجا)
+            {t("صورة اختيارية (٥ ميجا)")}
             <input
               className="input"
               type="file"
@@ -77,7 +79,7 @@ export async function OrderChat({
           </label>
         </ActionForm>
       ) : (
-        <p>مدة إرسال الرسائل انتهت. تقدر تقرأ المحادثة.</p>
+        <p>{t("مدة إرسال الرسائل انتهت. تقدر تقرأ المحادثة.")}</p>
       )}
     </section>
   );

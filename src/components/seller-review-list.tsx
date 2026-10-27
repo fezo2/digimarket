@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { ActionForm } from "./action-form";
@@ -11,6 +12,7 @@ export async function SellerReviewList({
   orderId?: string;
   filter?: string;
 }) {
+  const { t } = await i18n();
   const reviews = await db.review.findMany({
     where: {
       sellerId,
@@ -42,10 +44,10 @@ export async function SellerReviewList({
           <p className="whitespace-pre-wrap">{r.comment}</p>
           <p className="whitespace-pre-wrap">{r.sellerReply}</p>
           {!r.sellerReplyAt && !r.sellerReply && (
-            <ActionForm action={sendReply} button="رد على التقييم">
+            <ActionForm action={sendReply} button={t("رد على التقييم")}>
               <input type="hidden" name="reviewId" value={r.id} />
               <label className="label">
-                رد التاجر
+                {t("رد التاجر")}
                 <textarea
                   className="input"
                   name="reply"
@@ -57,7 +59,7 @@ export async function SellerReviewList({
           )}
         </section>
       ))}
-      {!reviews.length && <p>مفيش تقييمات بالحالة دي.</p>}
+      {!reviews.length && <p>{t("مفيش تقييمات بالحالة دي.")}</p>}
     </div>
   );
 }

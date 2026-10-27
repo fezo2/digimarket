@@ -1,16 +1,19 @@
+import { i18n } from "@/lib/prefs";
 import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { sellerBalance } from "@/lib/ledger";
-import { formatBps, formatEGP } from "@/lib/money";
+import { formatBps } from "@/lib/money";
 import { SELLER_TIERS } from "@/lib/config";
 import { ActionForm } from "@/components/action-form";
 import { BalanceCards } from "@/components/ledger-view";
 import { AuditList } from "../../audit-list";
 import { sellerPayouts, sellerSales, sellerTerms } from "../../control-actions";
 
-export const metadata = { title: "إدارة متجر" };
+export async function generateMetadata() {
+  return { title: (await i18n()).t("إدارة متجر") };
+}
 
 const PRODUCT_STATUS: Record<string, string> = {
   DRAFT: "مسودة",
@@ -25,6 +28,7 @@ export default async function SellerDetail({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { t, money, num, date } = await i18n();
   await requireAdmin();
   const { id } = await params;
   const seller = await db.sellerProfile.findUnique({
@@ -71,23 +75,23 @@ export default async function SellerDetail({
         <h1 className="text-2xl font-bold">{seller.storeName}</h1>
         <span className="badge bg-slate-100 text-slate-700">{tier.label}</span>
         <span className="badge bg-slate-100 text-slate-700">
-          التوثيق: {seller.kycStatus}
+          {t("التوثيق: ")}{seller.kycStatus}
         </span>
         {seller.salesSuspendedAt && (
-          <span className="badge bg-red-50 text-red-700">البيع موقوف</span>
+          <span className="badge bg-red-50 text-red-700">{t("البيع موقوف")}</span>
         )}
         {seller.payoutsFrozenAt && (
-          <span className="badge bg-amber-50 text-amber-800">السحب متجمّد</span>
+          <span className="badge bg-amber-50 text-amber-800">{t("السحب متجمّد")}</span>
         )}
         <div className="ms-auto flex gap-2">
           <Link className="btn-outline" href={`/stores/${seller.slug}`}>
-            المتجر
+            {t("المتجر")}
           </Link>
           <Link className="btn-outline" href={`/admin/users/${seller.user.id}`}>
-            حساب {seller.user.name}
+            {t("حساب ")}{seller.user.name}
           </Link>
           <Link className="btn-outline" href={`/admin/sellers/${id}/ledger`}>
-            الحسابات والتسويات
+            {t("الحسابات والتسويات")}
           </Link>
         </div>
       </div>
@@ -95,39 +99,38 @@ export default async function SellerDetail({
       <BalanceCards balance={balance} />
 
       <div className="grid gap-3 sm:grid-cols-4">
-        <Stat label="مبيعات" value={formatEGP(sales._sum.total ?? 0)} />
+        <Stat label={t("مبيعات")} value={money(sales._sum.total ?? 0)} />
         <Stat
-          label="عمولة المنصة"
-          value={formatEGP(sales._sum.commissionAmount ?? 0)}
+          label={t("عمولة المنصة")}
+          value={money(sales._sum.commissionAmount ?? 0)}
         />
-        <Stat label="شكاوى مفتوحة" value={openDisputes} />
-        <Stat label="شكاوى اتردّت" value={refunds} />
+        <Stat label={t("شكاوى مفتوحة")} value={openDisputes} />
+        <Stat label={t("شكاوى اتردّت")} value={refunds} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="card space-y-3 p-5">
-          <h2 className="font-bold">البيع</h2>
+          <h2 className="font-bold">{t("البيع")}</h2>
           {seller.salesSuspendedAt ? (
             <>
               <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">
-                موقوف من {seller.salesSuspendedAt.toLocaleString("ar-EG")}:{" "}
+                {t("موقوف من ")}{date(seller.salesSuspendedAt)}:{" "}
                 {seller.salesSuspendReason}
               </p>
-              <ActionForm action={sellerSales} button="رجّع البيع">
+              <ActionForm action={sellerSales} button={t("رجّع البيع")}>
                 <input type="hidden" name="sellerId" value={id} />
                 <input type="hidden" name="suspend" value="false" />
               </ActionForm>
             </>
           ) : (
-            <ActionForm action={sellerSales} button="أوقف البيع">
+            <ActionForm action={sellerSales} button={t("أوقف البيع")}>
               <input type="hidden" name="sellerId" value={id} />
               <input type="hidden" name="suspend" value="true" />
               <p className="text-sm text-slate-500">
-                منتجاته هتختفي من الموقع ومحدش هيقدر يشتري لحد ما ترجّعه.
-                الطلبات القديمة والشات شغالين عادي.
+                {t("منتجاته هتختفي من الموقع ومحدش هيقدر يشتري لحد ما ترجّعه. الطلبات القديمة والشات شغالين عادي.")}
               </p>
               <label className="label">
-                السبب (بيوصل للتاجر)
+                {t("السبب (بيوصل للتاجر)")}
                 <textarea className="input" name="reason" required maxLength={500} />
               </label>
             </ActionForm>
@@ -135,28 +138,27 @@ export default async function SellerDetail({
         </section>
 
         <section className="card space-y-3 p-5">
-          <h2 className="font-bold">السحب</h2>
+          <h2 className="font-bold">{t("السحب")}</h2>
           {seller.payoutsFrozenAt ? (
             <>
               <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
-                متجمّد من {seller.payoutsFrozenAt.toLocaleString("ar-EG")}:{" "}
+                {t("متجمّد من ")}{date(seller.payoutsFrozenAt)}:{" "}
                 {seller.payoutsFrozenReason}
               </p>
-              <ActionForm action={sellerPayouts} button="فك التجميد">
+              <ActionForm action={sellerPayouts} button={t("فك التجميد")}>
                 <input type="hidden" name="sellerId" value={id} />
                 <input type="hidden" name="freeze" value="false" />
               </ActionForm>
             </>
           ) : (
-            <ActionForm action={sellerPayouts} button="جمّد السحب">
+            <ActionForm action={sellerPayouts} button={t("جمّد السحب")}>
               <input type="hidden" name="sellerId" value={id} />
               <input type="hidden" name="freeze" value="true" />
               <p className="text-sm text-slate-500">
-                التاجر مش هيقدر يطلب سحب جديد. الطلبات اللي اتبعتت قبل كده
-                بتفضل في صفحة السحب.
+                {t("التاجر مش هيقدر يطلب سحب جديد. الطلبات اللي اتبعتت قبل كده بتفضل في صفحة السحب.")}
               </p>
               <label className="label">
-                السبب (بيوصل للتاجر)
+                {t("السبب (بيوصل للتاجر)")}
                 <textarea className="input" name="reason" required maxLength={500} />
               </label>
             </ActionForm>
@@ -164,8 +166,8 @@ export default async function SellerDetail({
         </section>
 
         <section className="card space-y-3 p-5">
-          <h2 className="font-bold">شروط خاصة</h2>
-          <ActionForm action={sellerTerms} button="حفظ الشروط">
+          <h2 className="font-bold">{t("شروط خاصة")}</h2>
+          <ActionForm action={sellerTerms} button={t("حفظ الشروط")}>
             <input type="hidden" name="sellerId" value={id} />
             <label className="label">
               العمولة % (فاضي = عمولة القسم)
@@ -181,7 +183,7 @@ export default async function SellerDetail({
               />
             </label>
             <label className="label">
-              أيام تعليق الرصيد (فاضي = {tier.holdDays} حسب نوع الحساب)
+              أيام تعليق الرصيد (فاضي = {tier.holdDays}{t(" حسب نوع الحساب)")}
               <input
                 className="input"
                 name="holdDays"
@@ -191,7 +193,7 @@ export default async function SellerDetail({
             </label>
             {seller.commissionBps !== null && (
               <p className="text-sm text-slate-500">
-                العمولة الحالية: {formatBps(seller.commissionBps)}
+                {t("العمولة الحالية: ")}{formatBps(seller.commissionBps)}
               </p>
             )}
           </ActionForm>
@@ -199,7 +201,7 @@ export default async function SellerDetail({
       </div>
 
       <section className="card p-5">
-        <h2 className="mb-3 font-bold">المنتجات</h2>
+        <h2 className="mb-3 font-bold">{t("المنتجات")}</h2>
         <div className="divide-y text-sm">
           {seller.products.map((p) => (
             <Link
@@ -208,16 +210,16 @@ export default async function SellerDetail({
               className="flex flex-wrap gap-3 py-2"
             >
               <span className="min-w-0 flex-1 font-semibold">{p.title}</span>
-              <span>{PRODUCT_STATUS[p.status] ?? p.status}</span>
-              {!p.salesEnabled && <span className="text-amber-700">البيع مقفول</span>}
-              <span>{formatEGP(p.price)}</span>
+              <span>{t(PRODUCT_STATUS[p.status] ?? p.status)}</span>
+              {!p.salesEnabled && <span className="text-amber-700">{t("البيع مقفول")}</span>}
+              <span>{money(p.price)}</span>
               <span className="text-slate-500">
-                اتباع {p.soldCount.toLocaleString("ar-EG")}
+                {t("اتباع ")}{num(p.soldCount)}
               </span>
             </Link>
           ))}
           {!seller.products.length && (
-            <p className="text-slate-500">مفيش منتجات</p>
+            <p className="text-slate-500">{t("مفيش منتجات")}</p>
           )}
         </div>
       </section>
@@ -227,12 +229,13 @@ export default async function SellerDetail({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+async function Stat({ label, value }: { label: string; value: string | number }) {
+  const { num } = await i18n();
   return (
     <div className="card p-4">
       <p className="text-sm text-slate-500">{label}</p>
       <p className="mt-1 text-xl font-bold">
-        {typeof value === "number" ? value.toLocaleString("ar-EG") : value}
+        {typeof value === "number" ? num(value) : value}
       </p>
     </div>
   );

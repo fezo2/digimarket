@@ -1,15 +1,18 @@
+import { i18n } from "@/lib/prefs";
 import { notFound } from "next/navigation";
 import { requireSeller } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { communityId } from "@/lib/community-rules";
-import { formatBps, formatEGP } from "@/lib/money";
+import { formatBps } from "@/lib/money";
 import { orderStatusLabels, readOrderSnapshot } from "@/lib/order-snapshot";
 import { OrderChat } from "@/components/order-chat";
 import { SellerReviewList } from "@/components/seller-review-list";
 import { ActionForm } from "@/components/action-form";
 import { refundSale } from "./actions";
 
-export const metadata = { title: "تفاصيل المعاملة" };
+export async function generateMetadata() {
+  return { title: (await i18n()).t("تفاصيل المعاملة") };
+}
 
 const PROVIDERS: Record<string, string> = {
   manual: "تحويل يدوي",
@@ -25,6 +28,7 @@ export default async function Page({
 }: {
   params: Promise<{ orderId: string }>;
 }) {
+  const { t, money, num, date } = await i18n();
   const { user, seller } = await requireSeller();
   const id = communityId.safeParse((await params).orderId);
   if (!id.success) notFound();
@@ -89,12 +93,12 @@ export default async function Page({
     }),
   ]);
   const paidWith = order.manualPayment
-    ? `${PROVIDERS.manual} · ${METHODS[order.manualPayment.method]}`
-    : (PROVIDERS[order.paymentProvider ?? ""] ?? order.paymentProvider ?? "—");
+    ? `${t(PROVIDERS.manual)} · ${t(METHODS[order.manualPayment.method])}`
+    : t(PROVIDERS[order.paymentProvider ?? ""] ?? order.paymentProvider ?? "—");
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 px-4 py-6">
-      <h1 className="text-2xl font-bold">معاملة #{order.number}</h1>
+      <h1 className="text-2xl font-bold">{t("معاملة #")}{order.number}</h1>
 
       {order.items.map((item) => {
         const snap = (() => {
@@ -110,69 +114,68 @@ export default async function Page({
           <section key={item.id} className="card overflow-hidden">
             {open.length > 0 && (
               <p className="bg-amber-50 p-4 text-sm text-amber-900">
-                فيه شكوى مفتوحة: {open[0].reason}. رد على المشتري في الرسايل
-                تحت.
+                {t("فيه شكوى مفتوحة: ")}{open[0].reason}{t(". رد على المشتري في الرسايل تحت.")}
               </p>
             )}
             <dl className="divide-y text-sm">
-              <Row label="رقم الطلب">#{order.number}</Row>
-              <Row label="تاريخ الطلب">
-                {order.createdAt.toLocaleString("ar-EG")}
+              <Row label={t("رقم الطلب")}>#{order.number}</Row>
+              <Row label={t("تاريخ الطلب")}>
+                {date(order.createdAt)}
               </Row>
-              <Row label="المشتري">
+              <Row label={t("المشتري")}>
                 <a className="text-brand-600 underline" dir="ltr" href={`mailto:${order.buyer.email}`}>
                   {order.buyer.email}
                 </a>
                 <span className="ms-2 text-slate-500">
-                  ({buyerOrders.toLocaleString("ar-EG")} طلب مدفوع من متجرك)
+                  ({num(buyerOrders)}{t(" طلب مدفوع من متجرك)")}
                 </span>
               </Row>
-              <Row label="عنوان IP">
+              <Row label={t("عنوان IP")}>
                 <span dir="ltr">{order.buyerIp ?? "—"}</span>
                 {order.buyerCountry && (
                   <span className="ms-2 text-slate-500">({order.buyerCountry})</span>
                 )}
               </Row>
-              <Row label="حالة الدفع">
+              <Row label={t("حالة الدفع")}>
                 <span className="font-semibold text-emerald-700">
-                  {orderStatusLabels[order.status]}
+                  {t(orderStatusLabels[order.status])}
                 </span>
               </Row>
-              <Row label="طريقة الدفع">{paidWith}</Row>
-              <Row label="تأكيد الدفع">
-                {order.paidAt?.toLocaleString("ar-EG") ?? "—"}
+              <Row label={t("طريقة الدفع")}>{paidWith}</Row>
+              <Row label={t("تأكيد الدفع")}>
+                {order.paidAt ? date(order.paidAt) : "—"}
               </Row>
-              <Row label="المنتج">
-                {item.title} × {item.quantity.toLocaleString("ar-EG")}
+              <Row label={t("المنتج")}>
+                {item.title} × {num(item.quantity)}
               </Row>
               {snap?.choices.length ? (
-                <Row label="اختيارات المشتري">
+                <Row label={t("اختيارات المشتري")}>
                   {snap.choices.map((c) => `${c.name}: ${c.value}`).join(" · ")}
                 </Row>
               ) : null}
-              <Row label="المدفوع">{formatEGP(item.total)}</Row>
-              <Row label="عمولة المنصة">
-                {formatEGP(item.commissionAmount)} ({formatBps(item.commissionBps)})
+              <Row label={t("المدفوع")}>{money(item.total)}</Row>
+              <Row label={t("عمولة المنصة")}>
+                {money(item.commissionAmount)} ({formatBps(item.commissionBps)})
               </Row>
-              <Row label="صافي ليك">
+              <Row label={t("صافي ليك")}>
                 <span className="font-semibold text-emerald-700">
-                  {formatEGP(item.sellerNet)}
+                  {money(item.sellerNet)}
                 </span>
                 {unlock && (
                   <span className="ms-2 text-slate-500">
                     {unlock > new Date()
-                      ? `متاح للسحب بعد ${unlock.toLocaleString("ar-EG")}`
-                      : "متاح للسحب"}
+                      ? t("متاح للسحب بعد {when}", { when: date(unlock) })
+                      : t("متاح للسحب")}
                   </span>
                 )}
               </Row>
               {item.refundedAmount > 0 && (
-                <Row label="المسترد">
-                  <span className="text-red-700">{formatEGP(item.refundedAmount)}</span>
+                <Row label={t("المسترد")}>
+                  <span className="text-red-700">{money(item.refundedAmount)}</span>
                 </Row>
               )}
               {item.stockItems.length > 0 && (
-                <Row label="الكود المسلّم">
+                <Row label={t("الكود المسلّم")}>
                   <div className="space-y-1 font-mono" dir="ltr">
                     {item.stockItems.map((s, i) => (
                       <p key={i} className="break-all">{s.content}</p>
@@ -180,13 +183,13 @@ export default async function Page({
                   </div>
                 </Row>
               )}
-              <Row label="حالة التسليم">
+              <Row label={t("حالة التسليم")}>
                 {item.deliveredAt ? (
                   <span className="text-emerald-700">
-                    اتسلّم {item.deliveredAt.toLocaleString("ar-EG")}
+                    {t("اتسلّم ")}{date(item.deliveredAt)}
                   </span>
                 ) : (
-                  <span className="text-amber-700">مستني مراجعة الإدارة</span>
+                  <span className="text-amber-700">{t("مستني مراجعة الإدارة")}</span>
                 )}
               </Row>
             </dl>
@@ -195,45 +198,44 @@ export default async function Page({
       })}
 
       <section className="card space-y-3 p-5">
-        <h2 className="text-lg font-bold">استرداد الفلوس</h2>
+        <h2 className="text-lg font-bold">{t("استرداد الفلوس")}</h2>
         {order.status === "PAID" && order._count.items === 0 ? (
-          <ActionForm action={refundSale} button="رجّع الفلوس للمشتري">
+          <ActionForm action={refundSale} button={t("رجّع الفلوس للمشتري")}>
             <input type="hidden" name="id" value={id.data} />
             <p className="text-sm text-slate-600">
-              المبلغ هيتخصم من رصيدك ({formatEGP(order.items.reduce((s, i) => s + i.sellerNet, 0))}
-              ) والإدارة هتحوّل الفلوس للمشتري. الكود المسلّم مش هيرجع للمخزون، والشكوى
-              المفتوحة على الطلب هتتقفل.
+              {t("المبلغ هيتخصم من رصيدك (")}{money(order.items.reduce((s, i) => s + i.sellerNet, 0))}
+              {t(") والإدارة هتحوّل الفلوس للمشتري. الكود المسلّم مش هيرجع للمخزون، والشكوى المفتوحة على الطلب هتتقفل.")}
             </p>
             <label className="label">
-              سبب الاسترداد (المشتري هيشوفه)
+              {t("سبب الاسترداد (المشتري هيشوفه)")}
               <textarea className="input" name="note" required maxLength={1000} />
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="confirm" required />
-              متأكد، الخطوة دي مش بترجع
+              {t("متأكد، الخطوة دي مش بترجع")}
             </label>
           </ActionForm>
         ) : order.status === "PAID" ? (
           <p className="text-sm text-slate-600">
-            الطلب ده فيه منتجات من متاجر تانية، كلم الإدارة لو محتاج استرداد.
+            {t("الطلب ده فيه منتجات من متاجر تانية، كلم الإدارة لو محتاج استرداد.")}
           </p>
         ) : order.refundedAt ? (
           <div className="space-y-1 text-sm">
             <p className="font-semibold text-red-700">
-              اتردّ {order.refundedAt.toLocaleString("ar-EG")}
+              {t("اتردّ ")}{date(order.refundedAt)}
             </p>
-            {order.refundNote && <p className="text-slate-600">السبب: {order.refundNote}</p>}
+            {order.refundNote && <p className="text-slate-600">{t("السبب: ")}{order.refundNote}</p>}
             <p className="text-slate-500">
               {order.refundPaidAt
-                ? `الفلوس وصلت للمشتري ${order.refundPaidAt.toLocaleString("ar-EG")}`
-                : "مستني الإدارة تحوّل الفلوس للمشتري"}
+                ? t("الفلوس وصلت للمشتري {when}", { when: date(order.refundPaidAt) })
+                : t("مستني الإدارة تحوّل الفلوس للمشتري")}
             </p>
           </div>
         ) : null}
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-bold">التقييم</h2>
+        <h2 className="text-lg font-bold">{t("التقييم")}</h2>
         <SellerReviewList sellerId={seller.id} orderId={id.data} />
       </section>
 

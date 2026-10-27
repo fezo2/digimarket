@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import { notFound } from "next/navigation";
 import { listedProduct } from "@/lib/catalog";
 import Link from "next/link";
@@ -20,19 +21,23 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
+  const { t, cat } = await i18n();
   const { slug } = await params;
   const category = await db.category.findUnique({
     where: { slug: decodeURIComponent(slug) },
     include: { children: { select: { nameAr: true } } },
   });
-  if (!category) return { title: "القسم غير موجود" };
-  const sub = category.children.map((c) => c.nameAr).join("، ");
+  if (!category) return { title: t("القسم غير موجود") };
+  const sub = category.children.map((c) => c.nameAr).join(t("، "));
   const description = describe(
-    `اشتري ${category.nameAr} أونلاين في مصر من تجار موثّقين بتسليم فوري${sub ? `: ${sub}` : ""}. ادفع بإنستاباي أو المحفظة.`,
+    t("اشتري {name} أونلاين في مصر من تجار موثّقين بتسليم فوري{sub}. ادفع بإنستاباي أو المحفظة.", {
+      name: category.nameAr,
+      sub: sub ? `: ${sub}` : "",
+    }),
   );
   const url = `/categories/${encodeURIComponent(category.slug)}`;
   return {
-    title: `${category.nameAr} | أسعار وعروض`,
+    title: t("{nameAr} | أسعار وعروض", { nameAr: cat(category) }),
     description,
     // Sort orders are the same listing; point them all at the plain URL.
     alternates: { canonical: url },
@@ -47,6 +52,7 @@ export default async function CategoryPage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ sort?: string }>;
 }) {
+  const { t, cat } = await i18n();
   const { slug } = await params;
   const { sort } = await searchParams;
   const category = await db.category.findUnique({
@@ -68,35 +74,35 @@ export default async function CategoryPage({
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="text-2xl font-bold">
-        {category.icon} {category.nameAr}
+        {category.icon} {cat(category)}
       </h1>
       {category.children.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
           {category.children.map((c) => (
             <Link key={c.id} href={`/categories/${c.slug}`} className="badge bg-white py-1.5 ring-1 ring-slate-200">
-              {c.nameAr}
+              {cat(c)}
             </Link>
           ))}
         </div>
       )}
       <div className="my-6 flex gap-2 text-sm">
         {[
-          ["popular", "الأكثر مبيعاً"],
-          ["newest", "الأحدث"],
-          ["price-asc", "الأرخص"],
-          ["price-desc", "الأغلى"],
+          ["popular", t("الأكثر مبيعاً")],
+          ["newest", t("الأحدث")],
+          ["price-asc", t("الأرخص")],
+          ["price-desc", t("الأغلى")],
         ].map(([key, label]) => (
           <Link
             key={key}
             href={`?sort=${key}`}
             className={`rounded-full px-3 py-1 ${sortKey === key ? "bg-brand-600 text-white" : "bg-white ring-1 ring-slate-200"}`}
           >
-            {label}
+            {t(label)}
           </Link>
         ))}
       </div>
       {products.length === 0 ? (
-        <p className="card p-8 text-center text-slate-500">مفيش منتجات في القسم ده لسه.</p>
+        <p className="card p-8 text-center text-slate-500">{t("مفيش منتجات في القسم ده لسه.")}</p>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {products.map((p) => (

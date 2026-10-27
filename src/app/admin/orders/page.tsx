@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import { unreadCounts } from "@/lib/chat";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
@@ -6,13 +7,13 @@ import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { releaseExpiredOrders } from "@/lib/orders";
 import { orderStatusLabels } from "@/lib/order-snapshot";
-import { formatEGP } from "@/lib/money";
 
 export default async function AdminOrders({
   searchParams,
 }: {
   searchParams: Promise<{ review?: string; order?: string; repay?: string }>;
 }) {
+  const { t, money } = await i18n();
   const query = await searchParams;
   const actor = await requireAdmin();
   const unread = await unreadCounts(actor.id, true);
@@ -44,16 +45,16 @@ export default async function AdminOrders({
   });
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold">آخر 100 طلب</h1>
+      <h1 className="text-2xl font-bold">{t("آخر 100 طلب")}</h1>
       <nav className="flex gap-3">
         <Link className="btn-outline" href="/admin/orders">
-          كل الطلبات
+          {t("كل الطلبات")}
         </Link>
         <Link className="btn-outline" href="/admin/orders?review=1">
-          محتاج مراجعة
+          {t("محتاج مراجعة")}
         </Link>
         <Link className="btn-outline" href="/admin/orders?repay=1">
-          مرتجعات لسه ما اتحوّلتش
+          {t("مرتجعات لسه ما اتحوّلتش")}
         </Link>
       </nav>
       <div className="card overflow-x-auto">
@@ -61,16 +62,16 @@ export default async function AdminOrders({
           <thead>
             <tr>
               {[
-                "الطلب",
-                "الحالة",
-                "المشتري",
-                "المبلغ",
-                "البوابة",
-                "مرجع الدفع",
-                "الإجراءات",
-              ].map((t) => (
-                <th key={t} className="p-3 text-start">
-                  {t}
+                t("الطلب"),
+                t("الحالة"),
+                t("المشتري"),
+                t("المبلغ"),
+                t("البوابة"),
+                t("مرجع الدفع"),
+                t("الإجراءات"),
+              ].map((h) => (
+                <th key={h} className="p-3 text-start">
+                  {t(h)}
                 </th>
               ))}
             </tr>
@@ -94,10 +95,10 @@ export default async function AdminOrders({
                     )}
                   </td>
                   <td>
-                    {orderStatusLabels[o.status]}
+                    {t(orderStatusLabels[o.status])}
                     {review && (
                       <strong className="block">
-                        مدفوع من غير تسليم — محتاج مراجعة
+                        {t("مدفوع من غير تسليم — محتاج مراجعة")}
                       </strong>
                     )}
                   </td>
@@ -106,55 +107,53 @@ export default async function AdminOrders({
                     <p dir="ltr">{o.buyer.email}</p>
                   </td>
                   <td>
-                    {formatEGP(o.total)}
+                    {money(o.total)}
                     <p>
-                      المدفوع:{" "}
+                      {t("المدفوع:")}{" "}
                       {o.paidAmount === null
-                        ? "غير مسجل"
-                        : formatEGP(o.paidAmount)}
+                        ? t("غير مسجل")
+                        : money(o.paidAmount)}
                     </p>
                   </td>
                   <td>{o.paymentProvider ?? "—"}</td>
                   <td>
                     {o.paymentRef?.startsWith("intent:") ||
                     o.paymentRef === "creating"
-                      ? "بانتظار نتيجة الدفع"
+                      ? t("بانتظار نتيجة الدفع")
                       : (o.paymentRef ?? "—")}
                   </td>
                   <td className="min-w-64 space-y-4 p-3">
                     {review && (
                       <>
-                        <p>{o.reviewReason ?? "سبب المراجعة غير مسجل"}</p>
+                        <p>{o.reviewReason ?? t("سبب المراجعة غير مسجل")}</p>
                         <ActionForm
                           action={retryDelivery}
-                          button="إعادة التسليم"
+                          button={t("إعادة التسليم")}
                         >
                           <input type="hidden" name="id" value={o.id} />
                         </ActionForm>
                       </>
                     )}
                     {o.status === "REFUNDED" && !o.refundPaidAt && (
-                      <ActionForm action={confirmRefundPaid} button="حوّلت الفلوس للمشتري">
+                      <ActionForm action={confirmRefundPaid} button={t("حوّلت الفلوس للمشتري")}>
                         <input type="hidden" name="id" value={o.id} />
                         <p className="text-amber-800">
-                          التاجر عمل استرداد. حوّل {formatEGP(o.paidAmount ?? o.total)} للمشتري
-                          وبعدين اضغط هنا.
+                          {t("التاجر عمل استرداد. حوّل ")}{money(o.paidAmount ?? o.total)}{t(" للمشتري وبعدين اضغط هنا.")}
                         </p>
-                        {o.refundNote && <p className="text-slate-500">السبب: {o.refundNote}</p>}
+                        {o.refundNote && <p className="text-slate-500">{t("السبب: ")}{o.refundNote}</p>}
                       </ActionForm>
                     )}
                     {o.status === "PAID" && (
                       <ActionForm
                         action={recordRefund}
-                        button="تم رد الفلوس للمشتري"
+                        button={t("تم رد الفلوس للمشتري")}
                       >
                         <input type="hidden" name="id" value={o.id} />
                         <p>
-                          سجّل بس بعد ما ترجع الفلوس فعليًا من بوابة الدفع أو
-                          التحويل.
+                          {t("سجّل بس بعد ما ترجع الفلوس فعليًا من بوابة الدفع أو التحويل.")}
                         </p>
                         <label className="label">
-                          ملاحظة الاسترداد
+                          {t("ملاحظة الاسترداد")}
                           <textarea
                             className="input"
                             name="note"

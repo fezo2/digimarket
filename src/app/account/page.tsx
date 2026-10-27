@@ -1,14 +1,17 @@
+import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { siteHref } from "@/lib/sites";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { orderStatusLabels } from "@/lib/order-snapshot";
 import { releaseExpiredOrders } from "@/lib/orders";
-import { formatEGP } from "@/lib/money";
 
-export const metadata = { title: "حسابي" };
+export async function generateMetadata() {
+  return { title: (await i18n()).t("حسابي") };
+}
 
 export default async function AccountPage() {
+  const { t, money } = await i18n();
   const user = await requireUser("/account");
   await releaseExpiredOrders();
   const orders = await db.order.findMany({
@@ -20,24 +23,24 @@ export default async function AccountPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
       <div>
-        <h1 className="text-2xl font-bold">أهلاً {user.name}</h1>
+        <h1 className="text-2xl font-bold">{t("أهلاً ")}{user.name}</h1>
         <p className="text-sm text-slate-500" dir="ltr">{user.email}</p>
-        <Link href="/account/security" className="text-sm font-semibold text-brand-600">تغيير الباسورد</Link>
+        <Link href="/account/security" className="text-sm font-semibold text-brand-600">{t("تغيير الباسورد")}</Link>
       </div>
       <div className="card p-6">
-        <h2 className="mb-4 font-bold">مكتبتي (مشترياتي)</h2>
+        <h2 className="mb-4 font-bold">{t("مكتبتي (مشترياتي)")}</h2>
         {orders.length === 0 ? (
           <p className="text-sm text-slate-500">
-            لسه ماشتريتش حاجة. <Link href="/" className="font-semibold text-brand-600">ابدأ التسوق</Link>
+            {t("لسه ماشتريتش حاجة. ")}<Link href="/" className="font-semibold text-brand-600">{t("ابدأ التسوق")}</Link>
           </p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {orders.map((o) => (
               <li key={o.id} className="flex items-center justify-between py-3 text-sm">
                 <Link href={`/account/orders/${o.id}`} className="font-semibold text-brand-600">
-                  طلب #{o.number} · {o.items.map((i) => i.title).join("، ")} · {orderStatusLabels[o.status]}
+                  {t("طلب #")}{o.number} · {o.items.map((i) => i.title).join(t("، "))} · {t(orderStatusLabels[o.status])}
                 </Link>
-                <span className="font-semibold">{formatEGP(o.total)}</span>
+                <span className="font-semibold">{money(o.total)}</span>
               </li>
             ))}
           </ul>
@@ -45,8 +48,8 @@ export default async function AccountPage() {
       </div>
       {!user.seller && (
         <div className="card flex flex-wrap items-center gap-3 p-6">
-          <p className="flex-1">عندك منتجات رقمية عايز تبيعها؟</p>
-          <Link href={siteHref("seller", "/seller/join")} className="btn-primary">ابدأ البيع</Link>
+          <p className="flex-1">{t("عندك منتجات رقمية عايز تبيعها؟")}</p>
+          <Link href={siteHref("seller", "/seller/join")} className="btn-primary">{t("ابدأ البيع")}</Link>
         </div>
       )}
     </div>

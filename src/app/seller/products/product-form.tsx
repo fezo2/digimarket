@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/components/i18n-provider";
 import { useActionState, useState, useRef } from "react";
 import { prepareUploads } from "@/lib/upload-form";
 import { saveProduct, type State } from "./actions";
@@ -35,9 +36,10 @@ export function ProductForm({
   categories,
   defaults,
 }: {
-  categories: { id: string; nameAr: string; parentId: string | null }[];
+  categories: { id: string; nameAr: string; nameEn: string; parentId: string | null }[];
   defaults?: Defaults;
 }) {
+  const { t, cat } = useI18n();
   const intentRef = useRef<HTMLInputElement>(null);
   const [state, action, pending] = useActionState(
     async (state: State, form: FormData) => {
@@ -49,7 +51,7 @@ export function ProductForm({
           defaults?.id ?? "",
         );
       } catch {
-        return { error: "رفع الملف فشل، جرّب تاني" };
+        return { error: t("رفع الملف فشل، جرّب تاني") };
       }
       return saveProduct(state, form);
     },
@@ -72,7 +74,7 @@ export function ProductForm({
       <input type="hidden" name="discounts" value={JSON.stringify(discounts)} />
       <div>
         <label className="label" htmlFor="title">
-          اسم المنتج
+          {t("اسم المنتج")}
         </label>
         <input
           id="title"
@@ -86,7 +88,7 @@ export function ProductForm({
       </div>
       <div>
         <label className="label" htmlFor="categoryId">
-          القسم
+          {t("القسم")}
         </label>
         <select
           id="categoryId"
@@ -95,20 +97,20 @@ export function ProductForm({
           required
           defaultValue={defaults?.categoryId ?? ""}
         >
-          <option value="">اختار القسم</option>
+          <option value="">{t("اختار القسم")}</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.parentId
-                ? `${categories.find((p) => p.id === c.parentId)?.nameAr ?? ""} / `
+                ? `${cat(categories.find((p) => p.id === c.parentId) ?? { nameAr: "" })} / `
                 : ""}
-              {c.nameAr}
+              {cat(c)}
             </option>
           ))}
         </select>
       </div>
       <div>
         <label className="label" htmlFor="description">
-          الوصف
+          {t("الوصف")}
         </label>
         <textarea
           id="description"
@@ -124,7 +126,7 @@ export function ProductForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="label" htmlFor="price">
-            السعر بالجنيه
+            {t("السعر بالجنيه")}
           </label>
           <input
             id="price"
@@ -139,7 +141,7 @@ export function ProductForm({
         </div>
         <div>
           <label className="label" htmlFor="compareAtPrice">
-            السعر قبل الخصم (اختياري)
+            {t("السعر قبل الخصم (اختياري)")}
           </label>
           <input
             id="compareAtPrice"
@@ -153,7 +155,7 @@ export function ProductForm({
         </div>
       </div>
       <fieldset className="space-y-2">
-        <legend className="label">طريقة التسليم</legend>
+        <legend className="label">{t("طريقة التسليم")}</legend>
         {Object.entries(deliveryLabels).map(([key, label]) => (
           <label className="flex gap-2" key={key}>
             <input
@@ -163,14 +165,14 @@ export function ProductForm({
               checked={type === key}
               onChange={() => setType(key as typeof type)}
             />
-            {label}
+            {t(label)}
           </label>
         ))}
       </fieldset>
       {type === "FILE" ? (
         <div>
           <label className="label" htmlFor="deliveryFile">
-            ملف التسليم — ZIP أو PDF أو صورة، بحد أقصى 50 ميجا
+            {t("ملف التسليم — ZIP أو PDF أو صورة، بحد أقصى 50 ميجا")}
           </label>
           <input
             id="deliveryFile"
@@ -182,7 +184,7 @@ export function ProductForm({
           />
           {defaults?.hasFile && (
             <p className="text-sm text-slate-500">
-              في ملف محفوظ؛ ارفع ملف جديد لو عايز تستبدله.
+              {t("في ملف محفوظ؛ ارفع ملف جديد لو عايز تستبدله.")}
             </p>
           )}
           <input type="hidden" name="deliveryContent" value="" />
@@ -190,14 +192,14 @@ export function ProductForm({
       ) : type === "UNIQUE_CODES" ? (
         <>
           <p className="text-sm text-slate-500">
-            احفظ المنتج وبعدين افتح صفحة الأكواد لإضافة المخزون.
+            {t("احفظ المنتج وبعدين افتح صفحة الأكواد لإضافة المخزون.")}
           </p>
           <input type="hidden" name="deliveryContent" value="" />
         </>
       ) : (
         <div>
           <label className="label" htmlFor="deliveryContent">
-            محتوى التسليم (بيظهر بعد الشراء فقط)
+            {t("محتوى التسليم (بيظهر بعد الشراء فقط)")}
           </label>
           <textarea
             id="deliveryContent"
@@ -212,7 +214,7 @@ export function ProductForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="label" htmlFor="minQty">
-            أقل كمية
+            {t("أقل كمية")}
           </label>
           <input
             id="minQty"
@@ -227,7 +229,7 @@ export function ProductForm({
         </div>
         <div>
           <label className="label" htmlFor="maxQty">
-            أقصى كمية
+            {t("أقصى كمية")}
           </label>
           <input
             id="maxQty"
@@ -243,7 +245,7 @@ export function ProductForm({
       </div>
       <div>
         <label className="label" htmlFor="instructions">
-          تعليمات للمشتري بعد الشراء
+          {t("تعليمات للمشتري بعد الشراء")}
         </label>
         <textarea
           id="instructions"
@@ -254,14 +256,14 @@ export function ProductForm({
         />
       </div>
       <section className="space-y-4">
-        <h2 className="font-bold">اختيارات المنتج</h2>
+        <h2 className="font-bold">{t("اختيارات المنتج")}</h2>
         {options.map((o, i) => (
           <fieldset key={i} className="space-y-3 rounded-xl border p-4">
-            <legend>اختيار {i + 1}</legend>
+            <legend>{t("اختيار ")}{i + 1}</legend>
             <label className="label">
-              اسم الاختيار
+              {t("اسم الاختيار")}
               <input
-                aria-label={`اسم الاختيار ${i + 1}`}
+                aria-label={t("اسم الاختيار {i}", { i: i + 1 })}
                 required
                 className="input"
                 value={o.name}
@@ -269,7 +271,7 @@ export function ProductForm({
               />
             </label>
             <label className="label">
-              النوع
+              {t("النوع")}
               <select
                 className="input"
                 value={o.kind}
@@ -277,8 +279,8 @@ export function ProductForm({
                   updateOption(i, { kind: e.target.value as Option["kind"] })
                 }
               >
-                <option value="select">قائمة اختيارات</option>
-                <option value="text">نص يكتبه المشتري</option>
+                <option value="select">{t("قائمة اختيارات")}</option>
+                <option value="text">{t("نص يكتبه المشتري")}</option>
               </select>
             </label>
             <label className="flex gap-2">
@@ -289,15 +291,15 @@ export function ProductForm({
                   updateOption(i, { required: e.target.checked })
                 }
               />
-              مطلوب
+              {t("مطلوب")}
             </label>
             {o.kind === "select" && (
               <>
                 {o.values.map((v, j) => (
                   <div key={j} className="flex flex-wrap gap-2">
                     <input
-                      aria-label={`قيمة ${j + 1} للاختيار ${i + 1}`}
-                      placeholder="اسم القيمة"
+                      aria-label={t("قيمة {j} للاختيار {i}", { j: j + 1, i: i + 1 })}
+                      placeholder={t("اسم القيمة")}
                       required
                       className="input flex-1"
                       value={v.label}
@@ -310,8 +312,8 @@ export function ProductForm({
                       }
                     />
                     <input
-                      aria-label={`فرق السعر للقيمة ${j + 1}`}
-                      placeholder="فرق السعر بالجنيه"
+                      aria-label={t("فرق السعر للقيمة {j}", { j: j + 1 })}
+                      placeholder={t("فرق السعر بالجنيه")}
                       type="number"
                       step="0.01"
                       required
@@ -334,7 +336,7 @@ export function ProductForm({
                         })
                       }
                     >
-                      حذف القيمة
+                      {t("حذف القيمة")}
                     </button>
                   </div>
                 ))}
@@ -347,7 +349,7 @@ export function ProductForm({
                     })
                   }
                 >
-                  إضافة قيمة
+                  {t("إضافة قيمة")}
                 </button>
               </>
             )}
@@ -356,7 +358,7 @@ export function ProductForm({
               className="btn-danger"
               onClick={() => setOptions(options.filter((_, n) => n !== i))}
             >
-              حذف الاختيار
+              {t("حذف الاختيار")}
             </button>
           </fieldset>
         ))}
@@ -375,17 +377,17 @@ export function ProductForm({
             ])
           }
         >
-          إضافة اختيار
+          {t("إضافة اختيار")}
         </button>
       </section>
       <section className="space-y-3">
-        <h2 className="font-bold">خصومات الكمية</h2>
+        <h2 className="font-bold">{t("خصومات الكمية")}</h2>
         {discounts.map((d, i) => (
           <div key={i} className="flex flex-wrap gap-2">
             <label className="label flex-1">
-              الكمية
+              {t("الكمية")}
               <input
-                aria-label={`كمية الخصم ${i + 1}`}
+                aria-label={t("كمية الخصم {i}", { i: i + 1 })}
                 className="input"
                 type="number"
                 min={2}
@@ -401,9 +403,9 @@ export function ProductForm({
               />
             </label>
             <label className="label flex-1">
-              الخصم %
+              {t("الخصم %")}
               <input
-                aria-label={`نسبة الخصم ${i + 1}`}
+                aria-label={t("نسبة الخصم {i}", { i: i + 1 })}
                 className="input"
                 type="number"
                 min={1}
@@ -426,7 +428,7 @@ export function ProductForm({
               className="btn-danger"
               onClick={() => setDiscounts(discounts.filter((_, n) => n !== i))}
             >
-              حذف الخصم
+              {t("حذف الخصم")}
             </button>
           </div>
         ))}
@@ -437,12 +439,12 @@ export function ProductForm({
             setDiscounts([...discounts, { minQty: 2, percentOff: 5 }])
           }
         >
-          إضافة خصم كمية
+          {t("إضافة خصم كمية")}
         </button>
       </section>
       {state?.error && (
         <p role="alert" className="rounded-xl bg-red-50 p-3 text-red-700">
-          {state.error}
+          {t(state.error)}
         </p>
       )}
       <div className="flex flex-wrap gap-3">
@@ -453,7 +455,7 @@ export function ProductForm({
           }}
           className="btn-outline"
         >
-          حفظ كمسودة
+          {t("حفظ كمسودة")}
         </button>
         <button
           disabled={pending}
@@ -462,11 +464,11 @@ export function ProductForm({
           }}
           className="btn-primary"
         >
-          {pending ? "بيتحفظ…" : "إرسال للمراجعة"}
+          {pending ? t("بيتحفظ…") : t("إرسال للمراجعة")}
         </button>
       </div>
       <p className="text-sm text-slate-500">
-        تعديل البيانات الأساسية لمنتج نشط بيرجّعه للمراجعة.
+        {t("تعديل البيانات الأساسية لمنتج نشط بيرجّعه للمراجعة.")}
       </p>
     </form>
   );

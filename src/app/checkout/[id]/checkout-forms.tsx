@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@/components/i18n-provider";
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { changeCoupon, payNow } from "./actions";
@@ -12,6 +13,7 @@ export function CheckoutForms({
   coupon: string;
   locked: boolean;
 }) {
+  const { t } = useI18n();
   const [couponState, couponAction, couponPending] = useActionState(
     changeCoupon.bind(null, id),
     undefined,
@@ -24,7 +26,7 @@ export function CheckoutForms({
     <div className="space-y-5">
       <form action={couponAction} className="space-y-3">
         <label className="label" htmlFor="code">
-          كود الخصم (امسحه لو عايز تشيله)
+          {t("كود الخصم (امسحه لو عايز تشيله)")}
         </label>
         <input
           id="code"
@@ -39,16 +41,16 @@ export function CheckoutForms({
           className="btn-outline"
           disabled={locked || couponPending || paymentPending}
         >
-          تطبيق الكوبون
+          {t("تطبيق الكوبون")}
         </button>
         {locked && (
           <p className="text-sm text-slate-500">
-            الكوبون بيتحدد قبل بدء الدفع.
+            {t("الكوبون بيتحدد قبل بدء الدفع.")}
           </p>
         )}
         {couponState?.error && (
           <p role="alert" className="text-red-700">
-            {couponState.error}
+            {t(couponState.error)}
           </p>
         )}
       </form>
@@ -57,11 +59,11 @@ export function CheckoutForms({
           className="btn-primary w-full"
           disabled={couponPending || paymentPending}
         >
-          {paymentPending ? "بنجهّز الدفع…" : "ادفع دلوقتي"}
+          {paymentPending ? t("بنجهّز الدفع…") : t("ادفع دلوقتي")}
         </button>
         {paymentState?.error && (
           <p role="alert" className="text-red-700">
-            {paymentState.error}
+            {t(paymentState.error)}
           </p>
         )}
       </form>
@@ -70,6 +72,7 @@ export function CheckoutForms({
 }
 
 export function Countdown({ expiresAt }: { expiresAt: string }) {
+  const { t } = useI18n();
   const router = useRouter();
   const [remaining, setRemaining] = useState<number | null>(null);
   useEffect(() => {
@@ -92,7 +95,7 @@ export function Countdown({ expiresAt }: { expiresAt: string }) {
   }, [expiresAt, router]);
   return (
     <p className="rounded-xl bg-amber-50 p-3">
-      المخزون محجوز لمدة:{" "}
+      {t("المخزون محجوز لمدة:")}{" "}
       {remaining === null
         ? "…"
         : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}

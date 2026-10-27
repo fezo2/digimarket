@@ -1,9 +1,9 @@
+import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sellerBalance, methodLabels, payoutLabels } from "@/lib/ledger";
 import { SELLER_TIERS } from "@/lib/config";
-import { formatEGP } from "@/lib/money";
 import { ActionForm } from "@/components/action-form";
 import { handlePayout } from "./actions";
 export default async function AdminPayouts({
@@ -11,6 +11,7 @@ export default async function AdminPayouts({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
+  const { t, money, date } = await i18n();
   await requireAdmin();
   const query = await searchParams;
   const status =
@@ -42,7 +43,7 @@ export default async function AdminPayouts({
   );
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold">طلبات السحب</h1>
+      <h1 className="text-2xl font-bold">{t("طلبات السحب")}</h1>
       <nav className="flex gap-3">
         {Object.entries(payoutLabels).map(([key, label]) => (
           <Link
@@ -51,7 +52,7 @@ export default async function AdminPayouts({
             key={key}
             href={`?status=${key}`}
           >
-            {label}
+            {t(label)}
           </Link>
         ))}
       </nav>
@@ -66,10 +67,10 @@ export default async function AdminPayouts({
               >
                 {p.seller.storeName}
               </Link>{" "}
-              · {SELLER_TIERS[p.seller.type].label}
+              · {t(SELLER_TIERS[p.seller.type].label)}
             </h2>
-            <p>تاريخ الطلب: {p.createdAt.toLocaleString("ar-EG")}</p>
-            <p>اسم التوثيق: {legal ?? "غير متوفر"}</p>
+            <p>{t("تاريخ الطلب: ")}{date(p.createdAt)}</p>
+            <p>{t("اسم التوثيق: ")}{legal ?? t("غير متوفر")}</p>
             <p
               className={
                 legal?.trim() !== p.holderName.trim()
@@ -77,26 +78,26 @@ export default async function AdminPayouts({
                   : ""
               }
             >
-              اسم صاحب الحساب:{" "}
-              {p.holderName || "غير مسجل — راجع الاسم قبل التحويل"}
+              {t("اسم صاحب الحساب:")}{" "}
+              {p.holderName || t("غير مسجل — راجع الاسم قبل التحويل")}
             </p>
             <p>
-              {methodLabels[p.method]}: <span dir="ltr">{p.account}</span>
+              {t(methodLabels[p.method])}: <span dir="ltr">{p.account}</span>
             </p>
             <p>
-              المبلغ: {formatEGP(p.amount)} · الرصيد المتاح الحالي:{" "}
-              {formatEGP(balances.get(p.sellerId)!.available)}
+              {t("المبلغ: ")}{money(p.amount)}{t(" · الرصيد المتاح الحالي:")}{" "}
+              {money(balances.get(p.sellerId)!.available)}
             </p>
             <p>
-              {payoutLabels[p.status]} · {p.reference ?? p.rejectReason ?? ""}
+              {t(payoutLabels[p.status])} · {p.reference ?? p.rejectReason ?? ""}
             </p>
             {status === "REQUESTED" && (
               <div className="grid gap-5 sm:grid-cols-2">
-                <ActionForm action={handlePayout} button="تم الدفع">
+                <ActionForm action={handlePayout} button={t("تم الدفع")}>
                   <input type="hidden" name="id" value={p.id} />
                   <input type="hidden" name="status" value="PAID" />
                   <label className="label">
-                    مرجع التحويل
+                    {t("مرجع التحويل")}
                     <input
                       className="input"
                       name="text"
@@ -105,11 +106,11 @@ export default async function AdminPayouts({
                     />
                   </label>
                 </ActionForm>
-                <ActionForm action={handlePayout} button="رفض">
+                <ActionForm action={handlePayout} button={t("رفض")}>
                   <input type="hidden" name="id" value={p.id} />
                   <input type="hidden" name="status" value="REJECTED" />
                   <label className="label">
-                    سبب الرفض
+                    {t("سبب الرفض")}
                     <textarea
                       className="input"
                       name="text"
@@ -123,7 +124,7 @@ export default async function AdminPayouts({
           </section>
         );
       })}
-      {!payouts.length && <p>مفيش طلبات بالحالة دي.</p>}
+      {!payouts.length && <p>{t("مفيش طلبات بالحالة دي.")}</p>}
     </div>
   );
 }

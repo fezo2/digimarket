@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
@@ -5,7 +6,6 @@ import { db } from "@/lib/db";
 import { releaseExpiredOrders } from "@/lib/orders";
 import { readOrderSnapshot } from "@/lib/order-snapshot";
 import { quote } from "@/lib/pricing";
-import { formatEGP } from "@/lib/money";
 import { CheckoutForms, Countdown } from "./checkout-forms";
 
 export default async function Checkout({
@@ -15,6 +15,7 @@ export default async function Checkout({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string }>;
 }) {
+  const { t } = await i18n();
   const { id } = await params;
   const user = await requireUser(`/checkout/${id}`);
   await releaseExpiredOrders();
@@ -47,11 +48,11 @@ export default async function Checkout({
   if (order.status !== "PENDING_PAYMENT" || order.expiresAt <= new Date())
     return (
       <div className="mx-auto max-w-xl space-y-4 px-4 py-8">
-        <h1 className="text-2xl font-bold">مدة الطلب انتهت</h1>
-        <p>الحجز اتلغى. تقدر تبدأ طلب جديد.</p>
+        <h1 className="text-2xl font-bold">{t("مدة الطلب انتهت")}</h1>
+        <p>{t("الحجز اتلغى. تقدر تبدأ طلب جديد.")}</p>
         {item && (
           <Link className="btn-primary" href={`/products/${item.product.slug}`}>
-            رجوع للمنتج
+            {t("رجوع للمنتج")}
           </Link>
         )}
       </div>
@@ -65,28 +66,28 @@ export default async function Checkout({
   });
   return (
     <div className="mx-auto max-w-xl space-y-5 px-4 py-8">
-      <h1 className="text-2xl font-bold">إتمام الطلب #{order.number}</h1>
+      <h1 className="text-2xl font-bold">{t("إتمام الطلب #")}{order.number}</h1>
       {(await searchParams).error && (
         <p role="alert" className="text-red-700">
-          الدفع منجحش. تقدر تحاول تاني.
+          {t("الدفع منجحش. تقدر تحاول تاني.")}
         </p>
       )}
       <div className="card space-y-4 p-6">
         <h2 className="font-bold">{item.title}</h2>
-        <p>الكمية: {item.quantity}</p>
+        <p>{t("الكمية: ")}{item.quantity}</p>
         {snapshot.choices.map((c, i) => (
           <p key={i}>
             {c.name}: {c.value}
           </p>
         ))}
         <dl className="space-y-2">
-          <Row label="قيمة المنتجات" value={beforeCoupon.subtotal} />
-          <Row label="خصم الكمية" value={beforeCoupon.quantityDiscount} />
+          <Row label={t("قيمة المنتجات")} value={beforeCoupon.subtotal} />
+          <Row label={t("خصم الكمية")} value={beforeCoupon.quantityDiscount} />
           <Row
-            label="خصم الكوبون"
+            label={t("خصم الكوبون")}
             value={Math.max(0, beforeCoupon.total - order.total)}
           />
-          <Row label="الإجمالي" value={order.total} />
+          <Row label={t("الإجمالي")} value={order.total} />
         </dl>
         <Countdown expiresAt={order.expiresAt.toISOString()} />
         <CheckoutForms
@@ -98,11 +99,12 @@ export default async function Checkout({
     </div>
   );
 }
-function Row({ label, value }: { label: string; value: number }) {
+async function Row({ label, value }: { label: string; value: number }) {
+  const { money } = await i18n();
   return (
     <div className="flex justify-between">
       <dt>{label}</dt>
-      <dd>{formatEGP(value)}</dd>
+      <dd>{money(value)}</dd>
     </div>
   );
 }

@@ -1,12 +1,13 @@
+import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { requireSeller } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { formatEGP } from "@/lib/money";
 import { statusLabels } from "@/lib/product-input";
 import { ProductAction } from "./action-form";
 import { siteHref } from "@/lib/sites";
 
 export default async function ProductsPage() {
+  const { t, money, num, cat } = await i18n();
   const { seller } = await requireSeller();
   if (seller.kycStatus !== "APPROVED") return null;
   const products = await db.product.findMany({
@@ -31,29 +32,29 @@ export default async function ProductsPage() {
       AND o."paidAt" >= ${new Date(now - 182 * 86400000)}
     GROUP BY 1`;
   const sold = new Map(sales.map((r) => [r.productId, r]));
-  const n = (v: bigint | undefined) => Number(v ?? 0).toLocaleString("ar-EG");
+  const n = (v: bigint | undefined) => num(Number(v ?? 0));
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="me-auto text-2xl font-bold">المنتجات</h1>
+        <h1 className="me-auto text-2xl font-bold">{t("المنتجات")}</h1>
         <Link className="btn-primary" href="/seller/products/new">
-          إضافة منتج
+          {t("إضافة منتج")}
         </Link>
-        <ProductAction operation="stopAll" label="إيقاف كل المبيعات" />
+        <ProductAction operation="stopAll" label={t("إيقاف كل المبيعات")} />
       </div>
       <div className="card overflow-x-auto">
         <table className="w-full text-start text-sm">
           <thead>
             <tr>
               {[
-                "المنتج",
-                "القسم",
-                "السعر",
-                "الحالة",
-                "المخزون",
-                "مبيعات شهر / ٣ / ٦",
-                "الإجمالي",
-                "التحكم",
+                t("المنتج"),
+                t("القسم"),
+                t("السعر"),
+                t("الحالة"),
+                t("المخزون"),
+                t("مبيعات شهر / ٣ / ٦"),
+                t("الإجمالي"),
+                t("التحكم"),
               ].map((x) => (
                 <th className="p-3 text-start" key={x}>
                   {x}
@@ -73,15 +74,15 @@ export default async function ProductsPage() {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      رابط الشراء المباشر ↗
+                      {t("رابط الشراء المباشر ↗")}
                     </a>
                   )}
                 </td>
-                <td className="p-3">{p.category.nameAr}</td>
-                <td className="p-3">{formatEGP(p.price)}</td>
+                <td className="p-3">{cat(p.category)}</td>
+                <td className="p-3">{money(p.price)}</td>
                 <td className="p-3">
                   <span className="badge bg-slate-100">
-                    {statusLabels[p.status]}
+                    {t(statusLabels[p.status])}
                   </span>
                 </td>
                 <td className="p-3">
@@ -91,22 +92,22 @@ export default async function ProductsPage() {
                   {n(sold.get(p.id)?.m1)} / {n(sold.get(p.id)?.m3)} /{" "}
                   {n(sold.get(p.id)?.m6)}
                 </td>
-                <td className="p-3">{p.soldCount.toLocaleString("ar-EG")}</td>
+                <td className="p-3">{num(p.soldCount)}</td>
                 <td className="flex flex-wrap gap-2 p-3">
                   <Link
                     className="btn-outline"
                     href={`/seller/products/${p.id}`}
                   >
-                    تعديل
+                    {t("تعديل")}
                   </Link>
-                  <ProductAction id={p.id} operation="clone" label="نسخ" />
+                  <ProductAction id={p.id} operation="clone" label={t("نسخ")} />
                   <ProductAction
                     id={p.id}
                     operation="toggle"
                     label={
                       p.salesEnabled
-                        ? "المبيعات ON — إيقاف"
-                        : "المبيعات OFF — تشغيل"
+                        ? t("المبيعات ON — إيقاف")
+                        : t("المبيعات OFF — تشغيل")
                     }
                   />
                   {p.deliveryType === "UNIQUE_CODES" && (
@@ -114,7 +115,7 @@ export default async function ProductsPage() {
                       className="btn-outline"
                       href={`/seller/products/${p.id}/stock`}
                     >
-                      الأكواد
+                      {t("الأكواد")}
                     </Link>
                   )}
                 </td>
@@ -123,7 +124,7 @@ export default async function ProductsPage() {
           </tbody>
         </table>
         {!products.length && (
-          <p className="p-6">لسه مفيش منتجات. ابدأ بإضافة أول منتج.</p>
+          <p className="p-6">{t("لسه مفيش منتجات. ابدأ بإضافة أول منتج.")}</p>
         )}
       </div>
     </>

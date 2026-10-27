@@ -1,8 +1,10 @@
 "use client";
+import { useI18n } from "@/components/i18n-provider";
 import { useActionState, useRef } from "react";
 import { reviewProduct } from "./actions";
 
 export function ReviewForm({ id }: { id: string }) {
+  const { t } = useI18n();
   const decisionRef = useRef<HTMLInputElement>(null);
   const [state, action, pending] = useActionState(reviewProduct, undefined);
   return (
@@ -15,7 +17,7 @@ export function ReviewForm({ id }: { id: string }) {
       />
       <input type="hidden" name="id" value={id} />
       <label htmlFor="reviewNote" className="label">
-        سبب الرفض (مطلوب لو هترفض)
+        {t("سبب الرفض (مطلوب لو هترفض)")}
       </label>
       <textarea
         id="reviewNote"
@@ -25,7 +27,7 @@ export function ReviewForm({ id }: { id: string }) {
       />
       {state?.error && (
         <p role="alert" className="text-red-700">
-          {state.error}
+          {t(state.error)}
         </p>
       )}
       <div className="flex gap-3">
@@ -36,7 +38,7 @@ export function ReviewForm({ id }: { id: string }) {
           disabled={pending}
           className="btn-primary"
         >
-          موافقة ونشر
+          {t("موافقة ونشر")}
         </button>
         <button
           onClick={() => {
@@ -45,7 +47,7 @@ export function ReviewForm({ id }: { id: string }) {
           disabled={pending}
           className="btn-danger"
         >
-          رفض
+          {t("رفض")}
         </button>
       </div>
     </form>

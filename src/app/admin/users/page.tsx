@@ -1,9 +1,12 @@
+import { i18n } from "@/lib/prefs";
 import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 
-export const metadata = { title: "المستخدمين" };
+export async function generateMetadata() {
+  return { title: (await i18n()).t("المستخدمين") };
+}
 
 const ROLES = { BUYER: "مشتري", SELLER: "تاجر", ADMIN: "أدمن" } as const;
 
@@ -12,6 +15,7 @@ export default async function Users({
 }: {
   searchParams: Promise<{ q?: string; filter?: string }>;
 }) {
+  const { t, num } = await i18n();
   await requireAdmin();
   const { q = "", filter = "" } = await searchParams;
   const term = q.trim().slice(0, 100);
@@ -48,21 +52,21 @@ export default async function Users({
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold">المستخدمين</h1>
+      <h1 className="text-2xl font-bold">{t("المستخدمين")}</h1>
       <form className="flex flex-wrap gap-2">
         <input
           name="q"
           defaultValue={term}
           className="input max-w-sm"
-          placeholder="ابحث بالإيميل أو الاسم أو الموبايل أو اسم المتجر"
+          placeholder={t("ابحث بالإيميل أو الاسم أو الموبايل أو اسم المتجر")}
         />
         <select name="filter" defaultValue={filter} className="input w-auto">
-          <option value="">الكل</option>
-          <option value="sellers">التجار</option>
-          <option value="suspended">الموقوفين</option>
-          <option value="admins">الأدمن</option>
+          <option value="">{t("الكل")}</option>
+          <option value="sellers">{t("التجار")}</option>
+          <option value="suspended">{t("الموقوفين")}</option>
+          <option value="admins">{t("الأدمن")}</option>
         </select>
-        <button className="btn-primary">بحث</button>
+        <button className="btn-primary">{t("بحث")}</button>
       </form>
       <div className="card divide-y">
         {users.map((u) => (
@@ -78,7 +82,7 @@ export default async function Users({
               </p>
             </div>
             <span className="badge bg-slate-100 text-slate-700">
-              {ROLES[u.role]}
+              {t(ROLES[u.role])}
             </span>
             {u.seller && (
               <span className="badge bg-blue-50 text-blue-700">
@@ -86,20 +90,20 @@ export default async function Users({
               </span>
             )}
             {u.suspendedAt && (
-              <span className="badge bg-red-50 text-red-700">موقوف</span>
+              <span className="badge bg-red-50 text-red-700">{t("موقوف")}</span>
             )}
             {u.seller?.salesSuspendedAt && (
               <span className="badge bg-amber-50 text-amber-800">
-                البيع موقوف
+                {t("البيع موقوف")}
               </span>
             )}
             <span className="text-sm text-slate-500">
-              {u._count.orders.toLocaleString("ar-EG")} طلب ·{" "}
-              {u._count.disputes.toLocaleString("ar-EG")} شكوى
+              {num(u._count.orders)}{t(" طلب ·")}{" "}
+              {num(u._count.disputes)}{t(" شكوى")}
             </span>
           </Link>
         ))}
-        {!users.length && <p className="p-4 text-slate-500">مفيش نتايج</p>}
+        {!users.length && <p className="p-4 text-slate-500">{t("مفيش نتايج")}</p>}
       </div>
     </div>
   );

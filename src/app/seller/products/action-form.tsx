@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/components/i18n-provider";
 import { useActionState } from "react";
 import { manageProduct, manageStock } from "./actions";
 
@@ -12,22 +13,23 @@ export function ProductAction({
   operation: "clone" | "toggle" | "stopAll";
   label: string;
 }) {
+  const { t } = useI18n();
   const [state, action, pending] = useActionState(manageProduct, undefined);
   return (
     <form action={action}>
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="operation" value={operation} />
       <button disabled={pending} className="btn-outline">
-        {pending ? "لحظة…" : label}
+        {pending ? t("لحظة…") : label}
       </button>
       {state?.error && (
         <p role="alert" className="text-sm text-red-700">
-          {state.error}
+          {t(state.error)}
         </p>
       )}
       {state?.message && (
         <p role="status" className="text-sm text-emerald-700">
-          {state.message}
+          {t(state.message)}
         </p>
       )}
     </form>
@@ -35,6 +37,7 @@ export function ProductAction({
 }
 
 export function StockForm({ id, stockId }: { id: string; stockId?: string }) {
+  const { t } = useI18n();
   const [state, action, pending] = useActionState(manageStock, undefined);
   return (
     <form action={action} className="space-y-3">
@@ -49,7 +52,7 @@ export function StockForm({ id, stockId }: { id: string; stockId?: string }) {
       ) : (
         <>
           <label className="label" htmlFor="codes">
-            كود في كل سطر
+            {t("كود في كل سطر")}
           </label>
           <textarea
             id="codes"
@@ -59,7 +62,7 @@ export function StockForm({ id, stockId }: { id: string; stockId?: string }) {
             dir="auto"
           />
           <label className="label" htmlFor="codesFile">
-            أو ارفع ملف txt
+            {t("أو ارفع ملف txt")}
           </label>
           <input
             id="codesFile"
@@ -74,16 +77,16 @@ export function StockForm({ id, stockId }: { id: string; stockId?: string }) {
         disabled={pending}
         className={stockId ? "btn-danger" : "btn-primary"}
       >
-        {pending ? "لحظة…" : stockId ? "حذف" : "إضافة الأكواد"}
+        {pending ? t("لحظة…") : stockId ? t("حذف") : t("إضافة الأكواد")}
       </button>
       {state?.error && (
         <p role="alert" className="text-red-700">
-          {state.error}
+          {t(state.error)}
         </p>
       )}
       {state?.message && (
         <p role="status" className="text-emerald-700">
-          {state.message}
+          {t(state.message)}
         </p>
       )}
     </form>
