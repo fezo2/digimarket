@@ -27,12 +27,16 @@ export async function Header() {
         <form action="/search" className="hidden flex-1 md:block">
           <input
             name="q"
+            type="search"
             placeholder="ابحث عن اشتراك، برنامج، أو متجر…"
             className="input"
           />
         </form>
 
         <nav className="ms-auto flex items-center gap-2 text-sm font-medium">
+          <Link href="/search" aria-label="بحث" className="btn-outline md:hidden">
+            🔍
+          </Link>
           {user?.role === "ADMIN" && (
             <Link href={portalHref("admin")} className="btn-outline">
               لوحة الإدارة
