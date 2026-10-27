@@ -1002,4 +1002,11 @@ export const en: Record<string, string> = {
   "التجار الموثّقين بيضيفوا منتجات جديدة كل يوم. جرّب البحث أو قسم تاني لحد ما توصل.": "Verified sellers add new products every day. Try a search or another category meanwhile.",
   "عندك منتجات؟ ابدأ البيع": "Have products? Start selling",
   " (عام)": " (general)",
+  // Information pages
+  "من نحن": "About us",
+  "الأسئلة الشائعة": "FAQ",
+  "تواصل معانا": "Contact us",
+  "سياسة الخصوصية": "Privacy policy",
+  "للاستفسارات العامة وطلبات البيانات الشخصية:": "For general questions and personal data requests:",
+  "آخر تحديث: ": "Last updated: ",
 };
