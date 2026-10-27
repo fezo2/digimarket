@@ -8,10 +8,12 @@ export function ProductAction({
   id = "",
   operation,
   label,
+  className = "btn-outline",
 }: {
   id?: string;
   operation: "clone" | "toggle" | "stopAll";
-  label: string;
+  label: React.ReactNode;
+  className?: string;
 }) {
   const { t } = useI18n();
   const [state, action, pending] = useActionState(manageProduct, undefined);
@@ -19,7 +21,7 @@ export function ProductAction({
     <form action={action}>
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="operation" value={operation} />
-      <button disabled={pending} className="btn-outline">
+      <button disabled={pending} className={className}>
         {pending ? t("لحظة…") : label}
       </button>
       {state?.error && (

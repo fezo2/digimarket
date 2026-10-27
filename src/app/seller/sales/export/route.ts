@@ -8,11 +8,12 @@ export async function GET(req: Request) {
   const { seller } = await requireSeller();
   const p = new URL(req.url).searchParams;
   const items = await db.orderItem.findMany({
-    where: salesWhere(seller.id, {
-      q: p.get("q") ?? "",
-      from: p.get("from") ?? "",
-      to: p.get("to") ?? "",
-    }),
+    where: salesWhere(
+      seller.id,
+      Object.fromEntries(
+        ["q", "p", "from", "to", "product", "promo", "status", "delivery", "review"].map((k) => [k, p.get(k) ?? ""]),
+      ),
+    ),
     orderBy: { order: { paidAt: "desc" } },
     take: 10000,
     select: {

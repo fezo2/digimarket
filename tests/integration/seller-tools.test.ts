@@ -111,6 +111,12 @@ test("seller tools against PostgreSQL", async (t) => {
       assert.equal(await find({ q: "nothing-matches" }), 0);
       assert.equal(await find({ from: "2000-01-01", to: "2000-01-02" }), 0);
       assert.equal(await find({ from: "bad", to: "" }), 1);
+      assert.equal(await find({ p: "today" }), 1);
+      assert.equal(await find({ p: "yesterday" }), 0);
+      assert.equal(await find({ status: "paid", review: "none" }), 1);
+      assert.equal(await find({ status: "refunded" }), 0);
+      assert.equal(await find({ review: "positive" }), 0);
+      assert.equal(await find({ delivery: "refunded" }), 0);
       assert.equal(
         await db.orderItem.count({ where: tools.salesWhere("other", {}) }),
         0,
@@ -174,6 +180,48 @@ test("seller tools against PostgreSQL", async (t) => {
       } finally {
         process.env = saved;
       }
+    });
+
+    await t.test("seller promo codes work at checkout in any letter case", async () => {
+      const promo = await import("../../src/lib/promo-codes");
+      const { applyCoupon } = await import("../../src/lib/orders");
+      const code = `save-${key.slice(0, 8)}`;
+      const form = { code, kind: "percent" as const, value: "20", minTotal: "", usageLimit: "", expires: "" };
+      await assert.rejects(promo.createPromo(seller.id, { ...form, value: "95" }), /٩٠/);
+      await assert.rejects(promo.createPromo(seller.id, { ...form, code: "a b" }), /حرف/);
+      await assert.rejects(promo.createPromo(seller.id, { ...form, expires: "2000-01-01" }), /المستقبل/);
+      const created = await promo.createPromo(seller.id, form);
+      assert.equal(created.code, code.toUpperCase());
+      assert.equal(created.percentOff, 20);
+      await assert.rejects(promo.createPromo(seller.id, form), /مستخدم/);
+      assert.equal(await promo.setPromoActive("someone-else", created.id, false), false);
+      const product = await db.product.create({
+        data: {
+          sellerId: seller.id,
+          categoryId,
+          slug: `${key}-promo`,
+          title: "منتج بالكود",
+          description: "وصف",
+          status: "ACTIVE",
+          price: 10000,
+          deliveryType: "TEXT",
+          deliveryContent: "سر",
+        },
+      });
+      const order = await createOrder({
+        buyerId: buyer.id,
+        productId: product.id,
+        quantity: 1,
+        selections: {},
+        textInputs: {},
+      });
+      await applyCoupon(order.id, buyer.id, code.toLowerCase());
+      const priced = await db.order.findUniqueOrThrow({ where: { id: order.id } });
+      assert.equal(priced.couponId, created.id);
+      assert.equal(priced.total, 8000);
+      await assert.rejects(promo.deletePromo(seller.id, created.id), /تقدر توقفه/);
+      assert.equal(await promo.setPromoActive(seller.id, created.id, false), true);
+      await assert.rejects(applyCoupon(order.id, buyer.id, code), /الكوبون/);
     });
 
     await t.test("csv quotes text and defuses formulas", () => {

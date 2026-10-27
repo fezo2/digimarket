@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, readSessionToken } from "@/lib/session-token";
-import { siteForHost, siteForPath, siteOrigins } from "@/lib/sites";
+import { PATH_HEADER, siteForHost, siteForPath, siteOrigins } from "@/lib/sites";
 import { contentSecurityPolicy } from "@/lib/csp";
 
 const PROTECTED = ["/account", "/seller", "/admin"];
@@ -17,6 +17,8 @@ async function route(req: NextRequest, csp: string) {
   // Next reads the nonce from the request's CSP and stamps its scripts.
   const request = { headers: new Headers(req.headers) };
   request.headers.set("Content-Security-Policy", csp);
+  // Lets the root layout drop the store header inside the seller portal.
+  request.headers.set(PATH_HEADER, pathname);
   const origins = siteOrigins();
   // Build redirects from the configured origin, not the internal request URL.
   const base = origins
@@ -29,6 +31,7 @@ async function route(req: NextRequest, csp: string) {
     if (site !== "store" && pathname === "/") {
       const url = req.nextUrl.clone();
       url.pathname = "/" + site;
+      request.headers.set(PATH_HEADER, url.pathname);
       return guard(req, base, url.pathname, search, NextResponse.rewrite(url, { request }));
     }
     const owner = siteForPath(pathname);

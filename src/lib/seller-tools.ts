@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "./db";
+import { parsePeriod } from "./seller-period";
 
 export class SellerToolError extends Error {}
 
@@ -63,29 +64,57 @@ export async function changePassword(
   });
 }
 
-export type SalesFilter = { q?: string; from?: string; to?: string };
-
-const day = (value: string | undefined, end = false) => {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
-  const d = new Date(value + (end ? "T23:59:59.999Z" : "T00:00:00Z"));
-  return Number.isNaN(d.getTime()) ? undefined : d;
+export type SalesFilter = {
+  q?: string;
+  p?: string;
+  from?: string;
+  to?: string;
+  product?: string;
+  promo?: string;
+  status?: string;
+  delivery?: string;
+  review?: string;
 };
 
-// One filter for the sales table and its CSV export. The search box takes
+const ORDER_STATUS = {
+  paid: "PAID",
+  partial: "PARTIALLY_REFUNDED",
+  refunded: "REFUNDED",
+} as const;
+
+const DELIVERY: Record<string, Prisma.OrderItemWhereInput> = {
+  delivered: { deliveredAt: { not: null }, refundedAmount: 0 },
+  pending: { deliveredAt: null, refundedAmount: 0 },
+  refunded: { refundedAmount: { gt: 0 } },
+};
+
+const REVIEW: Record<string, Prisma.OrderItemWhereInput> = {
+  positive: { review: { is: { positive: true } } },
+  negative: { review: { is: { positive: false } } },
+  none: { review: { is: null } },
+};
+
+// One filter for the orders table and its CSV export. The search box takes
 // an order number, buyer email, product title or a delivered code.
 export function salesWhere(
   sellerId: string,
   f: SalesFilter,
 ): Prisma.OrderItemWhereInput {
   const q = (f.q ?? "").trim().replace(/^#/, "").slice(0, 200);
-  const from = day(f.from);
-  const to = day(f.to, true);
+  // Old links carry only from/to.
+  const dated = [f.from, f.to].some((d) => /^\d{4}-\d{2}-\d{2}$/.test(d ?? ""));
+  const period = parsePeriod({ ...f, p: f.p || (dated ? "range" : undefined) }, "all");
+  const status = ORDER_STATUS[f.status as keyof typeof ORDER_STATUS];
+  const and = [DELIVERY[f.delivery ?? ""], REVIEW[f.review ?? ""]].filter(Boolean);
   return {
     sellerId,
+    ...(f.product ? { productId: f.product } : {}),
     order: {
-      status: { in: ["PAID", "REFUNDED", "PARTIALLY_REFUNDED"] },
-      ...(from || to ? { paidAt: { gte: from, lte: to } } : {}),
+      status: status ?? { in: ["PAID", "REFUNDED", "PARTIALLY_REFUNDED"] },
+      ...(period.from ? { paidAt: { gte: period.from, lt: period.to } } : {}),
+      ...(f.promo ? { couponId: f.promo } : {}),
     },
+    ...(and.length ? { AND: and } : {}),
     ...(q
       ? {
           OR: [

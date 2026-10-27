@@ -18,7 +18,7 @@ export async function saveAccount(
     const value = destinationSchema.parse(Object.fromEntries(form));
     const password = passwordSchema.parse(form.get("password"));
     await saveDestination(user.id, value, password);
-    revalidatePath("/seller/wallet");
+    revalidatePath("/seller/wallet", "layout");
     return { success: "بيانات الحساب اتحفظت" };
   } catch (error) {
     return walletActionError(error);
@@ -31,7 +31,7 @@ export async function askPayout(
   const { user } = await requireSeller();
   try {
     await requestPayout(user.id, amountSchema.parse(form.get("amount")));
-    revalidatePath("/seller/wallet");
+    revalidatePath("/seller/wallet", "layout");
     revalidatePath("/admin/payouts");
     return { success: "طلب السحب اتسجل والرصيد اتخصم" };
   } catch (error) {

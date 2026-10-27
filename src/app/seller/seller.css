@@ -1,0 +1,23 @@
+/* Seller office in the dark theme: neutral greys instead of the store's
+   navy, the way most seller dashboards look. Light theme is unchanged. */
+.dark .seller-shell {
+  --page: #0e0e11;
+  --surface: #19191d;
+  --color-slate-50: #1f1f24;
+  --color-slate-100: #26262c;
+  --color-slate-200: #2c2c33;
+  --color-slate-300: #3d3d46;
+  --color-slate-400: #82828e;
+  --color-slate-500: #9d9da8;
+  --color-slate-600: #c1c1ca;
+  --color-slate-700: #d4d4da;
+  --color-slate-800: #e4e4e8;
+  --color-slate-900: #f4f4f5;
+}
+@layer base {
+  .dark .seller-shell *,
+  .dark .seller-shell ::before,
+  .dark .seller-shell ::after {
+    border-color: var(--color-slate-200);
+  }
+}

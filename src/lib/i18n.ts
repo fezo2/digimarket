@@ -1,4 +1,8 @@
-import { en } from "@/i18n/en";
+import { en as base } from "@/i18n/en";
+import { enSeller } from "@/i18n/en-seller";
+
+// The seller portal keeps its strings in their own file.
+export const en: Record<string, string> = { ...base, ...enSeller };
 
 // Arabic is the source language: every UI string is written in Arabic and
 // looked up in the English dictionary by that exact text. Anything missing

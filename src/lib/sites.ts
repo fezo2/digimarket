@@ -4,6 +4,9 @@
 
 export type Site = "store" | "seller" | "admin";
 
+// Request header the middleware fills with the page path.
+export const PATH_HEADER = "x-dm-path";
+
 type Env = Record<string, string | undefined>;
 
 // Pages every host serves for itself: sign-in, uploads and APIs.
