@@ -142,11 +142,6 @@ test("delivery and image links accept only HTTP(S) and text delivery needs conte
     false,
   );
   assert.equal(
-    productInput.safeParse({ ...valid, imageUrl: "javascript:alert(1)" })
-      .success,
-    false,
-  );
-  assert.equal(
     productInput.safeParse({
       ...valid,
       deliveryType: "LINK",

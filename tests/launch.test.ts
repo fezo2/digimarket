@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateKey, uploadSpec, checkMagic } from "../src/lib/storage-rules";
+import {
+  validateKey,
+  uploadSpec,
+  checkMagic,
+  productImageExt,
+} from "../src/lib/storage-rules";
 import {
   tokenHash,
   secretMatches,
@@ -114,4 +119,14 @@ test("startup rejects missing production settings and partial optional integrati
   assert.throws(() => launchConfig({ ...env, APP_URL: "http://example.test" }));
   assert.throws(() => launchConfig({ ...env, TELEGRAM_BOT_TOKEN: "dummy" }));
   assert.throws(() => launchConfig({ ...env, RESEND_API_KEY: "dummy" }));
+});
+
+test("product photos are small images only", () => {
+  assert.equal(productImageExt(500 * 1024, "image/webp"), "webp");
+  assert.equal(productImageExt(1000, "image/jpeg"), "jpg");
+  assert.throws(() => productImageExt(500 * 1024 + 1, "image/png"), /500KB/);
+  assert.throws(() => productImageExt(1000, "application/pdf"), /JPG/);
+  assert.throws(() => productImageExt(0, "image/png"));
+  assert.equal(validateKey("images/seller_1/abc-123.png"), "images/seller_1/abc-123.png");
+  assert.throws(() => validateKey("images/../x.png"));
 });

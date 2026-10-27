@@ -32,10 +32,9 @@ export const productInput = z
     title: z.string().trim().min(3).max(160),
     categoryId: z.string().min(1),
     description: z.string().trim().min(10).max(20000),
-    imageUrl: z.union([
-      z.literal(""),
-      z.url().refine((v) => /^https?:\/\//.test(v)),
-    ]),
+    // "" removes the photo; anything else keeps the saved one. A new photo
+    // comes as an uploaded file, never as a URL from the browser.
+    imageUrl: z.string().max(2000).default(""),
     price: amount.refine((v) => v >= 100, "السعر لازم يكون جنيه على الأقل"),
     compareAtPrice: z.union([z.literal("").transform(() => null), amount]),
     deliveryType: z.enum(["UNIQUE_CODES", "FILE", "TEXT", "LINK"]),

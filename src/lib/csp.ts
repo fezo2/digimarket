@@ -15,7 +15,7 @@ export function contentSecurityPolicy(
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
-    `img-src 'self' data:${r2}`,
+    `img-src 'self' data: blob:${r2}`,
     `connect-src 'self'${r2}`,
     "frame-src https://accept.paymob.com",
     "form-action 'self' https://accept.paymob.com",
