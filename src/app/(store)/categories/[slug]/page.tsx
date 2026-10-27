@@ -9,7 +9,7 @@ import { storeCategories } from "@/lib/storefront";
 import { CategoryThumb } from "@/components/category-thumb";
 import { siteHref } from "@/lib/sites";
 import type { Metadata } from "next";
-import { describe } from "@/lib/seo";
+import { absolute, describe, jsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -29,13 +29,16 @@ export async function generateMetadata({
   const { slug } = await params;
   const category = await db.category.findUnique({
     where: { slug: decodeURIComponent(slug) },
-    include: { children: { select: { nameAr: true } } },
+    include: { children: { select: { id: true, nameAr: true, nameEn: true } } },
   });
   if (!category) return { title: t("القسم غير موجود") };
-  const sub = category.children.map((c) => c.nameAr).join(t("، "));
+  const listed = await db.product.count({
+    where: { ...listedProduct, categoryId: { in: [category.id, ...category.children.map((c) => c.id)] } },
+  });
+  const sub = category.children.map((c) => cat(c)).join(t("، "));
   const description = describe(
     t("اشتري {name} أونلاين في مصر من تجار موثّقين بتسليم فوري{sub}. ادفع بإنستاباي أو المحفظة.", {
-      name: category.nameAr,
+      name: cat(category),
       sub: sub ? `: ${sub}` : "",
     }),
   );
@@ -45,7 +48,10 @@ export async function generateMetadata({
     description,
     // Sort orders are the same listing; point them all at the plain URL.
     alternates: { canonical: url },
-    openGraph: { url, title: category.nameAr, description },
+    // An empty category is a thin page; keep it out of the index (and the
+    // sitemap) until its first product is listed.
+    robots: listed === 0 ? { index: false, follow: true } : undefined,
+    openGraph: { url, title: cat(category), description },
   };
 }
 
@@ -96,9 +102,40 @@ export default async function CategoryPage({
     const qs = next.toString();
     return qs ? `?${qs}` : "?";
   };
+  const url = absolute(`/categories/${encodeURIComponent(category.slug)}`);
+  const structured = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: t("الرئيسية"), item: absolute("/") },
+        ...(category.parent
+          ? [{ "@type": "ListItem", position: 2, name: cat(category.parent), item: absolute(`/categories/${encodeURIComponent(category.parent.slug)}`) }]
+          : []),
+        { "@type": "ListItem", position: category.parent ? 3 : 2, name: cat(category), item: url },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: cat(category),
+      url,
+      mainEntity: {
+        "@type": "ItemList",
+        numberOfItems: products.length,
+        itemListElement: products.slice(0, 30).map((p, i) => ({
+          "@type": "ListItem",
+          position: i + 1,
+          url: absolute(`/products/${encodeURIComponent(p.slug)}`),
+          name: p.title,
+        })),
+      },
+    },
+  ];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(structured) }} />
       <Breadcrumbs
         items={[
           { label: t("الرئيسية"), href: "/" },

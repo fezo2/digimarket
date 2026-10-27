@@ -25,6 +25,11 @@ const STRUCTURED = [
     alternateName: SITE_NAME_EN,
     url: absolute("/"),
     inLanguage: "ar-EG",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: { "@type": "EntryPoint", urlTemplate: absolute("/search?q={search_term_string}") },
+      "query-input": "required name=search_term_string",
+    },
   },
   {
     "@context": "https://schema.org",
@@ -32,7 +37,7 @@ const STRUCTURED = [
     name: SITE_NAME,
     alternateName: SITE_NAME_EN,
     url: absolute("/"),
-    logo: absolute("/icon.svg"),
+    logo: absolute("/logo.png"),
   },
 ];
 

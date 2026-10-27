@@ -30,7 +30,7 @@ export async function Header() {
     <>
       <div className="hidden bg-brand-950 text-xs text-white/70 md:block">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-1.5">
-          <Link href="/pages/refunds" className="hover:text-yellow-300">{t("للمشترين")}</Link>
+          <Link href="/pages/faq" className="hover:text-yellow-300">{t("الأسئلة الشائعة")}</Link>
           <Link href={siteHref("seller", "/seller/join")} className="hover:text-yellow-300">
             {t("بيع على ")}{siteName}
           </Link>

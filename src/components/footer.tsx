@@ -29,7 +29,7 @@ export async function Footer() {
           ))}
         </div>
       </div>
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-5">
         <div>
           <p className="text-xl font-black text-brand-600">
             {t(SITE_NAME)}{" "}
@@ -53,6 +53,15 @@ export async function Footer() {
             <li><Link href="/account" className="hover:text-brand-600">{t("مشترياتي")}</Link></li>
             <li><Link href="/search" className="hover:text-brand-600">{t("كل المنتجات")}</Link></li>
             <li><Link href="/pages/refunds" className="hover:text-brand-600">{t("سياسة الاسترداد")}</Link></li>
+          </ul>
+        </div>
+        <div>
+          <p className="mb-3 font-bold text-slate-900">{t(SITE_NAME)}</p>
+          <ul className="space-y-2">
+            <li><Link href="/pages/about" className="hover:text-brand-600">{t("من نحن")}</Link></li>
+            <li><Link href="/pages/faq" className="hover:text-brand-600">{t("الأسئلة الشائعة")}</Link></li>
+            <li><Link href="/pages/contact" className="hover:text-brand-600">{t("تواصل معانا")}</Link></li>
+            <li><Link href="/pages/privacy" className="hover:text-brand-600">{t("سياسة الخصوصية")}</Link></li>
           </ul>
         </div>
         <div>
