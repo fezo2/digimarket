@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 test("chat, reviews and disputes against PostgreSQL", async (t) => {
   assert.ok(process.env.TEST_DATABASE_URL);
   process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
+  // Fixtures use small balances; production defaults to EGP 1,000.
+  process.env.MIN_PAYOUT_EGP = "100";
   const { db } = await import("../../src/lib/db");
   const { createOrder, markOrderPaid } = await import("../../src/lib/orders");
   const { sendMessage, readChat, readAttachment, unreadCounts } =

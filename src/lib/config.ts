@@ -23,4 +23,6 @@ export const SELLER_TIERS: Record<
   },
 };
 
-export const MIN_PAYOUT = 10_000; // 100 EGP
+// Smallest payout a seller can request, in piasters (default EGP 1,000).
+export const MIN_PAYOUT =
+  Math.round(Number(process.env.MIN_PAYOUT_EGP || 1000) * 100) || 100_000;

@@ -3,6 +3,7 @@ import { frozenAmount } from "@/lib/dispute-balance";
 import Link from "next/link";
 import { requireSeller } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { MIN_PAYOUT } from "@/lib/config";
 import { computeBalance, methodLabels, payoutLabels } from "@/lib/ledger";
 import { payoutUnlockAt } from "@/lib/wallet-validation";
 import { BalanceCards, LedgerTable } from "@/components/ledger-view";
@@ -126,7 +127,7 @@ export default async function WalletPage({
       </section>
       <section className="card space-y-4 p-5">
         <h2 className="text-xl font-bold">{t("طلب سحب")}</h2>
-        <p>{t("الحد الأدنى ١٠٠ ج.م. طلب واحد قيد المراجعة في المرة.")}</p>
+        <p>{t("الحد الأدنى {min}. طلب واحد قيد المراجعة في المرة، والمبلغ المعلّق مينفعش يتسحب لحد ما يتاح.", { min: money(MIN_PAYOUT) })}</p>
         {unlock && unlock > now && (
           <p role="status">{t("السحب هيتفتح: ")}{date(unlock)}</p>
         )}

@@ -8,6 +8,7 @@ import { enqueueNotice } from "./notifications";
 import { db } from "./db";
 import { sellerBalance } from "./ledger";
 import { MIN_PAYOUT } from "./config";
+import { formatEGP } from "./money";
 import {
   destinationSchema,
   passwordSchema,
@@ -104,6 +105,17 @@ export async function requestPayout(userId: string, amount: number) {
           "السحب متجمّد من الإدارة" +
             (seller.payoutsFrozenReason ? `: ${seller.payoutsFrozenReason}` : ""),
         );
+      // Amount problems come first: they are what the seller can act on now.
+      if (amount < MIN_PAYOUT)
+        throw new WalletError(
+          `الحد الأدنى للسحب ${formatEGP(MIN_PAYOUT)}`,
+        );
+      const balance = await sellerBalance(seller.id, tx);
+      const withdrawable = balance.available - (await frozenAmount(seller.id, tx));
+      if (amount > withdrawable)
+        throw new WalletError(
+          `الرصيد المتاح للسحب ${formatEGP(Math.max(0, withdrawable))} بس، والفلوس المعلّقة مينفعش تتسحب لحد ما تتاح`,
+        );
       if (
         !seller.payoutMethod ||
         !seller.payoutAccount ||
@@ -115,11 +127,6 @@ export async function requestPayout(userId: string, amount: number) {
         throw new WalletError(
           "السحب مقفول لمدة ٢٤ ساعة بعد تغيير بيانات الحساب",
         );
-      const balance = await sellerBalance(seller.id, tx);
-      if (amount < MIN_PAYOUT)
-        throw new WalletError("الحد الأدنى للسحب ١٠٠ ج.م");
-      if (amount > balance.available - (await frozenAmount(seller.id, tx)))
-        throw new WalletError("الرصيد المتاح مش كفاية");
       if (
         await tx.payout.findFirst({
           where: { sellerId: seller.id, status: "REQUESTED" },

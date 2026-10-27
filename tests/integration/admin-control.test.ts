@@ -8,6 +8,8 @@ test("admin account and seller controls against PostgreSQL", async (t) => {
     "Set TEST_DATABASE_URL to an isolated, migrated test database",
   );
   process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
+  // Fixtures use small balances; production defaults to EGP 1,000.
+  process.env.MIN_PAYOUT_EGP = "100";
   const { db } = await import("../../src/lib/db");
   const control = await import("../../src/lib/admin-control");
   const { createOrder, markOrderPaid } = await import("../../src/lib/orders");
