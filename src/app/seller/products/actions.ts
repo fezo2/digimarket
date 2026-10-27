@@ -124,8 +124,8 @@ export async function saveProduct(_: State, form: FormData): Promise<State> {
             (old?.deliveryType === "FILE" ? old.deliveryContent : null);
           if (!content) throw new ProductError("ارفع ملف التسليم");
         }
-        const imageUrl =
-          newImage ?? (v.imageUrl === "" ? null : (old?.imageUrl ?? null));
+        const imageUrl = newImage ?? old?.imageUrl ?? null;
+        if (!imageUrl) throw new ProductError("ارفع صورة للمنتج");
         const status = productSaveStatus(
           old,
           { ...v, imageUrl, deliveryContent: content, quantityDiscounts: v.discounts },
