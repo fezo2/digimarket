@@ -1,3 +1,4 @@
+import { safeRedirectPath } from "@/lib/sites";
 import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { register } from "../actions";
@@ -13,7 +14,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
     <AuthForm
       mode="register"
       action={register}
-      next={next}
+      next={safeRedirectPath(next) ?? undefined}
       title={site === "seller" ? "افتح حساب تاجر" : undefined}
     />
   );

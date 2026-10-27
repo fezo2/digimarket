@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  safeRedirectPath,
   portalHref,
   siteForHost,
   siteForPath,
@@ -45,4 +46,24 @@ test("paths belong to one portal or are shared", () => {
   assert.equal(siteForPath("/"), "store");
   for (const p of ["/login", "/register", "/api/uploads", "/uploads/a.png", "/_next/data"])
     assert.equal(siteForPath(p), null);
+});
+
+test("after-login redirects stay on this host", () => {
+  for (const ok of ["/seller", "/account/orders/x?tab=1#a", "/products/%D8%A7"])
+    assert.equal(safeRedirectPath(ok), ok);
+  for (const bad of [
+    "https://evil.com",
+    "//evil.com",
+    "/\\evil.com",
+    "/\\/evil.com",
+    "\\evil.com",
+    "/\tevil.com",
+    "/\nevil.com",
+    "javascript:alert(1)",
+    "evil.com",
+    "",
+    null,
+    42,
+  ])
+    assert.equal(safeRedirectPath(bad), null, String(bad));
 });

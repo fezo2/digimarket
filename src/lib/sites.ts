@@ -81,3 +81,20 @@ export function portalHref(site: Site, env: Env = process.env) {
   const origins = siteOrigins(env);
   return origins ? origins[site] : SITE_HOME[site];
 }
+
+// Where to send someone after signing in. Only a path on this same host is
+// allowed: anything a browser could read as another origin ("//x", "/\x",
+// "https://x", control characters) falls back to the default.
+export function safeRedirectPath(value: unknown): string | null {
+  if (typeof value !== "string" || value.length > 2000) return null;
+  if (!value.startsWith("/") || /[\\\u0000-\u001f\u007f]/.test(value)) return null;
+  try {
+    const base = "https://internal.invalid";
+    const url = new URL(value, base);
+    if (url.origin !== base) return null;
+    const path = url.pathname + url.search + url.hash;
+    return path.startsWith("//") ? null : path;
+  } catch {
+    return null;
+  }
+}

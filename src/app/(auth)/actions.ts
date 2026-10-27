@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { headers } from "next/headers";
+import { after } from "next/server";
+import { alertAdmin } from "@/lib/notifications";
 import { authenticate, AccountError } from "@/lib/account-security";
 import { db } from "@/lib/db";
 import {
@@ -14,15 +16,13 @@ import {
 } from "@/lib/auth";
 import { changePassword, toolError } from "@/lib/seller-tools";
 import type { ActionState } from "@/components/action-form";
-import { SITE_HOME } from "@/lib/sites";
+import { SITE_HOME, safeRedirectPath } from "@/lib/sites";
 
 export type FormState = { error?: string } | undefined;
 
 async function safeNext(value: FormDataEntryValue | null) {
-  const next = typeof value === "string" ? value : "";
-  return next.startsWith("/") && !next.startsWith("//") && next !== "/"
-    ? next
-    : SITE_HOME[await currentSite()];
+  const next = safeRedirectPath(value);
+  return next && next !== "/" ? next : SITE_HOME[await currentSite()];
 }
 
 const registerSchema = z.object({
@@ -68,18 +68,27 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
     })
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: "الإيميل أو الباسورد غلط" };
-  const ip =
-    (await headers()).get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+  const where = `${ip} ${h.get("x-vercel-ip-country") ?? ""}`.trim();
+  const adminSite = (await currentSite()) === "admin";
   let user;
   try {
     user = await authenticate(parsed.data.email, parsed.data.password, ip);
   } catch (e) {
-    if (e instanceof AccountError) return { error: e.message };
+    if (e instanceof AccountError) {
+      // Someone is hammering the admin login: tell the owner.
+      if (adminSite)
+        after(() => alertAdmin(`🚨 محاولات دخول كتير على لوحة الإدارة\n${parsed.data.email} · ${where}`));
+      return { error: e.message };
+    }
     throw e;
   }
   if (!user) return { error: "الإيميل أو الباسورد غلط" };
-  if ((await currentSite()) === "admin" && user.role !== "ADMIN")
+  if (adminSite && user.role !== "ADMIN")
     return { error: "الحساب ده مش حساب إدارة" };
+  if (adminSite)
+    after(() => alertAdmin(`🔐 دخول جديد على لوحة الإدارة\n${user.email} · ${where}`));
   await createSession({
     userId: user.id,
     role: user.role,

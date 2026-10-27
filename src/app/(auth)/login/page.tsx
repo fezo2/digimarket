@@ -1,3 +1,4 @@
+import { safeRedirectPath } from "@/lib/sites";
 import Link from "next/link";
 import { AuthForm } from "@/components/auth-form";
 import { login } from "../actions";
@@ -23,7 +24,7 @@ export default async function LoginPage({
       <AuthForm
         mode="login"
         action={login}
-        next={next}
+        next={safeRedirectPath(next) ?? undefined}
         title={TITLES[site]}
         allowSignup={site !== "admin"}
       />
