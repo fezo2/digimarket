@@ -995,4 +995,11 @@ export const en: Record<string, string> = {
   "رضا المشترين": "Satisfaction",
   "منتجات تانية من {store}": "More from {store}",
   "منتجات مشابهة": "Similar products",
+  // Category tree
+  "{n} قسم فرعي": "{n} subcategories",
+  "مفيش منتجات في الفلتر ده.": "No products match this filter.",
+  "المنتجات في القسم ده جاية قريب": "Products for this category are coming soon",
+  "التجار الموثّقين بيضيفوا منتجات جديدة كل يوم. جرّب البحث أو قسم تاني لحد ما توصل.": "Verified sellers add new products every day. Try a search or another category meanwhile.",
+  "عندك منتجات؟ ابدأ البيع": "Have products? Start selling",
+  " (عام)": " (general)",
 };

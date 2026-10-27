@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { productCardSelect } from "@/components/product-card";
 import { Breadcrumbs, ProductGrid } from "@/components/store-ui";
 import { storeCategories } from "@/lib/storefront";
+import { CategoryThumb } from "@/components/category-thumb";
+import { siteHref } from "@/lib/sites";
 import type { Metadata } from "next";
 import { describe } from "@/lib/seo";
 
@@ -104,13 +106,30 @@ export default async function CategoryPage({
           { label: cat(category) },
         ]}
       />
-      <div className="mb-6 flex flex-wrap items-end gap-3">
-        <h1 className="flex items-center gap-2 text-2xl font-extrabold sm:text-3xl">
-          <span>{category.icon ?? category.parent?.icon}</span>
-          {cat(category)}
-        </h1>
-        <span className="pb-1 text-sm text-slate-500">{t("{n} منتج", { n: num(products.length) })}</span>
+      <div className="mb-6 flex items-center gap-4">
+        <CategoryThumb
+          category={{ imageUrl: category.imageUrl, icon: category.icon ?? category.parent?.icon }}
+          className="h-16 w-20 rounded-2xl text-3xl shadow-sm sm:h-20 sm:w-28"
+        />
+        <div>
+          <h1 className="text-2xl font-extrabold sm:text-3xl">{cat(category)}</h1>
+          <p className="text-sm text-slate-500">{t("{n} منتج", { n: num(products.length) })}</p>
+        </div>
       </div>
+
+      {category.children.length > 0 && (
+        <div className="no-scrollbar -mx-4 mb-6 flex gap-3 overflow-x-auto px-4 pb-1">
+          {category.children.map((c) => (
+            <Link key={c.id} href={`/categories/${c.slug}`} className="group w-32 shrink-0 sm:w-36">
+              <CategoryThumb
+                category={c}
+                className="aspect-[4/3] w-full rounded-xl text-3xl shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-lg"
+              />
+              <p className="mt-1.5 line-clamp-1 text-center text-sm font-semibold group-hover:text-brand-600">{cat(c)}</p>
+            </Link>
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
@@ -171,7 +190,22 @@ export default async function CategoryPage({
             ))}
           </div>
           {products.length === 0 ? (
-            <p className="card p-10 text-center text-slate-500">{t("مفيش منتجات في القسم ده لسه.")}</p>
+            <div className="card flex flex-col items-center gap-3 p-10 text-center">
+              <CategoryThumb
+                category={{ imageUrl: category.imageUrl, icon: category.icon ?? category.parent?.icon }}
+                className="h-20 w-28 rounded-2xl text-4xl"
+              />
+              <p className="text-lg font-bold">
+                {query.min || query.max ? t("مفيش منتجات في الفلتر ده.") : t("المنتجات في القسم ده جاية قريب")}
+              </p>
+              <p className="max-w-md text-sm text-slate-500">
+                {t("التجار الموثّقين بيضيفوا منتجات جديدة كل يوم. جرّب البحث أو قسم تاني لحد ما توصل.")}
+              </p>
+              <div className="mt-2 flex flex-wrap justify-center gap-2">
+                <Link href="/search" className="btn-primary">{t("كل المنتجات")}</Link>
+                <Link href={siteHref("seller", "/seller/join")} className="btn-outline">{t("عندك منتجات؟ ابدأ البيع")}</Link>
+              </div>
+            </div>
           ) : (
             <ProductGrid products={products} dense />
           )}

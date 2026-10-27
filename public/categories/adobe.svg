@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300">
+  <defs>
+    <linearGradient id="g" gradientTransform="rotate(151 .5 .5)">
+      <stop offset="0" stop-color="#e879f9"/>
+      <stop offset="1" stop-color="#86198f"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#g)"/>
+  <circle cx="99" cy="40" r="110" fill="#ffffff" opacity=".10"/>
+  <circle cx="301" cy="300" r="90" fill="#facc15" opacity=".18"/>
+  <circle cx="340" cy="70" r="26" fill="#ffffff" opacity=".12"/>
+  <text x="200" y="150" font-size="96" text-anchor="middle" font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif">🎨</text>
+  <text x="200" y="245" font-size="40" font-weight="800" text-anchor="middle" fill="#ffffff" font-family="Segoe UI, Arial, Helvetica, sans-serif">Adobe</text>
+</svg>

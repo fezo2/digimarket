@@ -183,7 +183,7 @@ export default async function ProductPage({
               </div>
             )}
             {off > 0 && (
-              <span className="badge absolute start-3 top-3 bg-red-600 text-white">-{num(off)}%</span>
+              <span className="badge absolute start-3 top-3 bg-yellow-400 font-extrabold text-brand-950">-{num(off)}%</span>
             )}
           </div>
           <div className="flex flex-col gap-4">

@@ -57,7 +57,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       dir={lang === "en" ? "ltr" : "rtl"}
       className={`${cairo.variable}${theme === "dark" ? " dark" : ""}`}
     >
-      <body className="flex min-h-screen flex-col font-sans antialiased">
+      <body className={`flex min-h-screen flex-col font-sans antialiased${site === "store" && !shell ? " store-theme" : ""}`}>
         <I18nProvider lang={lang}>
           {shell ? null : site === "store" ? <Header /> : <PortalHeader site={site} />}
           <main className="flex-1">{children}</main>

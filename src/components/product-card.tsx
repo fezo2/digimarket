@@ -54,7 +54,7 @@ export async function ProductCard({ product }: { product: ProductCardData }) {
       <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-brand-50 to-slate-100">
         <Thumb product={product} big />
         {off > 0 && (
-          <span className="badge absolute start-2 top-2 bg-red-600 text-white">-{num(off)}%</span>
+          <span className="badge absolute start-2 top-2 bg-yellow-400 font-extrabold text-brand-950">-{num(off)}%</span>
         )}
       </div>
       <div className="flex flex-1 flex-col gap-1.5 p-3">

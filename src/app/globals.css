@@ -6,6 +6,8 @@
   --color-brand-500: #2f6fed;
   --color-brand-600: #1f57d6;
   --color-brand-700: #1a46ad;
+  --color-brand-900: #172554;
+  --color-brand-950: #0b1736;
   --color-ink: #0f172a;
   --font-sans: var(--font-cairo), system-ui, sans-serif;
 }
@@ -123,4 +125,38 @@ body {
 }
 .dark img {
   color-scheme: normal;
+}
+
+/* Buyer storefront: deep purple with a yellow accent (buy buttons, deals).
+   Set on <body> for the store host only, so the seller and admin portals
+   keep their own colours. */
+.store-theme {
+  --page: #f7f5fc;
+  --color-brand-50: #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #7c3aed;
+  --color-brand-700: #6d28d9;
+  --color-brand-900: #2e1065;
+  --color-brand-950: #1a0b38;
+}
+.dark .store-theme {
+  --page: #0f0a1d;
+  --surface: #181128;
+  --color-slate-50: #1f1733;
+  --color-slate-100: #271d3f;
+  --color-slate-200: #30254b;
+  --color-slate-300: #45385f;
+  --color-brand-50: rgb(139 92 246 / 0.18);
+  --color-brand-100: rgb(139 92 246 / 0.3);
+}
+.dark .store-theme :is(.text-brand-600, .text-brand-700, .hover\:text-brand-600:hover, .hover\:text-brand-700:hover) {
+  color: #c4b5fd;
+}
+@layer base {
+  .dark .store-theme *,
+  .dark .store-theme ::before,
+  .dark .store-theme ::after {
+    border-color: var(--color-slate-200);
+  }
 }

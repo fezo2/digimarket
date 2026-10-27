@@ -80,7 +80,7 @@ export function BuyBox({
             <span className="text-slate-400 line-through">
               {money(compareAtPrice)}
             </span>
-            <span className="badge bg-red-600 text-white">
+            <span className="badge bg-yellow-400 font-extrabold text-brand-950">
               -{Math.round(100 - (unitPrice / compareAtPrice) * 100)}%
             </span>
           </>
@@ -167,7 +167,7 @@ export function BuyBox({
         </p>
       )}
       <button
-        className="btn w-full bg-emerald-600 py-3.5 text-base text-white shadow-sm hover:bg-emerald-700"
+        className="btn w-full bg-yellow-400 py-3.5 text-base font-extrabold text-brand-950 shadow-sm hover:bg-yellow-300"
         disabled={!inStock || pending || !pricing}
       >
         {!inStock ? t("نفذت الكمية") : pending ? t("بنحجز طلبك…") : t("اشتري دلوقتي")}

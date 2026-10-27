@@ -98,14 +98,22 @@ export function ProductForm({
           defaultValue={defaults?.categoryId ?? ""}
         >
           <option value="">{t("اختار القسم")}</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.parentId
-                ? `${cat(categories.find((p) => p.id === c.parentId) ?? { nameAr: "" })} / `
-                : ""}
-              {cat(c)}
-            </option>
-          ))}
+          {categories
+            .filter((c) => !c.parentId)
+            .map((parent) => (
+              <optgroup key={parent.id} label={cat(parent)}>
+                <option value={parent.id}>
+                  {cat(parent)}{t(" (عام)")}
+                </option>
+                {categories
+                  .filter((c) => c.parentId === parent.id)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {cat(c)}
+                    </option>
+                  ))}
+              </optgroup>
+            ))}
         </select>
       </div>
       <div>
