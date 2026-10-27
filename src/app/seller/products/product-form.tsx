@@ -4,6 +4,7 @@ import { useActionState, useState, useRef } from "react";
 import { prepareUploads } from "@/lib/upload-form";
 import { saveProduct, type State } from "./actions";
 import { deliveryLabels } from "@/lib/product-input";
+import { ImagePicker } from "./image-picker";
 
 type Option = {
   name: string;
@@ -119,19 +120,7 @@ export function ProductForm({
           defaultValue={defaults?.description}
         />
       </div>
-      <div>
-        <label className="label" htmlFor="imageUrl">
-          رابط صورة المنتج (اختياري)
-        </label>
-        <input
-          id="imageUrl"
-          name="imageUrl"
-          type="url"
-          className="input"
-          dir="ltr"
-          defaultValue={defaults?.imageUrl}
-        />
-      </div>
+      <ImagePicker current={defaults?.imageUrl} />
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="label" htmlFor="price">

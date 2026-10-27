@@ -10,7 +10,7 @@ const types: Record<string, string> = {
 };
 export function validateKey(key: string) {
   if (
-    !/^(kyc|products|chat|receipts|pending)\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\.(jpg|png|webp|pdf|zip)$/.test(
+    !/^(kyc|products|chat|receipts|pending|images)\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\.(jpg|png|webp|pdf|zip)$/.test(
       key,
     ) ||
     key.includes("..")
@@ -55,4 +55,17 @@ export function fileType(key: string) {
     Object.entries(types).find(([, e]) => e === ext)?.[0] ||
     "application/octet-stream"
   );
+}
+
+// Product photos: small, public, images only.
+export const PRODUCT_IMAGE_MAX = 500 * 1024;
+export function productImageExt(size: number, type: string) {
+  if (!Number.isSafeInteger(size) || size <= 0)
+    throw new UploadError("اختار صورة");
+  if (size > PRODUCT_IMAGE_MAX)
+    throw new UploadError("حجم الصورة لازم ميزيدش عن 500KB");
+  const ext = types[type];
+  if (!ext || !type.startsWith("image/"))
+    throw new UploadError("الصورة لازم تكون JPG أو PNG أو WEBP");
+  return ext;
 }

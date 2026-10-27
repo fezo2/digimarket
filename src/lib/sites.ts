@@ -17,6 +17,8 @@ const SHARED = [
   "/_next",
   "/favicon.ico",
   "/icon.svg",
+  // Product photos show on the store and in the seller's own forms.
+  "/img",
   // Each host answers for itself: the portals tell crawlers to stay out.
   "/robots.txt",
 ];

@@ -11,6 +11,7 @@ import { productSaveStatus } from "@/lib/product-review";
 import { addStockCodes } from "@/lib/product-stock";
 import { deletePrivateFile, UploadError } from "@/lib/storage";
 import { finalizeUpload } from "@/lib/finalize-upload";
+import { saveProductImage } from "@/lib/product-image";
 import { SELLER_TIERS } from "@/lib/config";
 import { slugify, uniqueSuffix } from "@/lib/slug";
 
@@ -73,6 +74,11 @@ export async function saveProduct(_: State, form: FormData): Promise<State> {
   let savedId = "";
   let uploadedFileKey: string | undefined;
   try {
+    const photo = form.get("imageFile");
+    const newImage =
+      photo instanceof File && photo.size
+        ? await saveProductImage(seller.id, photo)
+        : undefined;
     const file = form.get("deliveryFilePending") || form.get("deliveryFile");
     if (
       v.deliveryType === "FILE" &&
@@ -118,9 +124,11 @@ export async function saveProduct(_: State, form: FormData): Promise<State> {
             (old?.deliveryType === "FILE" ? old.deliveryContent : null);
           if (!content) throw new ProductError("ارفع ملف التسليم");
         }
+        const imageUrl =
+          newImage ?? (v.imageUrl === "" ? null : (old?.imageUrl ?? null));
         const status = productSaveStatus(
           old,
-          { ...v, deliveryContent: content, quantityDiscounts: v.discounts },
+          { ...v, imageUrl, deliveryContent: content, quantityDiscounts: v.discounts },
           v.intent,
         );
         if (status === "PENDING_REVIEW") {
@@ -144,7 +152,7 @@ export async function saveProduct(_: State, form: FormData): Promise<State> {
           slug,
           categoryId: v.categoryId,
           description: v.description,
-          imageUrl: v.imageUrl || null,
+          imageUrl,
           price: v.price,
           compareAtPrice: v.compareAtPrice,
           deliveryType: v.deliveryType,
