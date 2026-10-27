@@ -1,7 +1,7 @@
 import { unreadCounts } from "@/lib/chat";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
-import { retryDelivery, recordRefund } from "./actions";
+import { confirmRefundPaid, retryDelivery, recordRefund } from "./actions";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { releaseExpiredOrders } from "@/lib/orders";
@@ -11,7 +11,7 @@ import { formatEGP } from "@/lib/money";
 export default async function AdminOrders({
   searchParams,
 }: {
-  searchParams: Promise<{ review?: string; order?: string }>;
+  searchParams: Promise<{ review?: string; order?: string; repay?: string }>;
 }) {
   const query = await searchParams;
   const actor = await requireAdmin();
@@ -23,6 +23,7 @@ export default async function AdminOrders({
       ...(query.review === "1"
         ? { status: "PAID", items: { some: { deliveredAt: null } } }
         : {}),
+      ...(query.repay === "1" ? { status: "REFUNDED", refundPaidAt: null } : {}),
     },
     orderBy: { createdAt: "desc" },
     take: 100,
@@ -35,6 +36,8 @@ export default async function AdminOrders({
       reviewReason: true,
       paymentProvider: true,
       paymentRef: true,
+      refundNote: true,
+      refundPaidAt: true,
       buyer: { select: { name: true, email: true } },
       items: { select: { deliveredAt: true } },
     },
@@ -48,6 +51,9 @@ export default async function AdminOrders({
         </Link>
         <Link className="btn-outline" href="/admin/orders?review=1">
           محتاج مراجعة
+        </Link>
+        <Link className="btn-outline" href="/admin/orders?repay=1">
+          مرتجعات لسه ما اتحوّلتش
         </Link>
       </nav>
       <div className="card overflow-x-auto">
@@ -126,6 +132,16 @@ export default async function AdminOrders({
                           <input type="hidden" name="id" value={o.id} />
                         </ActionForm>
                       </>
+                    )}
+                    {o.status === "REFUNDED" && !o.refundPaidAt && (
+                      <ActionForm action={confirmRefundPaid} button="حوّلت الفلوس للمشتري">
+                        <input type="hidden" name="id" value={o.id} />
+                        <p className="text-amber-800">
+                          التاجر عمل استرداد. حوّل {formatEGP(o.paidAmount ?? o.total)} للمشتري
+                          وبعدين اضغط هنا.
+                        </p>
+                        {o.refundNote && <p className="text-slate-500">السبب: {o.refundNote}</p>}
+                      </ActionForm>
                     )}
                     {o.status === "PAID" && (
                       <ActionForm

@@ -8,7 +8,7 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   await requireAdmin();
-  const [kyc, products, payments, payouts, disputes, flagged] = await Promise.all([
+  const [kyc, products, payments, payouts, disputes, flagged, repay] = await Promise.all([
     db.kycSubmission.count({ where: { status: "PENDING" } }),
     db.product.count({ where: { status: "PENDING_REVIEW" } }),
     db.manualPayment.count({ where: { status: "SUBMITTED" } }),
@@ -17,6 +17,7 @@ export default async function AdminLayout({
     db.message.count({
       where: { flagged: true, createdAt: { gte: new Date(Date.now() - 7 * 86400000) } },
     }),
+    db.order.count({ where: { status: "REFUNDED", refundPaidAt: null } }),
   ]);
   return (
     <div className="flex min-h-[calc(100vh-4rem)] flex-col lg:flex-row">
@@ -31,6 +32,7 @@ export default async function AdminLayout({
               { href: "/admin/payments", label: "التحويلات اليدوية", icon: "💳", count: payments },
               { href: "/admin/payouts", label: "طلبات السحب", icon: "💸", count: payouts },
               { href: "/admin/orders", label: "الطلبات", icon: "🧾" },
+              { href: "/admin/orders?repay=1", label: "مرتجعات للتحويل", icon: "↩️", count: repay },
             ],
           },
           {

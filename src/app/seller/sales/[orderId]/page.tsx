@@ -6,6 +6,8 @@ import { formatBps, formatEGP } from "@/lib/money";
 import { orderStatusLabels, readOrderSnapshot } from "@/lib/order-snapshot";
 import { OrderChat } from "@/components/order-chat";
 import { SellerReviewList } from "@/components/seller-review-list";
+import { ActionForm } from "@/components/action-form";
+import { refundSale } from "./actions";
 
 export const metadata = { title: "تفاصيل المعاملة" };
 
@@ -38,6 +40,10 @@ export default async function Page({
       createdAt: true,
       paidAt: true,
       paymentProvider: true,
+      refundedAt: true,
+      refundNote: true,
+      refundPaidAt: true,
+      _count: { select: { items: { where: { sellerId: { not: seller.id } } } } },
       buyerIp: true,
       buyerCountry: true,
       buyer: { select: { email: true } },
@@ -187,6 +193,44 @@ export default async function Page({
           </section>
         );
       })}
+
+      <section className="card space-y-3 p-5">
+        <h2 className="text-lg font-bold">استرداد الفلوس</h2>
+        {order.status === "PAID" && order._count.items === 0 ? (
+          <ActionForm action={refundSale} button="رجّع الفلوس للمشتري">
+            <input type="hidden" name="id" value={id.data} />
+            <p className="text-sm text-slate-600">
+              المبلغ هيتخصم من رصيدك ({formatEGP(order.items.reduce((s, i) => s + i.sellerNet, 0))}
+              ) والإدارة هتحوّل الفلوس للمشتري. الكود المسلّم مش هيرجع للمخزون، والشكوى
+              المفتوحة على الطلب هتتقفل.
+            </p>
+            <label className="label">
+              سبب الاسترداد (المشتري هيشوفه)
+              <textarea className="input" name="note" required maxLength={1000} />
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="confirm" required />
+              متأكد، الخطوة دي مش بترجع
+            </label>
+          </ActionForm>
+        ) : order.status === "PAID" ? (
+          <p className="text-sm text-slate-600">
+            الطلب ده فيه منتجات من متاجر تانية، كلم الإدارة لو محتاج استرداد.
+          </p>
+        ) : order.refundedAt ? (
+          <div className="space-y-1 text-sm">
+            <p className="font-semibold text-red-700">
+              اتردّ {order.refundedAt.toLocaleString("ar-EG")}
+            </p>
+            {order.refundNote && <p className="text-slate-600">السبب: {order.refundNote}</p>}
+            <p className="text-slate-500">
+              {order.refundPaidAt
+                ? `الفلوس وصلت للمشتري ${order.refundPaidAt.toLocaleString("ar-EG")}`
+                : "مستني الإدارة تحوّل الفلوس للمشتري"}
+            </p>
+          </div>
+        ) : null}
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-bold">التقييم</h2>
