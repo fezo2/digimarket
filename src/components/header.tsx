@@ -9,6 +9,7 @@ import { portalHref, siteHref } from "@/lib/sites";
 import { storeCategories } from "@/lib/storefront";
 import { CatalogMenu } from "./catalog-menu";
 import { Icon, type IconName } from "./icons";
+import { CategoryThumb } from "./category-thumb";
 
 // Store header, laid out like the big digital-goods marketplaces: a thin
 // utility bar, then logo + catalog + search + account shortcuts (the only
@@ -27,24 +28,24 @@ export async function Header() {
 
   return (
     <>
-      <div className="hidden border-b border-slate-100 bg-slate-50 text-xs text-slate-500 md:block">
+      <div className="hidden bg-brand-950 text-xs text-white/70 md:block">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-1.5">
-          <Link href="/pages/refunds" className="hover:text-brand-600">{t("للمشترين")}</Link>
-          <Link href={siteHref("seller", "/seller/join")} className="hover:text-brand-600">
+          <Link href="/pages/refunds" className="hover:text-yellow-300">{t("للمشترين")}</Link>
+          <Link href={siteHref("seller", "/seller/join")} className="hover:text-yellow-300">
             {t("بيع على ")}{siteName}
           </Link>
-          <Link href="/pages/terms" className="hover:text-brand-600">{t("الشروط والأحكام")}</Link>
+          <Link href="/pages/terms" className="hover:text-yellow-300">{t("الشروط والأحكام")}</Link>
           <span className="ms-auto flex items-center gap-1">
-            <Icon name="bolt" className="h-3.5 w-3.5 text-amber-500" />
+            <Icon name="bolt" className="h-3.5 w-3.5 text-yellow-400" />
             {t("تسليم فوري بعد الدفع")}
           </span>
-          <PrefsToggle theme={theme} />
+          <PrefsToggle theme={theme} tone="dark" />
         </div>
       </div>
 
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-20 bg-brand-900 text-white shadow-lg shadow-brand-950/20">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
-        <Link href="/" className="shrink-0 text-2xl font-black tracking-tight text-brand-600">
+        <Link href="/" className="shrink-0 text-2xl font-black tracking-tight text-white">
           {siteName}
         </Link>
 
@@ -55,21 +56,22 @@ export async function Header() {
             slug: c.slug,
             name: cat(c),
             icon: c.icon,
+            imageUrl: c.imageUrl,
             count: c.count,
             children: c.children.map((s) => ({ slug: s.slug, name: cat(s) })),
           }))}
         />
 
         <form action="/search" role="search" className="order-last flex w-full md:order-none md:w-auto md:flex-1">
-          <div className="flex h-11 w-full overflow-hidden rounded-xl border-2 border-brand-600 bg-(--surface)">
+          <div className="flex h-11 w-full overflow-hidden rounded-xl bg-white/10 ring-1 ring-white/15 focus-within:ring-2 focus-within:ring-yellow-400">
             <input
               name="q"
               type="search"
               aria-label={t("بحث")}
               placeholder={t("ابحث عن اشتراك، برنامج، أو متجر…")}
-              className="min-w-0 flex-1 bg-transparent px-3 text-sm outline-none"
+              className="min-w-0 flex-1 bg-transparent px-3 text-sm text-white outline-none placeholder:text-white/60"
             />
-            <button className="flex items-center gap-1 bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700">
+            <button className="flex items-center gap-1 bg-yellow-400 px-4 text-sm font-bold text-brand-950 hover:bg-yellow-300">
               <Icon name="search" />
               <span className="hidden lg:inline">{t("بحث")}</span>
             </button>
@@ -78,7 +80,7 @@ export async function Header() {
 
         <nav className="ms-auto flex items-center gap-0.5 md:ms-0">
           <span className="md:hidden">
-            <PrefsToggle theme={theme} />
+            <PrefsToggle theme={theme} tone="dark" />
           </span>
           {user?.role === "ADMIN" && (
             <NavIcon href={portalHref("admin")} icon="shield" label={t("الإدارة")} />
@@ -88,7 +90,7 @@ export async function Header() {
             <>
               <NavIcon href="/account" icon="bag" label={t("مشترياتي")} badge={unread} />
               <form action={logout} className="hidden sm:block">
-                <button className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 hover:text-red-600">
+                <button className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1 text-[11px] text-white/70 hover:bg-white/10 hover:text-white">
                   <Icon name="logout" />
                   {t("خروج")}
                 </button>
@@ -97,7 +99,7 @@ export async function Header() {
           ) : (
             <>
               <NavIcon href="/login" icon="user" label={t("دخول")} />
-              <Link href="/register" className="btn-primary ms-1 hidden sm:inline-flex">
+              <Link href="/register" className="btn ms-1 hidden bg-yellow-400 font-bold text-brand-950 hover:bg-yellow-300 sm:inline-flex">
                 {t("حساب جديد")}
               </Link>
             </>
@@ -107,7 +109,7 @@ export async function Header() {
 
       </header>
 
-      <nav aria-label={t("الأقسام")} className="border-b border-slate-200 bg-white">
+      <nav aria-label={t("الأقسام")} className="border-b border-slate-200 bg-(--surface)">
         <div className="no-scrollbar mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 py-1.5 text-sm">
           {categories.map((c) => (
             <Link
@@ -115,7 +117,7 @@ export async function Header() {
               href={`/categories/${c.slug}`}
               className="flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium whitespace-nowrap text-slate-600 hover:bg-brand-50 hover:text-brand-700"
             >
-              <span>{c.icon}</span>
+              <CategoryThumb category={c} className="h-6 w-6 rounded-md text-sm" />
               {cat(c)}
             </Link>
           ))}
@@ -129,7 +131,7 @@ function NavIcon({ href, icon, label, badge = 0 }: { href: string; icon: IconNam
   return (
     <Link
       href={href}
-      className="relative flex flex-col items-center gap-0.5 rounded-xl px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-100 hover:text-brand-600"
+      className="relative flex flex-col items-center gap-0.5 rounded-xl px-2 py-1 text-[11px] text-white/80 hover:bg-white/10 hover:text-white"
     >
       <Icon name={icon} />
       {label}

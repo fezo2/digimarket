@@ -1,17 +1,10 @@
 // Development data: categories with commission rates, an admin, and one verified demo seller.
 import { PrismaClient, type DeliveryType } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { CATEGORY_TREE } from "./category-tree";
 
 const db = new PrismaClient();
 
-const CATEGORIES = [
-  { slug: "ai", nameAr: "أدوات الذكاء الاصطناعي", nameEn: "AI tools", icon: "🤖", commissionBps: 1000 },
-  { slug: "design", nameAr: "تصميم ومونتاج", nameEn: "Design & video", icon: "🎨", commissionBps: 1500 },
-  { slug: "productivity", nameAr: "برامج وإنتاجية", nameEn: "Software & productivity", icon: "💼", commissionBps: 1000 },
-  { slug: "streaming", nameAr: "ترفيه ومشاهدة", nameEn: "Streaming", icon: "🎬", commissionBps: 1500 },
-  { slug: "learning", nameAr: "تعليم وكورسات", nameEn: "Learning", icon: "🎓", commissionBps: 1000 },
-  { slug: "vpn", nameAr: "VPN وأمان", nameEn: "VPN & security", icon: "🔐", commissionBps: 300 },
-];
 
 const PRODUCTS: {
   category: string;
@@ -33,8 +26,26 @@ const PRODUCTS: {
 ];
 
 async function main() {
-  for (const [i, c] of CATEGORIES.entries()) {
-    await db.category.upsert({ where: { slug: c.slug }, update: {}, create: { ...c, sortOrder: i } });
+  for (const [i, { children, ...c }] of CATEGORY_TREE.entries()) {
+    const imageUrl = `/categories/${c.slug}.svg`;
+    const parent = await db.category.upsert({
+      where: { slug: c.slug },
+      update: { imageUrl, sortOrder: i },
+      create: { ...c, imageUrl, sortOrder: i },
+    });
+    for (const [j, s] of children.entries()) {
+      await db.category.upsert({
+        where: { slug: s.slug },
+        update: { imageUrl: `/categories/${s.slug}.svg` },
+        create: {
+          ...s,
+          imageUrl: `/categories/${s.slug}.svg`,
+          parentId: parent.id,
+          commissionBps: c.commissionBps,
+          sortOrder: j,
+        },
+      });
+    }
   }
 
   const password = await bcrypt.hash("password123", 12);
