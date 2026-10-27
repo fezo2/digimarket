@@ -1,9 +1,11 @@
+import { i18n } from "@/lib/prefs";
 import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { formatEGP } from "@/lib/money";
 
-export const metadata = { title: "لوحة الإدارة" };
+export async function generateMetadata() {
+  return { title: (await i18n()).t("لوحة الإدارة") };
+}
 export const dynamic = "force-dynamic";
 
 const DAY = 86400000;
@@ -28,6 +30,7 @@ async function salesSince(since: Date) {
 }
 
 export default async function AdminHome() {
+  const { t, money, num, day } = await i18n();
   await requireAdmin();
   const now = Date.now();
   const startOfDay = new Date(new Date().setHours(0, 0, 0, 0));
@@ -72,14 +75,14 @@ export default async function AdminHome() {
   ]);
 
   const queues = [
-    ["طلبات توثيق", pendingKyc, "/admin/kyc"],
-    ["منتجات مستنية مراجعة", pendingProducts, "/admin/products"],
-    ["تحويلات يدوية", manualPayments, "/admin/payments"],
-    ["طلبات سحب", payouts, "/admin/payouts"],
-    ["شكاوى مفتوحة", disputes, "/admin/disputes"],
-    ["طلبات مدفوعة محتاجة مراجعة", reviewOrders, "/admin/orders?review=1"],
-    ["رسائل فيها وسائل تواصل (٧ أيام)", flagged, "/admin/messages"],
-    ["متاجر البيع فيها موقوف", suspendedSellers, "/admin/sellers?filter=suspended"],
+    [t("طلبات توثيق"), pendingKyc, "/admin/kyc"],
+    [t("منتجات مستنية مراجعة"), pendingProducts, "/admin/products"],
+    [t("تحويلات يدوية"), manualPayments, "/admin/payments"],
+    [t("طلبات سحب"), payouts, "/admin/payouts"],
+    [t("شكاوى مفتوحة"), disputes, "/admin/disputes"],
+    [t("طلبات مدفوعة محتاجة مراجعة"), reviewOrders, "/admin/orders?review=1"],
+    [t("رسائل فيها وسائل تواصل (٧ أيام)"), flagged, "/admin/messages"],
+    [t("متاجر البيع فيها موقوف"), suspendedSellers, "/admin/sellers?filter=suspended"],
   ] as const;
 
   const days = Array.from({ length: 14 }, (_, i) => {
@@ -93,10 +96,10 @@ export default async function AdminHome() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold">لوحة الإدارة</h1>
+      <h1 className="text-2xl font-bold">{t("لوحة الإدارة")}</h1>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-bold">محتاج منك</h2>
+        <h2 className="text-lg font-bold">{t("محتاج منك")}</h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {queues.map(([label, n, href]) => (
             <Link
@@ -108,7 +111,7 @@ export default async function AdminHome() {
               <p
                 className={`mt-1 text-2xl font-bold ${n ? "text-brand-700" : ""}`}
               >
-                {n.toLocaleString("ar-EG")}
+                {num(n)}
               </p>
             </Link>
           ))}
@@ -116,33 +119,33 @@ export default async function AdminHome() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-bold">المبيعات</h2>
+        <h2 className="text-lg font-bold">{t("المبيعات")}</h2>
         <div className="grid gap-3 sm:grid-cols-3">
           {(
             [
-              ["النهارده", today],
-              ["آخر ٧ أيام", week],
-              ["آخر ٣٠ يوم", month],
+              [t("النهارده"), today],
+              [t("آخر ٧ أيام"), week],
+              [t("آخر ٣٠ يوم"), month],
             ] as const
           ).map(([label, s]) => (
             <div key={label} className="card p-4">
               <p className="text-sm text-slate-500">{label}</p>
-              <p className="mt-1 text-2xl font-bold">{formatEGP(s.total)}</p>
+              <p className="mt-1 text-2xl font-bold">{money(s.total)}</p>
               <p className="text-sm text-slate-500">
-                {s.count.toLocaleString("ar-EG")} طلب · عمولة{" "}
-                {formatEGP(s.commission)}
+                {num(s.count)}{t(" طلب · عمولة")}{" "}
+                {money(s.commission)}
               </p>
             </div>
           ))}
         </div>
         <div className="card p-4">
-          <p className="mb-3 text-sm text-slate-500">مبيعات آخر ١٤ يوم</p>
+          <p className="mb-3 text-sm text-slate-500">{t("مبيعات آخر ١٤ يوم")}</p>
           <div className="flex h-40 items-end gap-1" dir="ltr">
             {days.map(({ d, total }) => (
               <div
                 key={d.toISOString()}
                 className="flex h-full flex-1 flex-col items-center justify-end gap-1"
-                title={`${d.toLocaleDateString("ar-EG")}: ${formatEGP(total)}`}
+                title={`${day(d)}: ${money(total)}`}
               >
                 <div
                   className="w-full rounded-t bg-brand-500"
@@ -160,15 +163,15 @@ export default async function AdminHome() {
       <section className="grid gap-3 sm:grid-cols-3">
         {(
           [
-            ["المستخدمين", users, "/admin/users"],
-            ["تجار موثّقين", sellers, "/admin/sellers"],
-            ["منتجات نشطة", activeProducts, "/admin/products"],
+            [t("المستخدمين"), users, "/admin/users"],
+            [t("تجار موثّقين"), sellers, "/admin/sellers"],
+            [t("منتجات نشطة"), activeProducts, "/admin/products"],
           ] as const
         ).map(([label, n, href]) => (
           <Link key={label} href={href} className="card p-4">
             <p className="text-sm text-slate-500">{label}</p>
             <p className="mt-1 text-2xl font-bold">
-              {n.toLocaleString("ar-EG")}
+              {num(n)}
             </p>
           </Link>
         ))}

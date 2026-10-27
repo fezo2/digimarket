@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSeller } from "@/lib/auth";
@@ -9,6 +10,7 @@ export default async function StockPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { t, date } = await i18n();
   const { seller } = await requireSeller();
   if (seller.kycStatus !== "APPROVED") return null;
   const { id } = await params;
@@ -20,14 +22,14 @@ export default async function StockPage({
   return (
     <>
       <Link className="btn-outline" href={`/seller/products/${p.id}`}>
-        رجوع للمنتج
+        {t("رجوع للمنتج")}
       </Link>
-      <h1 className="text-2xl font-bold">أكواد {p.title}</h1>
+      <h1 className="text-2xl font-bold">{t("أكواد ")}{p.title}</h1>
       <div className="card p-6">
         <StockForm id={p.id} />
       </div>
       <section className="card space-y-3 p-6">
-        <h2 className="font-bold">المتاح</h2>
+        <h2 className="font-bold">{t("المتاح")}</h2>
         {p.stock
           .filter((s) => s.status === "AVAILABLE")
           .map((s) => (
@@ -40,20 +42,20 @@ export default async function StockPage({
             </div>
           ))}
         {!p.stock.some((s) => s.status === "AVAILABLE") && (
-          <p>مفيش أكواد متاحة.</p>
+          <p>{t("مفيش أكواد متاحة.")}</p>
         )}
       </section>
       <section className="card space-y-3 p-6">
-        <h2 className="font-bold">المباع (للعرض فقط)</h2>
+        <h2 className="font-bold">{t("المباع (للعرض فقط)")}</h2>
         {p.stock
           .filter((s) => s.status === "SOLD")
           .map((s) => (
             <p key={s.id}>
               <code dir="ltr">{s.content.slice(0, 4)}••••</code> —{" "}
-              {s.soldAt?.toLocaleString("ar-EG") ?? "—"}
+              {s.soldAt ? date(s.soldAt) : "—"}
             </p>
           ))}
-        {!p.stock.some((s) => s.status === "SOLD") && <p>لسه مفيش مبيعات.</p>}
+        {!p.stock.some((s) => s.status === "SOLD") && <p>{t("لسه مفيش مبيعات.")}</p>}
       </section>
     </>
   );

@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import { db } from "@/lib/db";
 import { canReview, canEditReview } from "@/lib/community-rules";
 import { disputeLabels } from "@/lib/disputes";
@@ -14,6 +15,7 @@ export async function PurchaseFeedback({
   orderId: string;
   userId: string;
 }) {
+  const { t } = await i18n();
   const items = await db.orderItem.findMany({
     where: { orderId, order: { buyerId: userId } },
     include: {
@@ -26,17 +28,17 @@ export async function PurchaseFeedback({
     <>
       {items.map((item) => (
         <section className="card space-y-5 p-5" key={item.id}>
-          <h2 className="text-xl font-bold">تقييم وشكاوى: {item.title}</h2>
+          <h2 className="text-xl font-bold">{t("تقييم وشكاوى: ")}{item.title}</h2>
           {item.review && (
             <div>
               <p>
                 {item.review.positive ? "👍" : "👎"}{" "}
-                {item.review.hiddenAt && "(مخفي)"}
+                {item.review.hiddenAt && t("(مخفي)")}
               </p>
               <p className="whitespace-pre-wrap">{item.review.comment}</p>
               {item.review.sellerReply && (
                 <p className="whitespace-pre-wrap">
-                  رد التاجر: {item.review.sellerReply}
+                  {t("رد التاجر: ")}{item.review.sellerReply}
                 </p>
               )}
             </div>
@@ -50,7 +52,7 @@ export async function PurchaseFeedback({
                 ))) && (
               <ActionForm
                 action={submitReview}
-                button={item.review ? "عدّل التقييم" : "قيّم الشراء"}
+                button={item.review ? t("عدّل التقييم") : t("قيّم الشراء")}
               >
                 <input type="hidden" name="itemId" value={item.id} />
                 <input
@@ -59,18 +61,18 @@ export async function PurchaseFeedback({
                   value={item.review ? "edit" : "create"}
                 />
                 <label className="label">
-                  رأيك
+                  {t("رأيك")}
                   <select
                     className="input"
                     name="positive"
                     defaultValue={String(item.review?.positive ?? true)}
                   >
-                    <option value="true">👍 إيجابي</option>
-                    <option value="false">👎 سلبي</option>
+                    <option value="true">{t("👍 إيجابي")}</option>
+                    <option value="false">{t("👎 سلبي")}</option>
                   </select>
                 </label>
                 <label className="label">
-                  تعليق اختياري
+                  {t("تعليق اختياري")}
                   <textarea
                     className="input"
                     name="comment"
@@ -82,11 +84,11 @@ export async function PurchaseFeedback({
             )}
           {item.disputes.map((d) => (
             <div key={d.id}>
-              <p>الشكوى: {disputeLabels[d.status]}</p>
+              <p>{t("الشكوى: ")}{t(disputeLabels[d.status])}</p>
               <p className="whitespace-pre-wrap">{d.reason}</p>
               <p className="whitespace-pre-wrap">{d.resolution}</p>
               {d.status === "OPEN" && (
-                <ActionForm action={solveDispute} button="المشكلة اتحلت">
+                <ActionForm action={solveDispute} button={t("المشكلة اتحلت")}>
                   <input type="hidden" name="disputeId" value={d.id} />
                 </ActionForm>
               )}
@@ -99,11 +101,11 @@ export async function PurchaseFeedback({
               <ActionForm
                 uploadOrderId={orderId}
                 action={submitDispute}
-                button="افتح شكوى"
+                button={t("افتح شكوى")}
               >
                 <input type="hidden" name="itemId" value={item.id} />
                 <label className="label">
-                  سبب الشكوى
+                  {t("سبب الشكوى")}
                   <textarea
                     className="input"
                     name="reason"
@@ -113,7 +115,7 @@ export async function PurchaseFeedback({
                   />
                 </label>
                 <label className="label">
-                  صورة للمشكلة
+                  {t("صورة للمشكلة")}
                   <input
                     className="input"
                     name="image"

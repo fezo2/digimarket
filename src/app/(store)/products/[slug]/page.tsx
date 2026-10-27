@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import { PublicReviews } from "@/components/public-reviews";
 import { isListed } from "@/lib/catalog";
 import { reviewPercent } from "@/lib/community-rules";
@@ -22,15 +23,16 @@ const DELIVERY_LABEL = {
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { t, money } = await i18n();
   const { slug } = await params;
   const product = await db.product.findUnique({
     where: { slug: decodeURIComponent(slug) },
     include: { seller: true, category: true },
   });
-  if (!product || !isListed(product)) return { title: "المنتج غير موجود" };
+  if (!product || !isListed(product)) return { title: t("المنتج غير موجود") };
   const url = `/products/${encodeURIComponent(product.slug)}`;
   const description = describe(
-    `${product.title} من ${product.seller.storeName} بسعر ${product.price / 100} ج.م. ${product.description}`,
+    `${t("{title} من {store} بسعر {price}.", { title: product.title, store: product.seller.storeName, price: money(product.price) })} ${product.description}`,
   );
   return {
     title: product.title,
@@ -49,6 +51,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProductPage({
   params,
 }: Props) {
+  const { t, cat } = await i18n();
   const { slug } = await params;
   await releaseExpiredOrders();
   const product = await db.product.findUnique({
@@ -108,7 +111,7 @@ export default async function ProductPage({
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: "الرئيسية", item: absolute("/") },
+        { "@type": "ListItem", position: 1, name: t("الرئيسية"), item: absolute("/") },
         {
           "@type": "ListItem",
           position: 2,
@@ -132,7 +135,7 @@ export default async function ProductPage({
             href={`/categories/${product.category.slug}`}
             className="hover:text-brand-600"
           >
-            {product.category.nameAr}
+            {cat(product.category)}
           </Link>
         </nav>
         <div className="card aspect-[16/9] overflow-hidden bg-gradient-to-br from-brand-50 to-slate-100">
@@ -150,7 +153,7 @@ export default async function ProductPage({
           )}
         </div>
         <div className="card p-6">
-          <h2 className="mb-3 text-lg font-bold">الوصف</h2>
+          <h2 className="mb-3 text-lg font-bold">{t("الوصف")}</h2>
           <p className="whitespace-pre-line leading-8 text-slate-700">
             {product.description}
           </p>
@@ -164,7 +167,7 @@ export default async function ProductPage({
             className="btn-outline"
             href={`/products/${product.slug}/reviews`}
           >
-            عرض الكل
+            {t("عرض الكل")}
           </Link>
         </div>
       </div>
@@ -198,11 +201,11 @@ export default async function ProductPage({
           />
 
           <p className="text-sm text-slate-600">
-            ⚡ {DELIVERY_LABEL[product.deliveryType]}
+            ⚡ {t(DELIVERY_LABEL[product.deliveryType])}
           </p>
           {product.deliveryType === "UNIQUE_CODES" && (
             <p className="text-sm text-slate-500">
-              المتاح: {product._count.stock}
+              {t("المتاح: ")}{product._count.stock}
             </p>
           )}
         </div>
@@ -217,7 +220,7 @@ export default async function ProductPage({
           <div>
             <p className="font-semibold">{product.seller.storeName}</p>
             <p className="text-xs text-emerald-700">
-              ✓ {SELLER_TIERS[product.seller.type].badge}
+              ✓ {t(SELLER_TIERS[product.seller.type].badge)}
             </p>
           </div>
         </Link>

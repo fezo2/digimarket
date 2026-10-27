@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -10,6 +11,7 @@ export default async function AdminSellerLedger({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { t } = await i18n();
   await requireAdmin();
   const { id } = await params;
   const seller = await db.sellerProfile.findUnique({ where: { id } });
@@ -29,22 +31,22 @@ export default async function AdminSellerLedger({
   ]);
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold">رصيد {seller.storeName}</h1>
+      <h1 className="text-2xl font-bold">{t("رصيد ")}{seller.storeName}</h1>
       <BalanceCards balance={balance} />
       <section className="card p-5">
-        <h2 className="mb-4 text-xl font-bold">تسوية يدوية</h2>
-        <ActionForm action={manualAdjustment} button="سجّل التسوية">
+        <h2 className="mb-4 text-xl font-bold">{t("تسوية يدوية")}</h2>
+        <ActionForm action={manualAdjustment} button={t("سجّل التسوية")}>
           <input type="hidden" name="sellerId" value={id} />
           <label className="label">
-            المبلغ بالجنيه (السالب للخصم)
+            {t("المبلغ بالجنيه (السالب للخصم)")}
             <input className="input" name="amount" required maxLength={11} />
           </label>
           <label className="label">
-            سبب التسوية
+            {t("سبب التسوية")}
             <textarea className="input" name="note" required maxLength={1000} />
           </label>
           <label className="label">
-            باسورد الأدمن الحالي
+            {t("باسورد الأدمن الحالي")}
             <input
               className="input"
               name="password"
@@ -56,7 +58,7 @@ export default async function AdminSellerLedger({
           </label>
         </ActionForm>
       </section>
-      <h2 className="text-xl font-bold">آخر ٥٠ حركة</h2>
+      <h2 className="text-xl font-bold">{t("آخر ٥٠ حركة")}</h2>
       <LedgerTable entries={entries} admin />
     </div>
   );

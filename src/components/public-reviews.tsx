@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import { db } from "@/lib/db";
 export async function PublicReviews({
   productId,
@@ -8,6 +9,7 @@ export async function PublicReviews({
   page?: number;
   size?: number;
 }) {
+  const { t, day } = await i18n();
   const reviews = await db.review.findMany({
     where: { productId, hiddenAt: null },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -28,17 +30,17 @@ export async function PublicReviews({
         <li className="border-b p-3" key={r.id}>
           <p>
             {r.positive ? "👍" : "👎"} {r.buyer.name.trim().split(/\s+/)[0]} ·{" "}
-            {r.createdAt.toLocaleDateString("ar-EG")}
+            {day(r.createdAt)}
           </p>
           <p className="whitespace-pre-wrap break-words">{r.comment}</p>
           {r.sellerReply && (
             <p className="whitespace-pre-wrap break-words">
-              رد التاجر: {r.sellerReply}
+              {t("رد التاجر: ")}{r.sellerReply}
             </p>
           )}
         </li>
       ))}
-      {!reviews.length && <li>لسه مفيش تقييمات.</li>}
+      {!reviews.length && <li>{t("لسه مفيش تقييمات.")}</li>}
     </ul>
   );
 }

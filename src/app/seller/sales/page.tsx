@@ -1,8 +1,9 @@
+import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { requireSeller } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sellerBalance } from "@/lib/ledger";
-import { formatEGP, formatBps } from "@/lib/money";
+import { formatBps } from "@/lib/money";
 import { salesWhere } from "@/lib/seller-tools";
 
 export default async function SellerSales({
@@ -10,6 +11,7 @@ export default async function SellerSales({
 }: {
   searchParams: Promise<{ order?: string; q?: string; from?: string; to?: string }>;
 }) {
+  const { t, money, date } = await i18n();
   const query = await searchParams;
   const { seller } = await requireSeller();
   const [balance, items, ledger] = await Promise.all([
@@ -55,39 +57,39 @@ export default async function SellerSales({
     }),
   ]);
   const types = {
-    SALE: "بيع",
-    REFUND: "استرداد",
-    PAYOUT: "سحب",
-    ADJUSTMENT: "تسوية",
+    SALE: t("بيع"),
+    REFUND: t("استرداد"),
+    PAYOUT: t("سحب"),
+    ADJUSTMENT: t("تسوية"),
   };
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
-      <h1 className="text-2xl font-bold">المبيعات والأرباح</h1>
+      <h1 className="text-2xl font-bold">{t("المبيعات والأرباح")}</h1>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="card p-5">
-          قابل للسحب: {formatEGP(balance.available)}
+          {t("قابل للسحب: ")}{money(balance.available)}
         </div>
-        <div className="card p-5">معلّق: {formatEGP(balance.held)}</div>
+        <div className="card p-5">{t("معلّق: ")}{money(balance.held)}</div>
       </div>
       <form className="card flex flex-wrap items-end gap-3 p-4">
         <label className="label min-w-48 flex-1">
-          بحث
+          {t("بحث")}
           <input
             className="input"
             name="q"
             defaultValue={query.q ?? ""}
-            placeholder="رقم الطلب أو إيميل المشتري أو المنتج أو الكود"
+            placeholder={t("رقم الطلب أو إيميل المشتري أو المنتج أو الكود")}
           />
         </label>
         <label className="label">
-          من
+          {t("من")}
           <input className="input" type="date" name="from" defaultValue={query.from ?? ""} />
         </label>
         <label className="label">
-          إلى
+          {t("إلى")}
           <input className="input" type="date" name="to" defaultValue={query.to ?? ""} />
         </label>
-        <button className="btn-primary">بحث</button>
+        <button className="btn-primary">{t("بحث")}</button>
         <a
           className="btn-outline"
           href={`/seller/sales/export?${new URLSearchParams({
@@ -96,7 +98,7 @@ export default async function SellerSales({
             to: query.to ?? "",
           })}`}
         >
-          تحميل Excel (CSV)
+          {t("تحميل Excel (CSV)")}
         </a>
       </form>
       <div className="card overflow-x-auto">
@@ -104,18 +106,18 @@ export default async function SellerSales({
           <thead>
             <tr>
               {[
-                "التاريخ",
-                "الطلب",
-                "المشتري",
-                "المنتج",
-                "الكمية",
-                "الإجمالي",
-                "العمولة",
-                "الصافي",
-                "التسليم",
-              ].map((t) => (
-                <th key={t} className="p-3 text-start">
-                  {t}
+                t("التاريخ"),
+                t("الطلب"),
+                t("المشتري"),
+                t("المنتج"),
+                t("الكمية"),
+                t("الإجمالي"),
+                t("العمولة"),
+                t("الصافي"),
+                t("التسليم"),
+              ].map((h) => (
+                <th key={h} className="p-3 text-start">
+                  {t(h)}
                 </th>
               ))}
             </tr>
@@ -124,7 +126,7 @@ export default async function SellerSales({
             {items.map((i) => (
               <tr key={i.id} className="border-t">
                 <td className="p-3">
-                  {i.order.paidAt?.toLocaleString("ar-EG")}
+                  {i.order.paidAt && date(i.order.paidAt)}
                 </td>
                 <td>
                   <Link
@@ -139,17 +141,17 @@ export default async function SellerSales({
                 </td>
                 <td>{i.title}</td>
                 <td>{i.quantity}</td>
-                <td>{formatEGP(i.total)}</td>
+                <td>{money(i.total)}</td>
                 <td>
-                  {formatEGP(i.commissionAmount)} ({formatBps(i.commissionBps)})
+                  {money(i.commissionAmount)} ({formatBps(i.commissionBps)})
                 </td>
-                <td>{formatEGP(i.sellerNet)}</td>
+                <td>{money(i.sellerNet)}</td>
                 <td>
                   {i.refundedAmount > 0
-                    ? `مسترد ${formatEGP(i.refundedAmount)}`
+                    ? t("مسترد {amount}", { amount: money(i.refundedAmount) })
                     : i.deliveredAt
-                      ? "اتسلّم"
-                      : "مراجعة الإدارة"}
+                      ? t("اتسلّم")
+                      : t("مراجعة الإدارة")}
                 </td>
               </tr>
             ))}
@@ -157,18 +159,18 @@ export default async function SellerSales({
         </table>
         {!items.length && (
           <p className="p-6">
-            {query.q || query.from || query.to ? "مفيش نتايج" : "لسه مفيش مبيعات."}
+            {query.q || query.from || query.to ? t("مفيش نتايج") : t("لسه مفيش مبيعات.")}
           </p>
         )}
       </div>
-      <h2 className="text-xl font-bold">حركات الرصيد</h2>
+      <h2 className="text-xl font-bold">{t("حركات الرصيد")}</h2>
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr>
-              {["التاريخ", "النوع", "المبلغ", "متاح من"].map((t) => (
-                <th key={t} className="p-3 text-start">
-                  {t}
+              {[t("التاريخ"), t("النوع"), t("المبلغ"), t("متاح من")].map((h) => (
+                <th key={h} className="p-3 text-start">
+                  {t(h)}
                 </th>
               ))}
             </tr>
@@ -176,10 +178,10 @@ export default async function SellerSales({
           <tbody>
             {ledger.map((e) => (
               <tr key={e.id} className="border-t">
-                <td className="p-3">{e.createdAt.toLocaleString("ar-EG")}</td>
+                <td className="p-3">{date(e.createdAt)}</td>
                 <td>{types[e.type]}</td>
-                <td>{formatEGP(e.amount)}</td>
-                <td>{e.availableAt.toLocaleString("ar-EG")}</td>
+                <td>{money(e.amount)}</td>
+                <td>{date(e.availableAt)}</td>
               </tr>
             ))}
           </tbody>

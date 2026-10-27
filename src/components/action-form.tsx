@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@/components/i18n-provider";
 import { prepareUploads } from "@/lib/upload-form";
 import { useActionState } from "react";
 import type { UploadKind } from "@/lib/storage-rules";
@@ -18,13 +19,14 @@ export function ActionForm({
   uploadKind?: UploadKind;
   uploadFields?: string[];
 }) {
+  const { t } = useI18n();
   const [state, submit, pending] = useActionState(
     async (state: ActionState, form: FormData) => {
       if (uploadOrderId) {
         try {
           await prepareUploads(form, uploadKind, uploadFields, uploadOrderId);
         } catch {
-          return { error: "رفع الصورة فشل، جرّب تاني" };
+          return { error: t("رفع الصورة فشل، جرّب تاني") };
         }
       }
       return action(state, form);
@@ -36,16 +38,16 @@ export function ActionForm({
       {children}
       {state.error && (
         <p role="alert" className="text-red-700">
-          {state.error}
+          {t(state.error)}
         </p>
       )}
       {state.success && (
         <p role="status" className="text-green-700">
-          {state.success}
+          {t(state.success)}
         </p>
       )}
       <button className="btn-primary" disabled={pending}>
-        {pending ? "جاري التنفيذ…" : button}
+        {pending ? t("جاري التنفيذ…") : button}
       </button>
     </form>
   );

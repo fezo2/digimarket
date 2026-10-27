@@ -1,7 +1,7 @@
 "use client";
 
+import { useI18n } from "@/components/i18n-provider";
 import { useActionState, useState } from "react";
-import { formatEGP } from "@/lib/money";
 
 import { quote } from "@/lib/pricing";
 import { buyProduct } from "@/app/(store)/products/[slug]/actions";
@@ -35,6 +35,7 @@ export function BuyBox({
   options,
   discounts,
 }: Props) {
+  const { t, money } = useI18n();
   const [state, action, pending] = useActionState(
     buyProduct.bind(null, productId, slug),
     undefined,
@@ -61,7 +62,7 @@ export function BuyBox({
     });
   } catch {
     pricingError =
-      "قيمة الطلب أو الاختيارات مش صالحة. قلّل الكمية أو راجع الاختيارات.";
+      t("قيمة الطلب أو الاختيارات مش صالحة. قلّل الكمية أو راجع الاختيارات.");
   }
   const { unitPrice, quantityDiscount, total } = pricing ?? {
     unitPrice: price,
@@ -72,11 +73,11 @@ export function BuyBox({
     <form action={action} className="space-y-4">
       <div className="flex items-baseline gap-3" aria-live="polite">
         <span className="text-2xl font-extrabold text-brand-700">
-          {formatEGP(unitPrice)}
+          {money(unitPrice)}
         </span>
         {compareAtPrice !== null && compareAtPrice > unitPrice && (
           <span className="text-slate-400 line-through">
-            {formatEGP(compareAtPrice)}
+            {money(compareAtPrice)}
           </span>
         )}
       </div>
@@ -84,7 +85,7 @@ export function BuyBox({
         <div key={o.id}>
           <label className="label" htmlFor={`option-${o.id}`}>
             {o.name}
-            {o.required ? " *" : " (اختياري)"}
+            {o.required ? " *" : t(" (اختياري)")}
           </label>
           {o.kind === "select" ? (
             <select
@@ -98,12 +99,12 @@ export function BuyBox({
                 setSelected({ ...selected, [o.id]: e.target.value })
               }
             >
-              {!o.required && <option value="">بدون اختيار</option>}
+              {!o.required && <option value="">{t("بدون اختيار")}</option>}
               {o.values.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.label}
                   {v.priceDelta !== 0 &&
-                    ` (${v.priceDelta > 0 ? "+" : ""}${formatEGP(v.priceDelta)})`}
+                    ` (${v.priceDelta > 0 ? "+" : ""}${money(v.priceDelta)})`}
                 </option>
               ))}
             </select>
@@ -120,7 +121,7 @@ export function BuyBox({
       ))}
       <div>
         <label className="label" htmlFor="quantity">
-          الكمية
+          {t("الكمية")}
         </label>
         <input
           id="quantity"
@@ -144,11 +145,11 @@ export function BuyBox({
       </div>
       {quantityDiscount > 0 && (
         <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
-          خصم الكمية المطبّق: {formatEGP(quantityDiscount)}
+          {t("خصم الكمية المطبّق: ")}{money(quantityDiscount)}
         </p>
       )}
       <p aria-live="polite" className="font-bold">
-        الإجمالي: {pricing ? formatEGP(total) : "—"}
+        {t("الإجمالي: ")}{pricing ? money(total) : "—"}
       </p>
       {pricingError && (
         <p role="alert" className="text-red-700">
@@ -157,14 +158,14 @@ export function BuyBox({
       )}
       {state?.error && (
         <p role="alert" className="text-red-700">
-          {state.error}
+          {t(state.error)}
         </p>
       )}
       <button
         className="btn-primary w-full"
         disabled={!inStock || pending || !pricing}
       >
-        {!inStock ? "نفذت الكمية" : pending ? "بنحجز طلبك…" : "اشتري دلوقتي"}
+        {!inStock ? t("نفذت الكمية") : pending ? t("بنحجز طلبك…") : t("اشتري دلوقتي")}
       </button>
     </form>
   );

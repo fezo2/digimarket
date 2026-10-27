@@ -1,8 +1,10 @@
+import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { requireSeller } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { disputeLabels } from "@/lib/disputes";
 export default async function Page() {
+  const { t } = await i18n();
   const { seller } = await requireSeller();
   const disputes = await db.dispute.findMany({
     where: { orderItem: { sellerId: seller.id } },
@@ -11,11 +13,11 @@ export default async function Page() {
   });
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-6">
-      <h1 className="text-2xl font-bold">الشكاوى</h1>
+      <h1 className="text-2xl font-bold">{t("الشكاوى")}</h1>
       {disputes.map((d) => (
         <section className="card p-5" key={d.id}>
           <h2>
-            {d.orderItem.title} · {disputeLabels[d.status]}
+            {d.orderItem.title} · {t(disputeLabels[d.status])}
           </h2>
           <p className="whitespace-pre-wrap">{d.reason}</p>
           <p className="whitespace-pre-wrap">{d.resolution}</p>
@@ -23,7 +25,7 @@ export default async function Page() {
             className="btn-outline"
             href={`/seller/sales/${d.orderItem.orderId}`}
           >
-            رد في محادثة الطلب
+            {t("رد في محادثة الطلب")}
           </Link>
         </section>
       ))}

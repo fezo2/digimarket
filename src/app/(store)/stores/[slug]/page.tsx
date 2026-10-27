@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import { reviewPercent } from "@/lib/community-rules";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
@@ -13,14 +14,15 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
+  const { t } = await i18n();
   const { slug } = await params;
   const store = await db.sellerProfile.findUnique({
     where: { slug: decodeURIComponent(slug) },
     select: { slug: true, storeName: true, description: true, kycStatus: true, salesSuspendedAt: true },
   });
-  if (!store || store.kycStatus !== "APPROVED") return { title: "المتجر غير موجود" };
+  if (!store || store.kycStatus !== "APPROVED") return { title: t("المتجر غير موجود") };
   const description = describe(
-    store.description || `منتجات ${store.storeName} الرقمية على ديجي مصر، تاجر موثّق وتسليم فوري.`,
+    store.description || t("منتجات {storeName} الرقمية على ديجي مصر، تاجر موثّق وتسليم فوري.", { storeName: store.storeName }),
   );
   const url = `/stores/${encodeURIComponent(store.slug)}`;
   return {
@@ -37,6 +39,7 @@ export default async function StorePage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  const { t } = await i18n();
   const { slug } = await params;
   const store = await db.sellerProfile.findUnique({
     where: { slug: decodeURIComponent(slug) },
@@ -62,7 +65,7 @@ export default async function StorePage({
           <h1 className="text-2xl font-bold">{store.storeName}</h1>
           <p className="mt-1 text-sm">
             <span className="badge bg-emerald-50 text-emerald-700">
-              ✓ {SELLER_TIERS[store.type].badge}
+              ✓ {t(SELLER_TIERS[store.type].badge)}
             </span>
           </p>
           {store.description && (
@@ -72,19 +75,19 @@ export default async function StorePage({
         <div className="flex gap-6 text-center text-sm">
           <div>
             <p className="text-lg font-bold">{store.products.length}</p>
-            <p className="text-slate-500">منتج</p>
+            <p className="text-slate-500">{t("منتج")}</p>
           </div>
           <div>
             <p className="text-lg font-bold text-emerald-600">
               {store.positiveReviews}
             </p>
-            <p className="text-slate-500">تقييم إيجابي</p>
+            <p className="text-slate-500">{t("تقييم إيجابي")}</p>
           </div>
           <div>
             <p className="text-lg font-bold text-red-600">
               {store.negativeReviews}
             </p>
-            <p className="text-slate-500">تقييم سلبي</p>
+            <p className="text-slate-500">{t("تقييم سلبي")}</p>
           </div>
         </div>
         <p className="w-full">
@@ -92,7 +95,7 @@ export default async function StorePage({
         </p>
         {store.businessHours && (
           <p className="w-full text-sm text-slate-500">
-            ساعات العمل: {store.businessHours}
+            {t("ساعات العمل: ")}{store.businessHours}
           </p>
         )}
       </div>

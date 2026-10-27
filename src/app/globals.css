@@ -10,13 +10,21 @@
   --font-sans: var(--font-cairo), system-ui, sans-serif;
 }
 
+/* Surfaces have their own tokens so the dark theme can swap them while
+   text-white on coloured buttons stays white. */
+:root {
+  --page: #f6f7fb;
+  --surface: #ffffff;
+  color-scheme: light;
+}
+
 body {
-  background: #f6f7fb;
+  background: var(--page);
   color: var(--color-ink);
 }
 
 @utility card {
-  @apply rounded-2xl border border-slate-200 bg-white;
+  @apply rounded-2xl border border-slate-200 bg-(--surface);
 }
 @utility btn {
   @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-50;
@@ -25,13 +33,13 @@ body {
   @apply btn bg-brand-600 text-white hover:bg-brand-700;
 }
 @utility btn-outline {
-  @apply btn border border-slate-300 bg-white hover:bg-slate-50;
+  @apply btn border border-slate-300 bg-(--surface) hover:bg-slate-50;
 }
 @utility btn-danger {
   @apply btn bg-red-600 text-white hover:bg-red-700;
 }
 @utility input {
-  @apply w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100;
+  @apply w-full rounded-xl border border-slate-300 bg-(--surface) px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100;
 }
 @utility label {
   @apply mb-1.5 block text-sm font-medium text-slate-700;
@@ -58,4 +66,55 @@ body {
   h1 {
     @apply text-slate-900;
   }
+}
+
+/* Dark theme: <html class="dark">, chosen by the visitor and kept in a
+   cookie. The grey scale is flipped and the pale status tints become
+   translucent, so existing utility classes keep working unchanged. */
+.dark {
+  color-scheme: dark;
+  --page: #0b1120;
+  --surface: #111827;
+  --color-ink: #e5e7eb;
+  --color-slate-50: #172033;
+  --color-slate-100: #1e293b;
+  --color-slate-200: #273449;
+  --color-slate-300: #3b4a63;
+  --color-slate-400: #7c8aa3;
+  --color-slate-500: #98a4b8;
+  --color-slate-600: #b4bdcc;
+  --color-slate-700: #cbd2dd;
+  --color-slate-800: #dde2ea;
+  --color-slate-900: #eef1f5;
+  --color-brand-50: rgb(47 111 237 / 0.16);
+  --color-emerald-50: rgb(16 185 129 / 0.14);
+  --color-amber-50: rgb(245 158 11 / 0.14);
+  --color-red-50: rgb(239 68 68 / 0.14);
+  --color-blue-50: rgb(59 130 246 / 0.14);
+  --color-sky-50: rgb(14 165 233 / 0.14);
+}
+.dark .bg-white,
+.dark .bg-white\/95,
+.dark .hover\:bg-white:hover {
+  background-color: var(--surface);
+}
+.dark .text-brand-600,
+.dark .text-brand-700,
+.dark .hover\:text-brand-600:hover {
+  color: #8fb0ff;
+}
+.dark :is(.text-emerald-600, .text-emerald-700, .text-emerald-800, .text-emerald-900, .text-green-700) {
+  color: #6ee7b7;
+}
+.dark :is(.text-amber-700, .text-amber-800, .text-amber-900) {
+  color: #fcd34d;
+}
+.dark :is(.text-red-600, .text-red-700, .text-red-800) {
+  color: #fca5a5;
+}
+.dark :is(.text-blue-700, .text-blue-800, .text-blue-900, .text-sky-950) {
+  color: #93c5fd;
+}
+.dark img {
+  color-scheme: normal;
 }

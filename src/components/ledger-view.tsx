@@ -1,8 +1,8 @@
+import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import type { LedgerType } from "@prisma/client";
-import { formatEGP } from "@/lib/money";
 import { ledgerLabels } from "@/lib/ledger";
-export function BalanceCards({
+export async function BalanceCards({
   balance,
   nextAt,
   frozen = 0,
@@ -11,25 +11,26 @@ export function BalanceCards({
   nextAt?: Date | null;
   frozen?: number;
 }) {
+  const { t, money, date } = await i18n();
   return (
     <div className="grid gap-4 sm:grid-cols-3">
       <div className="card p-5">
-        الرصيد المتاح للسحب
+        {t("الرصيد المتاح للسحب")}
         <p className="text-xl font-bold">
-          {formatEGP(balance.available - frozen)}
+          {money(balance.available - frozen)}
         </p>
       </div>
       <div className="card p-5">
-        رصيد معلّق<p className="text-xl font-bold">{formatEGP(balance.held)}</p>
-        {nextAt && <p>أقرب إتاحة: {nextAt.toLocaleString("ar-EG")}</p>}
+        {t("رصيد معلّق")}<p className="text-xl font-bold">{money(balance.held)}</p>
+        {nextAt && <p>{t("أقرب إتاحة: ")}{date(nextAt)}</p>}
       </div>
       <div className="card p-5">
-        الإجمالي<p className="text-xl font-bold">{formatEGP(balance.total)}</p>
+        {t("الإجمالي")}<p className="text-xl font-bold">{money(balance.total)}</p>
       </div>
     </div>
   );
 }
-export function LedgerTable({
+export async function LedgerTable({
   entries,
   admin = false,
 }: {
@@ -44,16 +45,17 @@ export function LedgerTable({
   }[];
   admin?: boolean;
 }) {
+  const { t, money, date } = await i18n();
   const now = new Date();
   return (
     <div className="card overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr>
-            {["التاريخ", "النوع", "الطلب", "المبلغ", "متاح من", "ملاحظة"].map(
-              (t) => (
-                <th className="p-3 text-start" key={t}>
-                  {t}
+            {[t("التاريخ"), t("النوع"), t("الطلب"), t("المبلغ"), t("متاح من"), t("ملاحظة")].map(
+              (h) => (
+                <th className="p-3 text-start" key={h}>
+                  {t(h)}
                 </th>
               ),
             )}
@@ -62,8 +64,8 @@ export function LedgerTable({
         <tbody>
           {entries.map((e) => (
             <tr key={e.id} className="border-t">
-              <td className="p-3">{e.createdAt.toLocaleString("ar-EG")}</td>
-              <td>{ledgerLabels[e.type]}</td>
+              <td className="p-3">{date(e.createdAt)}</td>
+              <td>{t(ledgerLabels[e.type])}</td>
               <td>
                 {e.orderItem ? (
                   <Link
@@ -81,19 +83,19 @@ export function LedgerTable({
                 )}
               </td>
               <td className={e.amount >= 0 ? "text-green-700" : "text-red-700"}>
-                {formatEGP(e.amount)}
+                {money(e.amount)}
               </td>
               <td>
                 {e.availableAt > now
-                  ? e.availableAt.toLocaleString("ar-EG")
-                  : "متاح"}
+                  ? date(e.availableAt)
+                  : t("متاح")}
               </td>
               <td>{e.note ?? "—"}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      {!entries.length && <p className="p-4">لسه مفيش حركات.</p>}
+      {!entries.length && <p className="p-4">{t("لسه مفيش حركات.")}</p>}
     </div>
   );
 }

@@ -1,15 +1,19 @@
+import { i18n } from "@/lib/prefs";
 import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 
-export const metadata = { title: "التجار" };
+export async function generateMetadata() {
+  return { title: (await i18n()).t("التجار") };
+}
 
 export default async function Sellers({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string; filter?: string }>;
 }) {
+  const { t, num } = await i18n();
   await requireAdmin();
   const { q = "", filter = "" } = await searchParams;
   const term = q.trim().slice(0, 100);
@@ -53,21 +57,21 @@ export default async function Sellers({
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold">التجار</h1>
+      <h1 className="text-2xl font-bold">{t("التجار")}</h1>
       <form className="flex flex-wrap gap-2">
         <input
           name="q"
           defaultValue={term}
           className="input max-w-sm"
-          placeholder="ابحث باسم المتجر أو الإيميل"
+          placeholder={t("ابحث باسم المتجر أو الإيميل")}
         />
         <select name="filter" defaultValue={filter} className="input w-auto">
-          <option value="">الكل</option>
-          <option value="suspended">البيع موقوف</option>
-          <option value="frozen">السحب متجمّد</option>
-          <option value="custom">شروط خاصة</option>
+          <option value="">{t("الكل")}</option>
+          <option value="suspended">{t("البيع موقوف")}</option>
+          <option value="frozen">{t("السحب متجمّد")}</option>
+          <option value="custom">{t("شروط خاصة")}</option>
         </select>
-        <button className="btn-primary">بحث</button>
+        <button className="btn-primary">{t("بحث")}</button>
       </form>
       <div className="card divide-y">
         {sellers.map((s) => (
@@ -84,26 +88,26 @@ export default async function Sellers({
             </div>
             <span className="badge bg-slate-100 text-slate-700">{s.kycStatus}</span>
             {s.user.suspendedAt && (
-              <span className="badge bg-red-50 text-red-700">الحساب موقوف</span>
+              <span className="badge bg-red-50 text-red-700">{t("الحساب موقوف")}</span>
             )}
             {s.salesSuspendedAt && (
-              <span className="badge bg-red-50 text-red-700">البيع موقوف</span>
+              <span className="badge bg-red-50 text-red-700">{t("البيع موقوف")}</span>
             )}
             {s.payoutsFrozenAt && (
-              <span className="badge bg-amber-50 text-amber-800">السحب متجمّد</span>
+              <span className="badge bg-amber-50 text-amber-800">{t("السحب متجمّد")}</span>
             )}
             {(s.commissionBps !== null || s.holdDays !== null) && (
-              <span className="badge bg-blue-50 text-blue-700">شروط خاصة</span>
+              <span className="badge bg-blue-50 text-blue-700">{t("شروط خاصة")}</span>
             )}
             <span className="text-sm text-slate-500">
-              {s._count.products.toLocaleString("ar-EG")} منتج · شكاوى اتردّت{" "}
-              {s.orderItems
-                .reduce((sum, i) => sum + i._count.disputes, 0)
-                .toLocaleString("ar-EG")}
+              {num(s._count.products)}{t(" منتج · شكاوى اتردّت")}{" "}
+              {num(
+                s.orderItems.reduce((sum, i) => sum + i._count.disputes, 0),
+              )}
             </span>
           </Link>
         ))}
-        {!sellers.length && <p className="p-4 text-slate-500">مفيش نتايج</p>}
+        {!sellers.length && <p className="p-4 text-slate-500">{t("مفيش نتايج")}</p>}
       </div>
     </div>
   );

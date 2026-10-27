@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/components/i18n-provider";
 import { useActionState, useState } from "react";
 import { prepareUploads } from "@/lib/upload-form";
 import { submitKyc, type FormState } from "../actions";
@@ -9,6 +10,7 @@ export function KycForm({
 }: {
   defaultType: "INDIVIDUAL" | "COMPANY";
 }) {
+  const { t } = useI18n();
   const [state, action, pending] = useActionState(
     async (state: FormState, form: FormData) => {
       try {
@@ -20,7 +22,7 @@ export function KycForm({
           "taxCard",
         ]);
       } catch {
-        return { error: "رفع الملفات فشل، جرّب تاني" };
+        return { error: t("رفع الملفات فشل، جرّب تاني") };
       }
       return submitKyc(state, form);
     },
@@ -31,18 +33,18 @@ export function KycForm({
   return (
     <form action={action} className="mt-6 space-y-6">
       <section className="card space-y-4 p-6">
-        <h2 className="font-bold">نوع الحساب</h2>
+        <h2 className="font-bold">{t("نوع الحساب")}</h2>
         <div className="flex gap-4 text-sm">
-          {(["INDIVIDUAL", "COMPANY"] as const).map((t) => (
-            <label key={t} className="flex items-center gap-2">
+          {(["INDIVIDUAL", "COMPANY"] as const).map((kind) => (
+            <label key={kind} className="flex items-center gap-2">
               <input
                 type="radio"
                 name="type"
-                value={t}
-                checked={type === t}
-                onChange={() => setType(t)}
+                value={kind}
+                checked={type === kind}
+                onChange={() => setType(kind)}
               />
-              {t === "INDIVIDUAL" ? "فرد" : "شركة"}
+              {kind === "INDIVIDUAL" ? t("فرد") : t("شركة")}
             </label>
           ))}
         </div>
@@ -50,68 +52,68 @@ export function KycForm({
 
       <section className="card space-y-4 p-6">
         <h2 className="font-bold">
-          البيانات الشخصية {type === "COMPANY" && "(المسؤول عن الشركة)"}
+          {t("البيانات الشخصية ")}{type === "COMPANY" && t("(المسؤول عن الشركة)")}
         </h2>
-        <Field name="fullName" label="الاسم كامل زي البطاقة" />
+        <Field name="fullName" label={t("الاسم كامل زي البطاقة")} />
         <Field
           name="nationalId"
-          label="الرقم القومي (14 رقم)"
+          label={t("الرقم القومي (14 رقم)")}
           dir="ltr"
           inputMode="numeric"
           maxLength={14}
         />
         <Field
           name="phone"
-          label="رقم الموبايل"
+          label={t("رقم الموبايل")}
           dir="ltr"
           inputMode="tel"
           placeholder="01xxxxxxxxx"
         />
-        <FileField name="idFront" label="صورة البطاقة (وش)" />
-        <FileField name="idBack" label="صورة البطاقة (ضهر)" />
-        <FileField name="selfie" label="سيلفي وانت ماسك البطاقة" />
+        <FileField name="idFront" label={t("صورة البطاقة (وش)")} />
+        <FileField name="idBack" label={t("صورة البطاقة (ضهر)")} />
+        <FileField name="selfie" label={t("سيلفي وانت ماسك البطاقة")} />
       </section>
 
       {type === "COMPANY" && (
         <section className="card space-y-4 p-6">
-          <h2 className="font-bold">بيانات الشركة</h2>
-          <Field name="companyName" label="اسم الشركة" />
-          <Field name="commercialRegNo" label="رقم السجل التجاري" dir="ltr" />
-          <Field name="taxCardNo" label="رقم البطاقة الضريبية" dir="ltr" />
-          <FileField name="commercialReg" label="صورة السجل التجاري" />
-          <FileField name="taxCard" label="صورة البطاقة الضريبية" />
+          <h2 className="font-bold">{t("بيانات الشركة")}</h2>
+          <Field name="companyName" label={t("اسم الشركة")} />
+          <Field name="commercialRegNo" label={t("رقم السجل التجاري")} dir="ltr" />
+          <Field name="taxCardNo" label={t("رقم البطاقة الضريبية")} dir="ltr" />
+          <FileField name="commercialReg" label={t("صورة السجل التجاري")} />
+          <FileField name="taxCard" label={t("صورة البطاقة الضريبية")} />
         </section>
       )}
 
       <section className="card space-y-4 p-6">
-        <h2 className="font-bold">استلام الأرباح</h2>
+        <h2 className="font-bold">{t("استلام الأرباح")}</h2>
         <div>
           <label className="label" htmlFor="payoutMethod">
-            الطريقة
+            {t("الطريقة")}
           </label>
           <select id="payoutMethod" name="payoutMethod" className="input">
             <option value="INSTAPAY">InstaPay</option>
             <option value="MOBILE_WALLET">
-              محفظة موبايل (فودافون كاش وغيرها)
+              {t("محفظة موبايل (فودافون كاش وغيرها)")}
             </option>
-            <option value="BANK_TRANSFER">تحويل بنكي</option>
+            <option value="BANK_TRANSFER">{t("تحويل بنكي")}</option>
           </select>
         </div>
         <Field
           name="payoutAccount"
-          label="العنوان أو الرقم (InstaPay / رقم المحفظة / IBAN)"
+          label={t("العنوان أو الرقم (InstaPay / رقم المحفظة / IBAN)")}
           dir="ltr"
         />
-        <Field name="payoutAccountName" label="اسم صاحب الحساب" />
+        <Field name="payoutAccountName" label={t("اسم صاحب الحساب")} />
       </section>
 
       {state?.error && (
         <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-          {state.error}
+          {t(state.error)}
         </p>
       )}
       <button disabled={pending} className="btn-primary w-full">
-        {pending ? "بنرفع المستندات…" : "إرسال للمراجعة"}
+        {pending ? t("بنرفع المستندات…") : t("إرسال للمراجعة")}
       </button>
     </form>
   );

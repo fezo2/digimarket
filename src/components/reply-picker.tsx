@@ -1,15 +1,17 @@
 "use client";
 
+import { useI18n } from "@/components/i18n-provider";
 // Drops a saved reply into the chat box of the surrounding form.
 export function ReplyPicker({
   replies,
 }: {
   replies: { id: string; title: string; body: string }[];
 }) {
+  const { t } = useI18n();
   if (!replies.length) return null;
   return (
     <label className="label">
-      رد جاهز
+      {t("رد جاهز")}
       <select
         className="input"
         defaultValue=""
@@ -23,7 +25,7 @@ export function ReplyPicker({
           e.target.value = "";
         }}
       >
-        <option value="">اختار رد…</option>
+        <option value="">{t("اختار رد…")}</option>
         {replies.map((r) => (
           <option key={r.id} value={r.id}>
             {r.title}

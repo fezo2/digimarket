@@ -1,18 +1,20 @@
 "use client";
+import { useI18n } from "@/components/i18n-provider";
 import { useActionState } from "react";
 import { telegramSettings } from "./actions";
 export function TelegramForm({ linked }: { linked: boolean }) {
+  const { t } = useI18n();
   const [state, action, pending] = useActionState(telegramSettings, {});
   return (
     <form action={action} className="card mt-4 space-y-3 p-5">
-      <p>{linked ? "تليجرام مربوط" : "اربط تليجرام عشان توصلك إشعارات"}</p>
+      <p>{linked ? t("تليجرام مربوط") : t("اربط تليجرام عشان توصلك إشعارات")}</p>
       <button
         className="btn-primary"
         name="operation"
         value="link"
         disabled={pending}
       >
-        اربط تليجرام
+        {t("اربط تليجرام")}
       </button>
       <button
         className="btn-outline ms-3"
@@ -20,7 +22,7 @@ export function TelegramForm({ linked }: { linked: boolean }) {
         value="unlink"
         disabled={pending}
       >
-        إلغاء الربط
+        {t("إلغاء الربط")}
       </button>
       {state.link && (
         <a
@@ -29,11 +31,11 @@ export function TelegramForm({ linked }: { linked: boolean }) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          افتح البوت واضغط Start خلال ١٥ دقيقة
+          {t("افتح البوت واضغط Start خلال ١٥ دقيقة")}
         </a>
       )}
-      {state.error && <p role="alert">{state.error}</p>}
-      {state.success && <p>{state.success}</p>}
+      {state.error && <p role="alert">{t(state.error)}</p>}
+      {state.success && <p>{t(state.success)}</p>}
     </form>
   );
 }

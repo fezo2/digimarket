@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/components/i18n-provider";
 import Link from "next/link";
 import { useActionState } from "react";
 import type { FormState } from "@/app/(auth)/actions";
@@ -13,27 +14,28 @@ type Props = {
 };
 
 export function AuthForm({ mode, action, next, title, allowSignup = true }: Props) {
+  const { t } = useI18n();
   const [state, formAction, pending] = useActionState(action, undefined);
   const isRegister = mode === "register";
 
   return (
     <div className="mx-auto max-w-md px-4 py-12">
       <div className="card p-6 sm:p-8">
-        <h1 className="mb-6 text-2xl font-bold">{title ?? (isRegister ? "حساب جديد" : "تسجيل الدخول")}</h1>
+        <h1 className="mb-6 text-2xl font-bold">{title ?? (isRegister ? t("حساب جديد") : t("تسجيل الدخول"))}</h1>
         <form action={formAction} className="space-y-4">
           <input type="hidden" name="next" value={next ?? "/"} />
           {isRegister && (
             <div>
-              <label className="label" htmlFor="name">الاسم</label>
+              <label className="label" htmlFor="name">{t("الاسم")}</label>
               <input id="name" name="name" required className="input" autoComplete="name" />
             </div>
           )}
           <div>
-            <label className="label" htmlFor="email">الإيميل</label>
+            <label className="label" htmlFor="email">{t("الإيميل")}</label>
             <input id="email" name="email" type="email" required dir="ltr" className="input" autoComplete="email" />
           </div>
           <div>
-            <label className="label" htmlFor="password">الباسورد</label>
+            <label className="label" htmlFor="password">{t("الباسورد")}</label>
             <input
               id="password"
               name="password"
@@ -45,18 +47,18 @@ export function AuthForm({ mode, action, next, title, allowSignup = true }: Prop
               autoComplete={isRegister ? "new-password" : "current-password"}
             />
           </div>
-          {state?.error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{state.error}</p>}
+          {state?.error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{t(state.error)}</p>}
           <button disabled={pending} className="btn-primary w-full">
-            {pending ? "لحظة…" : isRegister ? "إنشاء الحساب" : "دخول"}
+            {pending ? t("لحظة…") : isRegister ? t("إنشاء الحساب") : t("دخول")}
           </button>
         </form>
         {allowSignup && <p className="mt-6 text-center text-sm text-slate-600">
-          {isRegister ? "عندك حساب؟ " : "معندكش حساب؟ "}
+          {isRegister ? t("عندك حساب؟ ") : t("معندكش حساب؟ ")}
           <Link
             href={`${isRegister ? "/login" : "/register"}${next ? `?next=${encodeURIComponent(next)}` : ""}`}
             className="font-semibold text-brand-600"
           >
-            {isRegister ? "سجّل دخول" : "اعمل حساب"}
+            {isRegister ? t("سجّل دخول") : t("اعمل حساب")}
           </Link>
         </p>}
       </div>

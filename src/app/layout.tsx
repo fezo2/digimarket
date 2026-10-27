@@ -6,6 +6,8 @@ import { PortalHeader } from "@/components/portal-header";
 import { currentSite } from "@/lib/auth";
 import { SITE_NAME, SITE_NAME_EN } from "@/lib/config";
 import { storeOrigin } from "@/lib/seo";
+import { getPrefs, i18n } from "@/lib/prefs";
+import { I18nProvider } from "@/components/i18n-provider";
 import "./globals.css";
 
 const cairo = Cairo({ subsets: ["arabic", "latin"], variable: "--font-cairo" });
@@ -15,19 +17,21 @@ const DESCRIPTION =
 
 export async function generateMetadata(): Promise<Metadata> {
   const store = (await currentSite()) === "store";
+  const { t, lang } = await i18n();
+  const description = t(DESCRIPTION);
   return {
     metadataBase: new URL(storeOrigin()),
     title: {
-      default: `${SITE_NAME} ${SITE_NAME_EN} | سوق المنتجات الرقمية في مصر`,
+      default: `${SITE_NAME} ${SITE_NAME_EN} | ${t("سوق المنتجات الرقمية في مصر")}`,
       template: `%s | ${SITE_NAME}`,
     },
-    description: DESCRIPTION,
+    description,
     applicationName: SITE_NAME,
     openGraph: {
       type: "website",
       siteName: `${SITE_NAME} ${SITE_NAME_EN}`,
-      locale: "ar_EG",
-      description: DESCRIPTION,
+      locale: lang === "en" ? "en_US" : "ar_EG",
+      description,
     },
     twitter: { card: "summary_large_image" },
     // The seller and admin portals must never show up in search results.
@@ -40,12 +44,19 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const site = await currentSite();
+  const { lang, theme } = await getPrefs();
   return (
-    <html lang="ar" dir="rtl" className={cairo.variable}>
+    <html
+      lang={lang}
+      dir={lang === "en" ? "ltr" : "rtl"}
+      className={`${cairo.variable}${theme === "dark" ? " dark" : ""}`}
+    >
       <body className="flex min-h-screen flex-col font-sans antialiased">
-        {site === "store" ? <Header /> : <PortalHeader site={site} />}
-        <main className="flex-1">{children}</main>
-        {site === "store" && <Footer />}
+        <I18nProvider lang={lang}>
+          {site === "store" ? <Header /> : <PortalHeader site={site} />}
+          <main className="flex-1">{children}</main>
+          {site === "store" && <Footer />}
+        </I18nProvider>
       </body>
     </html>
   );

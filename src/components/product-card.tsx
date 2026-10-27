@@ -1,6 +1,6 @@
+import { i18n } from "@/lib/prefs";
 import { reviewPercent } from "@/lib/community-rules";
 import Link from "next/link";
-import { formatEGP } from "@/lib/money";
 
 export type ProductCardData = {
   slug: string;
@@ -14,7 +14,8 @@ export type ProductCardData = {
   seller: { storeName: string; type: "INDIVIDUAL" | "COMPANY" };
 };
 
-export function ProductCard({ product }: { product: ProductCardData }) {
+export async function ProductCard({ product }: { product: ProductCardData }) {
+  const { t, money } = await i18n();
   const off =
     product.compareAtPrice && product.compareAtPrice > product.price
       ? Math.round(100 - (product.price / product.compareAtPrice) * 100)
@@ -51,7 +52,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
         <p className="text-xs text-slate-500">
           {product.seller.storeName}
           {product.seller.type === "COMPANY" && (
-            <span className="text-brand-600"> · شركة</span>
+            <span className="text-brand-600">{t("· شركة")}</span>
           )}
         </p>
         {product.positiveReviews + product.negativeReviews > 0 && (
@@ -61,11 +62,11 @@ export function ProductCard({ product }: { product: ProductCardData }) {
         )}
         <div className="mt-auto flex items-baseline justify-between">
           <span className="font-bold text-brand-700">
-            {formatEGP(product.price)}
+            {money(product.price)}
           </span>
           {product.soldCount > 0 && (
             <span className="text-xs text-slate-400">
-              اتباع {product.soldCount}
+              {t("اتباع ")}{product.soldCount}
             </span>
           )}
         </div>

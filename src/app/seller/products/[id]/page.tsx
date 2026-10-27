@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSeller } from "@/lib/auth";
@@ -12,6 +13,7 @@ export default async function EditProductPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ saved?: string }>;
 }) {
+  const { t } = await i18n();
   const { seller } = await requireSeller();
   if (seller.kycStatus !== "APPROVED") return null;
   const { id } = await params;
@@ -28,23 +30,23 @@ export default async function EditProductPage({
   if (!p) notFound();
   const categories = await db.category.findMany({
     orderBy: { sortOrder: "asc" },
-    select: { id: true, nameAr: true, parentId: true },
+    select: { id: true, nameAr: true, nameEn: true, parentId: true },
   });
   return (
     <>
-      <h1 className="text-2xl font-bold">تعديل المنتج</h1>
-      <p>الحالة: {statusLabels[p.status]}</p>
+      <h1 className="text-2xl font-bold">{t("تعديل المنتج")}</h1>
+      <p>{t("الحالة: ")}{t(statusLabels[p.status])}</p>
       {(await searchParams).saved && (
         <p role="status" className="text-emerald-700">
-          المنتج اتحفظ
+          {t("المنتج اتحفظ")}
         </p>
       )}
       {p.reviewNote && (
-        <p className="card bg-red-50 p-4">سبب الرفض: {p.reviewNote}</p>
+        <p className="card bg-red-50 p-4">{t("سبب الرفض: ")}{p.reviewNote}</p>
       )}
       {p.deliveryType === "UNIQUE_CODES" && (
         <Link href={`/seller/products/${p.id}/stock`} className="btn-outline">
-          إدارة الأكواد
+          {t("إدارة الأكواد")}
         </Link>
       )}
       <ProductForm

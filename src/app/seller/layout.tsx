@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import { getCurrentUser } from "@/lib/auth";
 import { unreadCounts } from "@/lib/chat";
 import { db } from "@/lib/db";
@@ -8,6 +9,7 @@ export default async function SellerLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { t } = await i18n();
   const user = await getCurrentUser();
   const sellerId = user?.seller?.id;
   const [unread, disputes] = sellerId
@@ -28,19 +30,19 @@ export default async function SellerLayout({
         groups={[
           {
             items: [
-              { href: "/seller", label: "لوحة التحكم", icon: "📊", exact: true },
-              { href: "/seller/sales", label: "المبيعات", icon: "🧾" },
-              { href: "/seller/messages", label: "الرسائل", icon: "💬", count: unread },
-              { href: "/seller/disputes", label: "الشكاوى", icon: "⚠️", count: disputes },
-              { href: "/seller/reviews", label: "التقييمات", icon: "⭐" },
+              { href: "/seller", label: t("لوحة التحكم"), icon: "📊", exact: true },
+              { href: "/seller/sales", label: t("المبيعات"), icon: "🧾" },
+              { href: "/seller/messages", label: t("الرسائل"), icon: "💬", count: unread },
+              { href: "/seller/disputes", label: t("الشكاوى"), icon: "⚠️", count: disputes },
+              { href: "/seller/reviews", label: t("التقييمات"), icon: "⭐" },
             ],
           },
           {
-            title: "المتجر",
+            title: t("المتجر"),
             items: [
-              { href: "/seller/products", label: "المنتجات", icon: "📦" },
-              { href: "/seller/wallet", label: "المحفظة والسحب", icon: "💰" },
-              { href: "/seller/settings", label: "الإعدادات", icon: "⚙️" },
+              { href: "/seller/products", label: t("المنتجات"), icon: "📦" },
+              { href: "/seller/wallet", label: t("المحفظة والسحب"), icon: "💰" },
+              { href: "/seller/settings", label: t("الإعدادات"), icon: "⚙️" },
             ],
           },
         ]}

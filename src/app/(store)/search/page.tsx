@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
@@ -13,11 +14,12 @@ export async function generateMetadata({
 }: {
   searchParams: Promise<Search>;
 }): Promise<Metadata> {
+  const { t } = await i18n();
   const q = (await searchParams).q?.trim();
   // Result pages are endless and thin; keep them out of the index but let
   // crawlers follow through to the products.
   return {
-    title: q ? `بحث: ${q}` : "البحث",
+    title: q ? t("بحث: {q}", { q }) : t("البحث"),
     robots: { index: false, follow: true },
   };
 }
@@ -25,6 +27,7 @@ export async function generateMetadata({
 const SUGGESTIONS = ["ChatGPT", "كاب كات", "كانفا", "نتفليكس", "اوفيس", "VPN"];
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<Search> }) {
+  const { t, cat } = await i18n();
   const params = await searchParams;
   const q = params.q?.trim().slice(0, 100) ?? "";
   const sort = (params.sort && params.sort in SEARCH_SORTS ? params.sort : "relevance") as SearchSort;
@@ -62,20 +65,20 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         <input
           name="q"
           defaultValue={q}
-          placeholder="ابحث عن اشتراك، برنامج، كورس…"
+          placeholder={t("ابحث عن اشتراك، برنامج، كورس…")}
           className="input"
           autoFocus={!q}
         />
         {params.cat && <input type="hidden" name="cat" value={params.cat} />}
-        <button className="btn-primary shrink-0">بحث</button>
+        <button className="btn-primary shrink-0">{t("بحث")}</button>
       </form>
 
       {q ? (
         <>
           <h1 className="text-xl font-bold">
             {products.length > 0
-              ? `نتائج "${q}" (${products.length}${products.length === 60 ? "+" : ""})`
-              : `مالقيناش نتايج لـ "${q}"`}
+              ? t("نتائج \"{q}\" ({length}{length2})", { q, length: products.length, length2: products.length === 60 ? "+" : "" })
+              : t("مالقيناش نتايج لـ \"{q}\"", { q })}
           </h1>
 
           <div className="my-4 flex flex-wrap gap-2 text-sm">
@@ -83,7 +86,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               href={href({ cat: undefined })}
               className={`badge py-1.5 ring-1 ring-slate-200 ${!category ? "bg-brand-600 text-white" : "bg-white"}`}
             >
-              كل الأقسام
+              {t("كل الأقسام")}
             </Link>
             {categories.map((c) => (
               <Link
@@ -91,7 +94,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
                 href={href({ cat: c.slug })}
                 className={`badge py-1.5 ring-1 ring-slate-200 ${category?.id === c.id ? "bg-brand-600 text-white" : "bg-white"}`}
               >
-                {c.icon} {c.nameAr}
+                {c.icon} {cat(c)}
               </Link>
             ))}
           </div>
@@ -102,14 +105,14 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
                 href={href({ sort: key === "relevance" ? undefined : key })}
                 className={sort === key ? "font-bold text-brand-700" : "text-slate-500 hover:text-brand-600"}
               >
-                {label}
+                {t(label)}
               </Link>
             ))}
           </div>
 
           {products.length === 0 && (
             <div className="card space-y-3 p-8 text-center text-slate-600">
-              <p>جرّب كلمة أقصر، أو اكتب اسم المنتج بالإنجليزي، أو شيل فلتر القسم.</p>
+              <p>{t("جرّب كلمة أقصر، أو اكتب اسم المنتج بالإنجليزي، أو شيل فلتر القسم.")}</p>
               <Suggestions />
             </div>
           )}
@@ -121,8 +124,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </>
       ) : (
         <div className="card space-y-3 p-8 text-center text-slate-600">
-          <h1 className="text-xl font-bold text-slate-900">بتدوّر على إيه؟</h1>
-          <p>اكتب اسم المنتج بالعربي أو بالإنجليزي.</p>
+          <h1 className="text-xl font-bold text-slate-900">{t("بتدوّر على إيه؟")}</h1>
+          <p>{t("اكتب اسم المنتج بالعربي أو بالإنجليزي.")}</p>
           <Suggestions />
         </div>
       )}

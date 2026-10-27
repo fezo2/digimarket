@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/prefs";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { PortalNav } from "@/components/portal-nav";
@@ -7,6 +8,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { t } = await i18n();
   await requireAdmin();
   const [kyc, products, payments, payouts, disputes, flagged, repay] = await Promise.all([
     db.kycSubmission.count({ where: { status: "PENDING" } }),
@@ -24,40 +26,40 @@ export default async function AdminLayout({
       <PortalNav
         groups={[
           {
-            items: [{ href: "/admin", label: "نظرة عامة", icon: "📊", exact: true }],
+            items: [{ href: "/admin", label: t("نظرة عامة"), icon: "📊", exact: true }],
           },
           {
-            title: "الفلوس",
+            title: t("الفلوس"),
             items: [
-              { href: "/admin/payments", label: "التحويلات اليدوية", icon: "💳", count: payments },
-              { href: "/admin/payouts", label: "طلبات السحب", icon: "💸", count: payouts },
-              { href: "/admin/orders", label: "الطلبات", icon: "🧾" },
-              { href: "/admin/orders?repay=1", label: "مرتجعات للتحويل", icon: "↩️", count: repay },
+              { href: "/admin/payments", label: t("التحويلات اليدوية"), icon: "💳", count: payments },
+              { href: "/admin/payouts", label: t("طلبات السحب"), icon: "💸", count: payouts },
+              { href: "/admin/orders", label: t("الطلبات"), icon: "🧾" },
+              { href: "/admin/orders?repay=1", label: t("مرتجعات للتحويل"), icon: "↩️", count: repay },
             ],
           },
           {
-            title: "الناس",
+            title: t("الناس"),
             items: [
-              { href: "/admin/users", label: "المستخدمين", icon: "👤" },
-              { href: "/admin/sellers", label: "التجار", icon: "🏪" },
-              { href: "/admin/kyc", label: "طلبات التوثيق", icon: "🪪", count: kyc },
+              { href: "/admin/users", label: t("المستخدمين"), icon: "👤" },
+              { href: "/admin/sellers", label: t("التجار"), icon: "🏪" },
+              { href: "/admin/kyc", label: t("طلبات التوثيق"), icon: "🪪", count: kyc },
             ],
           },
           {
-            title: "المراجعة",
+            title: t("المراجعة"),
             items: [
-              { href: "/admin/disputes", label: "الشكاوى", icon: "⚠️", count: disputes },
-              { href: "/admin/products", label: "مراجعة المنتجات", icon: "📦", count: products },
-              { href: "/admin/reviews", label: "التقييمات", icon: "⭐" },
-              { href: "/admin/messages", label: "الرسائل", icon: "💬", count: flagged },
+              { href: "/admin/disputes", label: t("الشكاوى"), icon: "⚠️", count: disputes },
+              { href: "/admin/products", label: t("مراجعة المنتجات"), icon: "📦", count: products },
+              { href: "/admin/reviews", label: t("التقييمات"), icon: "⭐" },
+              { href: "/admin/messages", label: t("الرسائل"), icon: "💬", count: flagged },
             ],
           },
           {
-            title: "المنصة",
+            title: t("المنصة"),
             items: [
-              { href: "/admin/categories", label: "الأقسام والعمولات", icon: "🗂️" },
-              { href: "/admin/news", label: "إعلانات للتجار", icon: "📢" },
-              { href: "/admin/audit", label: "سجل الإجراءات", icon: "📜" },
+              { href: "/admin/categories", label: t("الأقسام والعمولات"), icon: "🗂️" },
+              { href: "/admin/news", label: t("إعلانات للتجار"), icon: "📢" },
+              { href: "/admin/audit", label: t("سجل الإجراءات"), icon: "📜" },
             ],
           },
         ]}

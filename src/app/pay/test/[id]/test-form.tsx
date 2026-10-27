@@ -1,7 +1,9 @@
 "use client";
+import { useI18n } from "@/components/i18n-provider";
 import { useActionState, useRef } from "react";
 import { testPayment } from "./actions";
 export function TestForm({ id }: { id: string }) {
+  const { t } = useI18n();
   const [state, action, pending] = useActionState(
     testPayment.bind(null, id),
     undefined,
@@ -23,7 +25,7 @@ export function TestForm({ id }: { id: string }) {
             if (decision.current) decision.current.value = "success";
           }}
         >
-          دفع ناجح
+          {t("دفع ناجح")}
         </button>
         <button
           disabled={pending}
@@ -32,10 +34,10 @@ export function TestForm({ id }: { id: string }) {
             if (decision.current) decision.current.value = "failure";
           }}
         >
-          دفع فاشل
+          {t("دفع فاشل")}
         </button>
       </div>
-      {state?.error && <p role="alert">{state.error}</p>}
+      {state?.error && <p role="alert">{t(state.error)}</p>}
     </form>
   );
 }

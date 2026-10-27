@@ -1,8 +1,10 @@
 "use client";
+import { useI18n } from "@/components/i18n-provider";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function CopyCode({ code }: { code: string }) {
+  const { t } = useI18n();
   const [message, setMessage] = useState("");
   return (
     <div className="space-y-2 rounded-xl border p-4">
@@ -14,13 +16,13 @@ export function CopyCode({ code }: { code: string }) {
         onClick={async () => {
           try {
             await navigator.clipboard.writeText(code);
-            setMessage("اتنسخ");
+            setMessage(t("اتنسخ"));
           } catch {
-            setMessage("حدد الكود وانسخه يدويًا");
+            setMessage(t("حدد الكود وانسخه يدويًا"));
           }
         }}
       >
-        نسخ الكود
+        {t("نسخ الكود")}
       </button>
       <span role="status" className="ms-2 text-sm">
         {message}
@@ -30,6 +32,7 @@ export function CopyCode({ code }: { code: string }) {
 }
 
 export function PaymentPolling() {
+  const { t } = useI18n();
   const router = useRouter();
   const [finished, setFinished] = useState(false);
   useEffect(() => {
@@ -46,11 +49,11 @@ export function PaymentPolling() {
   return (
     <div className="space-y-3">
       <p role="status">
-        {finished ? "التأكيد لسه موصلش. ارجع للطلب بعد شوية." : "بنأكد الدفع…"}
+        {finished ? t("التأكيد لسه موصلش. ارجع للطلب بعد شوية.") : t("بنأكد الدفع…")}
       </p>
       {finished && (
         <button className="btn-outline" onClick={() => router.refresh()}>
-          تحديث حالة الطلب
+          {t("تحديث حالة الطلب")}
         </button>
       )}
     </div>
