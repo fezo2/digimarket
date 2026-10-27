@@ -41,3 +41,11 @@ test("translate falls back to Arabic and fills variables", () => {
   assert.equal(en2.dir, "ltr");
   assert.equal(toolsFor("ar").dir, "rtl");
 });
+
+test("payout minimum defaults to EGP 1,000", async () => {
+  const saved = process.env.MIN_PAYOUT_EGP;
+  delete process.env.MIN_PAYOUT_EGP;
+  const { MIN_PAYOUT } = await import(`../src/lib/config?min=${Date.now()}`);
+  process.env.MIN_PAYOUT_EGP = saved;
+  assert.equal(MIN_PAYOUT, 100_000);
+});
