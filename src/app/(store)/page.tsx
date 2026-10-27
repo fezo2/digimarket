@@ -3,9 +3,32 @@ import { siteHref } from "@/lib/sites";
 import { listedProduct } from "@/lib/catalog";
 import { db } from "@/lib/db";
 import { ProductCard, productCardSelect } from "@/components/product-card";
-import { SITE_NAME } from "@/lib/config";
+import { SITE_NAME, SITE_NAME_EN } from "@/lib/config";
+import type { Metadata } from "next";
+import { absolute, jsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { alternates: { canonical: "/" } };
+
+const STRUCTURED = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE_NAME,
+    alternateName: SITE_NAME_EN,
+    url: absolute("/"),
+    inLanguage: "ar-EG",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: SITE_NAME,
+    alternateName: SITE_NAME_EN,
+    url: absolute("/"),
+    logo: absolute("/icon.svg"),
+  },
+];
 
 export default async function HomePage() {
   const [categories, bestSellers, newest, topStores] = await Promise.all([
@@ -32,6 +55,7 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-12 px-4 py-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(STRUCTURED) }} />
       <section className="overflow-hidden rounded-3xl bg-gradient-to-l from-brand-700 to-brand-500 px-6 py-12 text-white sm:px-12">
         <h1 className="max-w-xl text-3xl font-extrabold leading-tight sm:text-4xl">
           اشتراكات وبرامج ومفاتيح تفعيل، من تجار موثّقين وبتسليم فوري

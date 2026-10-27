@@ -3,6 +3,8 @@ import { listedProduct } from "@/lib/catalog";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { ProductCard, productCardSelect } from "@/components/product-card";
+import type { Metadata } from "next";
+import { describe } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +14,31 @@ const SORTS = {
   "price-asc": { price: "asc" },
   "price-desc": { price: "desc" },
 } as const;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const category = await db.category.findUnique({
+    where: { slug: decodeURIComponent(slug) },
+    include: { children: { select: { nameAr: true } } },
+  });
+  if (!category) return { title: "القسم غير موجود" };
+  const sub = category.children.map((c) => c.nameAr).join("، ");
+  const description = describe(
+    `اشتري ${category.nameAr} أونلاين في مصر من تجار موثّقين بتسليم فوري${sub ? `: ${sub}` : ""}. ادفع بإنستاباي أو المحفظة.`,
+  );
+  const url = `/categories/${encodeURIComponent(category.slug)}`;
+  return {
+    title: `${category.nameAr} | أسعار وعروض`,
+    description,
+    // Sort orders are the same listing; point them all at the plain URL.
+    alternates: { canonical: url },
+    openGraph: { url, title: category.nameAr, description },
+  };
+}
 
 export default async function CategoryPage({
   params,

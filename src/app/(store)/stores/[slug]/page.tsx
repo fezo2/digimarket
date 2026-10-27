@@ -3,8 +3,34 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { ProductCard, productCardSelect } from "@/components/product-card";
 import { SELLER_TIERS } from "@/lib/config";
+import type { Metadata } from "next";
+import { describe } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const store = await db.sellerProfile.findUnique({
+    where: { slug: decodeURIComponent(slug) },
+    select: { slug: true, storeName: true, description: true, kycStatus: true, salesSuspendedAt: true },
+  });
+  if (!store || store.kycStatus !== "APPROVED") return { title: "المتجر غير موجود" };
+  const description = describe(
+    store.description || `منتجات ${store.storeName} الرقمية على ديجي مصر، تاجر موثّق وتسليم فوري.`,
+  );
+  const url = `/stores/${encodeURIComponent(store.slug)}`;
+  return {
+    title: store.storeName,
+    description,
+    alternates: { canonical: url },
+    openGraph: { url, title: store.storeName, description },
+    robots: store.salesSuspendedAt ? { index: false } : undefined,
+  };
+}
 
 export default async function StorePage({
   params,

@@ -7,6 +7,8 @@ import { db } from "@/lib/db";
 import { BuyBox } from "@/components/product-pricing";
 import { releaseExpiredOrders } from "@/lib/orders";
 import { SELLER_TIERS } from "@/lib/config";
+import type { Metadata } from "next";
+import { absolute, describe, jsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -17,11 +19,36 @@ const DELIVERY_LABEL = {
   LINK: "رابط التفعيل يظهر فوراً بعد الدفع",
 } as const;
 
+type Props = { params: Promise<{ slug: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await db.product.findUnique({
+    where: { slug: decodeURIComponent(slug) },
+    include: { seller: true, category: true },
+  });
+  if (!product || !isListed(product)) return { title: "المنتج غير موجود" };
+  const url = `/products/${encodeURIComponent(product.slug)}`;
+  const description = describe(
+    `${product.title} من ${product.seller.storeName} بسعر ${product.price / 100} ج.م. ${product.description}`,
+  );
+  return {
+    title: product.title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: "website",
+      url,
+      title: product.title,
+      description,
+      images: product.imageUrl ? [{ url: product.imageUrl, alt: product.title }] : undefined,
+    },
+  };
+}
+
 export default async function ProductPage({
   params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+}: Props) {
   const { slug } = await params;
   await releaseExpiredOrders();
   const product = await db.product.findUnique({
@@ -43,8 +70,62 @@ export default async function ProductPage({
     product.deliveryType !== "UNIQUE_CODES" ||
     product._count.stock >= product.minQty;
 
+  const url = absolute(`/products/${encodeURIComponent(product.slug)}`);
+  const reviewCount = product.positiveReviews + product.negativeReviews;
+  const structured = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      name: product.title,
+      description: describe(product.description, 500),
+      url,
+      image: product.imageUrl ?? undefined,
+      sku: product.id,
+      category: product.category.nameAr,
+      offers: {
+        "@type": "Offer",
+        url,
+        priceCurrency: "EGP",
+        price: (product.price / 100).toFixed(2),
+        availability: inStock
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+        seller: { "@type": "Organization", name: product.seller.storeName },
+      },
+      // Thumbs up/down mapped onto a 1–5 scale, only once there are reviews.
+      aggregateRating:
+        reviewCount > 0
+          ? {
+              "@type": "AggregateRating",
+              ratingValue: (1 + (4 * product.positiveReviews) / reviewCount).toFixed(1),
+              bestRating: 5,
+              worstRating: 1,
+              ratingCount: reviewCount,
+            }
+          : undefined,
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "الرئيسية", item: absolute("/") },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: product.category.nameAr,
+          item: absolute(`/categories/${encodeURIComponent(product.category.slug)}`),
+        },
+        { "@type": "ListItem", position: 3, name: product.title, item: url },
+      ],
+    },
+  ];
+
   return (
     <div className="mx-auto grid max-w-6xl gap-8 px-4 py-8 lg:grid-cols-[1fr_380px]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd(structured) }}
+      />
       <div className="space-y-6">
         <nav className="text-sm text-slate-500">
           <Link
@@ -59,7 +140,7 @@ export default async function ProductPage({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={product.imageUrl}
-              alt=""
+              alt={product.title}
               className="h-full w-full object-cover"
             />
           ) : (

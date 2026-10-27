@@ -16,6 +16,9 @@ const SHARED = [
   "/uploads",
   "/_next",
   "/favicon.ico",
+  "/icon.svg",
+  // Each host answers for itself: the portals tell crawlers to stay out.
+  "/robots.txt",
 ];
 
 const under = (path: string, prefix: string) =>
