@@ -72,13 +72,18 @@ export function BuyBox({
   return (
     <form action={action} className="space-y-4">
       <div className="flex items-baseline gap-3" aria-live="polite">
-        <span className="text-2xl font-extrabold text-brand-700">
+        <span className="text-3xl font-black">
           {money(unitPrice)}
         </span>
         {compareAtPrice !== null && compareAtPrice > unitPrice && (
-          <span className="text-slate-400 line-through">
-            {money(compareAtPrice)}
-          </span>
+          <>
+            <span className="text-slate-400 line-through">
+              {money(compareAtPrice)}
+            </span>
+            <span className="badge bg-red-600 text-white">
+              -{Math.round(100 - (unitPrice / compareAtPrice) * 100)}%
+            </span>
+          </>
         )}
       </div>
       {options.map((o) => (
@@ -162,7 +167,7 @@ export function BuyBox({
         </p>
       )}
       <button
-        className="btn-primary w-full"
+        className="btn w-full bg-emerald-600 py-3.5 text-base text-white shadow-sm hover:bg-emerald-700"
         disabled={!inStock || pending || !pricing}
       >
         {!inStock ? t("نفذت الكمية") : pending ? t("بنحجز طلبك…") : t("اشتري دلوقتي")}
