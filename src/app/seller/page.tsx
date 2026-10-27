@@ -4,6 +4,9 @@ import { requireSeller } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sellerBalance } from "@/lib/ledger";
 import { SELLER_TIERS } from "@/lib/config";
+import { parsePeriod, percentChange, periodSlots, withParams } from "@/lib/seller-period";
+import { Select } from "./auto-select";
+import { Change, Kpi, Page, Panel, PeriodTabs, Pill } from "./ui";
 
 export async function generateMetadata() {
   return { title: (await i18n()).t("لوحة التاجر") };
@@ -16,50 +19,123 @@ const KYC_BANNER = {
   APPROVED: null,
 } as const;
 
-export default async function SellerDashboard() {
-  const { t, money, num, day } = await i18n();
+const METRICS = {
+  gross: "قيمة المبيعات",
+  net: "صافي أرباحك",
+  orders: "عدد الطلبات",
+} as const;
+type Metric = keyof typeof METRICS;
+
+type Totals = { gross: number; net: number; orders: number; units: number };
+
+export default async function SellerDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ p?: string; from?: string; to?: string; product?: string; m?: string }>;
+}) {
+  const { t, money, num, day, lang } = await i18n();
   const { seller } = await requireSeller();
-  const tier = SELLER_TIERS[seller.type];
-  const since = new Date(Date.now() - 29 * 86400000);
-  since.setHours(0, 0, 0, 0);
-  const [balance, productCount, soldItems, news, daily, refunds, top] = await Promise.all([
-    sellerBalance(seller.id),
-    db.product.count({ where: { sellerId: seller.id } }),
-    db.orderItem.aggregate({ where: { sellerId: seller.id, order: { status: "PAID" } }, _sum: { quantity: true } }),
-    db.announcement.findMany({ where: { active: true }, orderBy: { createdAt: "desc" }, take: 3 }),
-    db.$queryRaw<{ day: Date; net: bigint; count: bigint }[]>`
-      SELECT date_trunc('day', o."paidAt") AS day, SUM(i."sellerNet")::bigint AS net, COUNT(*)::bigint AS count
+  const query = await searchParams;
+  const period = parsePeriod(query, "30d");
+  const metric: Metric = query.m && query.m in METRICS ? (query.m as Metric) : "gross";
+  const products = await db.product.findMany({
+    where: { sellerId: seller.id },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, title: true },
+  });
+  const product = products.some((p) => p.id === query.product) ? query.product! : "";
+  const fmt = period.bucket === "month" ? "YYYY-MM" : "YYYY-MM-DD";
+
+  const totals = async (from: Date | null, to: Date | null) => {
+    const [row] = await db.$queryRaw<{ gross: bigint | null; net: bigint | null; orders: bigint; units: bigint | null }[]>`
+      SELECT SUM(i.total - i."refundedAmount")::bigint AS gross, SUM(i."sellerNet")::bigint AS net,
+        COUNT(DISTINCT o.id)::bigint AS orders, SUM(i.quantity)::bigint AS units
       FROM "OrderItem" i JOIN "Order" o ON o.id = i."orderId"
-      WHERE i."sellerId" = ${seller.id} AND o.status = 'PAID' AND o."paidAt" >= ${since}
-      GROUP BY 1 ORDER BY 1`,
-    db.dispute.count({ where: { status: "RESOLVED_REFUND", orderItem: { sellerId: seller.id } } }),
+      WHERE i."sellerId" = ${seller.id} AND o.status IN ('PAID', 'PARTIALLY_REFUNDED')
+        AND o."paidAt" >= ${from ?? new Date(0)} AND o."paidAt" < ${to ?? new Date()}
+        AND (${product} = '' OR i."productId" = ${product})`;
+    return {
+      gross: Number(row?.gross ?? 0),
+      net: Number(row?.net ?? 0),
+      orders: Number(row?.orders ?? 0),
+      units: Number(row?.units ?? 0),
+    } satisfies Totals;
+  };
+
+  const [balance, now, before, series, top, recent, first, news, refunds] = await Promise.all([
+    sellerBalance(seller.id),
+    totals(period.from, period.to),
+    period.prevFrom ? totals(period.prevFrom, period.prevTo) : null,
+    db.$queryRaw<{ k: string; gross: bigint; net: bigint; orders: bigint }[]>`
+      SELECT to_char((o."paidAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Cairo', ${fmt}) AS k,
+        SUM(i.total - i."refundedAmount")::bigint AS gross, SUM(i."sellerNet")::bigint AS net,
+        COUNT(DISTINCT o.id)::bigint AS orders
+      FROM "OrderItem" i JOIN "Order" o ON o.id = i."orderId"
+      WHERE i."sellerId" = ${seller.id} AND o.status IN ('PAID', 'PARTIALLY_REFUNDED')
+        AND o."paidAt" >= ${period.from ?? new Date(0)} AND o."paidAt" < ${period.to}
+        AND (${product} = '' OR i."productId" = ${product})
+      GROUP BY 1`,
     db.orderItem.groupBy({
       by: ["productId", "title"],
-      where: { sellerId: seller.id, order: { status: "PAID", paidAt: { gte: since } } },
+      where: {
+        sellerId: seller.id,
+        ...(product ? { productId: product } : {}),
+        order: {
+          status: { in: ["PAID", "PARTIALLY_REFUNDED"] },
+          paidAt: { gte: period.from ?? undefined, lt: period.to },
+        },
+      },
       _sum: { quantity: true, sellerNet: true },
       orderBy: { _sum: { sellerNet: "desc" } },
       take: 5,
     }),
+    db.orderItem.findMany({
+      where: {
+        sellerId: seller.id,
+        order: { status: { in: ["PAID", "PARTIALLY_REFUNDED", "REFUNDED"] } },
+      },
+      orderBy: { order: { paidAt: "desc" } },
+      take: 6,
+      select: {
+        id: true,
+        title: true,
+        total: true,
+        deliveredAt: true,
+        refundedAmount: true,
+        order: { select: { id: true, number: true, paidAt: true, buyer: { select: { email: true } } } },
+      },
+    }),
+    period.from
+      ? null
+      : db.order.findFirst({
+          where: { status: "PAID", items: { some: { sellerId: seller.id } } },
+          orderBy: { paidAt: "asc" },
+          select: { paidAt: true },
+        }),
+    db.announcement.findMany({ where: { active: true }, orderBy: { createdAt: "desc" }, take: 3 }),
+    db.dispute.count({ where: { status: "RESOLVED_REFUND", orderItem: { sellerId: seller.id } } }),
   ]);
-  const days = Array.from({ length: 30 }, (_, i) => {
-    const d = new Date(since.getTime() + i * 86400000);
-    const row = daily.find((r) => new Date(r.day).toDateString() === d.toDateString());
-    return { d, net: Number(row?.net ?? 0), count: Number(row?.count ?? 0) };
+
+  const byKey = new Map(series.map((r) => [r.k, r]));
+  const slots = periodSlots(period, first?.paidAt).map((s) => {
+    const r = byKey.get(s.key);
+    return { ...s, gross: Number(r?.gross ?? 0), net: Number(r?.net ?? 0), orders: Number(r?.orders ?? 0) };
   });
-  const max = Math.max(1, ...days.map((d) => d.net));
-  const monthNet = days.reduce((a, d) => a + d.net, 0);
+  const max = Math.max(1, ...slots.map((s) => s[metric]));
+  const show = (v: number) => (metric === "orders" ? num(v) : money(v));
+  const monthName = new Intl.DateTimeFormat(lang === "en" ? "en-GB" : "ar-EG", { month: "short", timeZone: "Africa/Cairo" });
+  const change = (k: keyof Totals) => (before ? percentChange(now[k], before[k]) : null);
+  const tier = SELLER_TIERS[seller.type];
   const reviews = seller.positiveReviews + seller.negativeReviews;
   const banner = KYC_BANNER[seller.kycStatus];
+  const params = { p: query.p, from: query.from, to: query.to, product: product || undefined, m: query.m };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
+    <Page>
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold">{seller.storeName}</h1>
-        <span className="badge bg-slate-100 text-slate-700">{t(tier.label)}</span>
-        {seller.kycStatus === "APPROVED" && <span className="badge bg-emerald-50 text-emerald-700">✓ {t(tier.badge)}</span>}
-        {seller.kycStatus === "APPROVED" && (
-          <Link href={`/stores/${seller.slug}`} className="ms-auto text-sm font-semibold text-brand-600">{t("شوف متجرك ←")}</Link>
-        )}
+        <h1 className="text-2xl font-bold lg:text-3xl">{seller.storeName}</h1>
+        <Pill tone="grey">{t(tier.label)}</Pill>
+        {seller.kycStatus === "APPROVED" && <Pill tone="green">✓ {t(tier.badge)}</Pill>}
       </div>
 
       {banner && (
@@ -68,7 +144,6 @@ export default async function SellerDashboard() {
           {banner.cta && <Link href="/seller/kyc" className="btn-primary">{t("وثّق حسابك")}</Link>}
         </div>
       )}
-
       {seller.salesSuspendedAt && (
         <div role="alert" className="rounded-2xl bg-red-50 p-4 text-sm text-red-800">
           <p className="font-bold">{t("الإدارة وقفت البيع في متجرك مؤقتاً")}</p>
@@ -79,7 +154,6 @@ export default async function SellerDashboard() {
       {seller.payoutsFrozenAt && (
         <p role="alert" className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">{t("الإدارة جمّدت السحب من متجرك: ")}{seller.payoutsFrozenReason}</p>
       )}
-
       {news.map((n) => (
         <div key={n.id} className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-900">
           <p className="font-bold">📢 {n.title}</p>
@@ -87,58 +161,157 @@ export default async function SellerDashboard() {
         </div>
       ))}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label={t("قابل للسحب")} value={money(balance.available)} accent />
-        <Stat label={t("معلّق")} value={money(balance.held)} hint={t("بيتاح بعد {holdDays} أيام من البيع", { holdDays: seller.holdDays ?? tier.holdDays })} />
-        <Stat label={t("المنتجات")} value={num(productCount)} hint={t("الحد: {max}", { max: num(tier.maxActiveProducts) })} />
-        <Stat label={t("قطع مباعة")} value={num(soldItems._sum.quantity ?? 0)} />
+      <div className="flex flex-wrap items-center gap-3">
+        <PeriodTabs period={period} params={params} keys={["today", "yesterday", "7d", "30d", "6m"]} />
+        <form>
+          {Object.entries({ ...params, product: undefined }).map(([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />)}
+          <Select
+          name="product"
+          label={t("المنتج")}
+          value={product}
+          options={[{ value: "", label: t("كل المنتجات") }, ...products.map((p) => ({ value: p.id, label: p.title }))]}
+          />
+        </form>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label={t("صافي آخر ٣٠ يوم")} value={money(monthNet)} />
-        <Stat label={t("تقييمات إيجابية")} value={`${num(seller.positiveReviews)} 👍`} />
-        <Stat label={t("تقييمات سلبية")} value={`${num(seller.negativeReviews)} 👎`} hint={reviews ? t("نسبة الرضا {round}٪", { round: num(Math.round((seller.positiveReviews / reviews) * 100)) }) : undefined} />
-        <Stat label={t("شكاوى اترد فلوسها")} value={num(refunds)} />
+      <div className="grid grid-cols-2 gap-3 lg:gap-4 xl:grid-cols-4">
+        <Kpi label={t("قيمة المبيعات")} value={money(now.gross)}><Change value={change("gross")} /></Kpi>
+        <Kpi label={t("صافي أرباحك")} value={money(now.net)}><Change value={change("net")} /></Kpi>
+        <Kpi label={t("عدد الطلبات")} value={num(now.orders)}><Change value={change("orders")} /></Kpi>
+        <Kpi label={t("متوسط الطلب")} value={money(now.orders ? Math.round(now.gross / now.orders) : 0)}>
+          <Change value={before ? percentChange(now.orders ? now.gross / now.orders : 0, before.orders ? before.gross / before.orders : 0) : null} />
+        </Kpi>
       </div>
 
-      <div className="card p-4">
-        <p className="mb-3 text-sm text-slate-500">{t("صافي المبيعات آخر ٣٠ يوم")}</p>
-        <div className="flex h-40 items-end gap-0.5" dir="ltr">
-          {days.map(({ d, net, count }) => (
-            <div key={d.toISOString()} className="flex h-full flex-1 flex-col items-center justify-end gap-1" title={t("{day}: {amount} · {count} طلب", { day: day(d), amount: money(net), count })}>
-              <div className="w-full rounded-t bg-brand-500" style={{ height: `${Math.max(2, (net / max) * 100)}%` }} />
-              <span className="text-[9px] text-slate-500">{d.getDate()}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {top.length > 0 && (
-        <div className="card p-4">
-          <p className="mb-2 font-bold">{t("الأكثر مبيعاً آخر ٣٠ يوم")}</p>
-          <div className="divide-y text-sm">
-            {top.map((row) => (
-              <div key={row.productId} className="flex gap-3 py-2">
-                <span className="flex-1">{row.title}</span>
-                <span>{num(row._sum.quantity ?? 0)}{t(" قطعة")}</span>
-                <span className="font-semibold">{money(row._sum.sellerNet ?? 0)}</span>
-              </div>
+      <Panel className="space-y-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="me-auto text-lg font-bold">{t(METRICS[metric])}</h2>
+          <div className="flex gap-1 rounded-xl bg-slate-100 p-1 text-sm">
+            {(Object.keys(METRICS) as Metric[]).map((m) => (
+              <Link
+                key={m}
+                href={withParams(params, { m: m === "gross" ? undefined : m })}
+                className={`rounded-lg px-3 py-1 font-semibold ${metric === m ? "bg-(--surface) shadow-sm" : "text-slate-500"}`}
+              >
+                {t(METRICS[m])}
+              </Link>
             ))}
           </div>
         </div>
-      )}
+        <div className="flex h-64 items-end gap-1 border-b border-slate-200" dir="ltr">
+          {slots.map((s) => {
+            const label = period.bucket === "month" ? monthName.format(s.start) : day(s.start);
+            return (
+              <div key={s.key} className="group relative flex h-full flex-1 flex-col justify-end">
+                <div
+                  className={`w-full rounded-t-md ${s[metric] ? "bg-brand-500 group-hover:bg-brand-600" : "bg-slate-100"}`}
+                  style={{ height: `${Math.max(1.5, (s[metric] / max) * 100)}%` }}
+                />
+                <div className="pointer-events-none absolute bottom-full start-1/2 z-10 mb-2 hidden -translate-x-1/2 rounded-xl bg-white p-3 text-xs whitespace-nowrap text-slate-900 shadow-xl ring-1 ring-black/5 group-hover:block" dir="auto">
+                  <p className="mb-1 text-slate-500">{label}</p>
+                  <p className="font-bold">{show(s[metric])}</p>
+                  <p className="text-slate-500">{t("{count} طلب", { count: num(s.orders) })}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex justify-between text-xs text-slate-500" dir="ltr">
+          {slots.filter((_, i) => i % Math.ceil(slots.length / 8) === 0).map((s) => (
+            <span key={s.key}>{period.bucket === "month" ? monthName.format(s.start) : s.key.slice(5).replace("-", "/")}</span>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 px-4 py-3 text-sm">
+          <span className="size-2.5 rounded-full bg-brand-500" />
+          <span className="font-semibold">{t(METRICS[metric])}</span>
+          <span className="text-slate-500">{t("خلال الفترة")}</span>
+          <span className="ms-auto font-bold">{show(now[metric])}</span>
+        </div>
+      </Panel>
 
-      <div className="flex gap-3"><Link className="btn-primary" href="/seller/products">{t("إدارة المنتجات")}</Link><Link className="btn-outline" href="/seller/sales">{t("المبيعات والأرباح")}</Link></div>
-    </div>
+      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+        <Panel>
+          <div className="mb-4 flex items-center">
+            <h2 className="me-auto text-lg font-bold">{t("آخر الطلبات")}</h2>
+            <Link href="/seller/sales" className="text-sm font-semibold text-brand-600">{t("كل الطلبات")}</Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr>
+                  <th>{t("المنتج")}</th>
+                  <th>{t("الطلب")}</th>
+                  <th>{t("التاريخ")}</th>
+                  <th>{t("المشتري")}</th>
+                  <th>{t("المبلغ")}</th>
+                  <th>{t("الحالة")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recent.map((i) => (
+                  <tr key={i.id} className="border-t">
+                    <td className="max-w-64 truncate">
+                      <Link className="hover:underline" href={`/seller/sales/${i.order.id}`}>{i.title}</Link>
+                    </td>
+                    <td>#{i.order.number}</td>
+                    <td className="whitespace-nowrap">{i.order.paidAt && day(i.order.paidAt)}</td>
+                    <td dir="ltr" className="text-start">{i.order.buyer.email}</td>
+                    <td className="whitespace-nowrap">{money(i.total)}</td>
+                    <td>
+                      {i.refundedAmount > 0 ? (
+                        <Pill tone="amber">{t("مسترد")}</Pill>
+                      ) : i.deliveredAt ? (
+                        <Pill tone="green">{t("اتسلّم")}</Pill>
+                      ) : (
+                        <Pill tone="blue">{t("مراجعة الإدارة")}</Pill>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!recent.length && <p className="p-6 text-center text-slate-500">{t("لسه مفيش مبيعات.")}</p>}
+          </div>
+        </Panel>
+        <div className="space-y-6">
+          <Panel>
+            <h2 className="mb-3 text-lg font-bold">{t("الأكثر مبيعاً في الفترة")}</h2>
+            <div className="divide-y divide-slate-200 text-sm">
+              {top.map((row) => (
+                <div key={row.productId} className="flex items-center gap-3 py-2.5">
+                  <span className="min-w-0 flex-1 truncate">{row.title}</span>
+                  <span className="text-slate-500">{num(row._sum.quantity ?? 0)}{t(" قطعة")}</span>
+                  <span className="font-semibold">{money(row._sum.sellerNet ?? 0)}</span>
+                </div>
+              ))}
+              {!top.length && <p className="py-4 text-slate-500">{t("مفيش مبيعات في الفترة دي.")}</p>}
+            </div>
+          </Panel>
+          <Panel>
+            <h2 className="mb-3 text-lg font-bold">{t("متجرك")}</h2>
+            <dl className="grid grid-cols-2 gap-4 text-sm">
+              <Fact label={t("قابل للسحب")} value={money(balance.available)} />
+              <Fact label={t("معلّق")} value={money(balance.held)} />
+              <Fact label={t("المنتجات")} value={`${num(products.length)} / ${num(tier.maxActiveProducts)}`} />
+              <Fact
+                label={t("نسبة الرضا")}
+                value={reviews ? `${num(Math.round((seller.positiveReviews / reviews) * 100))}%` : "—"}
+              />
+              <Fact label={t("تقييمات")} value={`${num(seller.positiveReviews)} 👍 · ${num(seller.negativeReviews)} 👎`} />
+              <Fact label={t("شكاوى اترد فلوسها")} value={num(refunds)} />
+            </dl>
+          </Panel>
+        </div>
+      </div>
+    </Page>
   );
 }
 
-function Stat({ label, value, hint, accent }: { label: string; value: string; hint?: string; accent?: boolean }) {
+function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="card p-4">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className={`mt-1 text-xl font-bold ${accent ? "text-brand-700" : ""}`}>{value}</p>
-      {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
+    <div>
+      <dt className="text-slate-500">{label}</dt>
+      <dd className="mt-0.5 font-bold">{value}</dd>
     </div>
   );
 }

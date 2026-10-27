@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { toolsFor, translate } from "../src/lib/i18n";
-import { en } from "../src/i18n/en";
+import { en, toolsFor, translate } from "../src/lib/i18n";
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {

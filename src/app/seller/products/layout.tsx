@@ -1,6 +1,7 @@
 import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { requireSeller } from "@/lib/auth";
+import { Page } from "../ui";
 
 export default async function ProductsLayout({
   children,
@@ -10,7 +11,7 @@ export default async function ProductsLayout({
   const { t } = await i18n();
   const { seller } = await requireSeller();
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
+    <Page>
       {seller.kycStatus === "APPROVED" ? (
         children
       ) : (
@@ -21,6 +22,6 @@ export default async function ProductsLayout({
           </Link>
         </div>
       )}
-    </div>
+    </Page>
   );
 }

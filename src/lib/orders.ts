@@ -213,8 +213,11 @@ export async function applyCoupon(
     const item = order.items[0];
     let coupon = null;
     if (code.trim()) {
-      await tx.$queryRaw`SELECT id FROM "Coupon" WHERE code = ${code.trim()} FOR UPDATE`;
-      coupon = await tx.coupon.findUnique({ where: { code: code.trim() } });
+      // Seller promo codes are stored upper-case; buyers may type them in any case.
+      const typed = code.trim();
+      const key = (await tx.coupon.count({ where: { code: typed } })) ? typed : typed.toUpperCase();
+      await tx.$queryRaw`SELECT id FROM "Coupon" WHERE code = ${key} FOR UPDATE`;
+      coupon = await tx.coupon.findUnique({ where: { code: key } });
       if (
         !coupon ||
         !coupon.active ||

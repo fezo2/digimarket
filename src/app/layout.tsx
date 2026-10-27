@@ -3,7 +3,9 @@ import { Cairo } from "next/font/google";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { PortalHeader } from "@/components/portal-header";
-import { currentSite } from "@/lib/auth";
+import { headers } from "next/headers";
+import { currentSite, getCurrentUser } from "@/lib/auth";
+import { PATH_HEADER } from "@/lib/sites";
 import { SITE_NAME, SITE_NAME_EN } from "@/lib/config";
 import { storeOrigin } from "@/lib/seo";
 import { getPrefs, i18n } from "@/lib/prefs";
@@ -45,6 +47,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const site = await currentSite();
   const { lang, theme } = await getPrefs();
+  // A seller's own portal draws its full-screen shell (src/app/seller/layout.tsx).
+  const path = (await headers()).get(PATH_HEADER) ?? "";
+  const shell =
+    (path === "/seller" || path.startsWith("/seller/")) && !!(await getCurrentUser())?.seller;
   return (
     <html
       lang={lang}
@@ -53,9 +59,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <body className="flex min-h-screen flex-col font-sans antialiased">
         <I18nProvider lang={lang}>
-          {site === "store" ? <Header /> : <PortalHeader site={site} />}
+          {shell ? null : site === "store" ? <Header /> : <PortalHeader site={site} />}
           <main className="flex-1">{children}</main>
-          {site === "store" && <Footer />}
+          {site === "store" && !shell && <Footer />}
         </I18nProvider>
       </body>
     </html>
