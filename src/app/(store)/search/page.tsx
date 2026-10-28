@@ -90,10 +90,10 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         <button className="bg-brand-600 px-6 font-semibold text-white hover:bg-brand-700">{t("بحث")}</button>
       </form>
 
-      <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="lg:sticky lg:top-24 lg:self-start">
-          <div className="card p-3">
-            <p className="mb-2 px-2 text-sm font-bold">{t("الأقسام")}</p>
+          <div className="card p-1.5 lg:p-3">
+            <p className="mb-2 hidden px-2 text-sm font-bold lg:block">{t("الأقسام")}</p>
             <nav className="no-scrollbar flex gap-1 overflow-x-auto text-sm lg:flex-col">
               <Link
                 href={href({ cat: undefined })}
@@ -126,13 +126,13 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
                 ? cat(category)
                 : t("كل المنتجات")}
           </h1>
-          <div className="card mb-4 flex flex-wrap items-center gap-1 p-1.5 text-sm">
-            <span className="px-2 text-slate-500">{t("ترتيب:")}</span>
+          <div className="card no-scrollbar mb-4 flex items-center gap-1 overflow-x-auto p-1.5 text-sm lg:flex-wrap">
+            <span className="shrink-0 px-2 text-slate-500">{t("ترتيب:")}</span>
             {sorts.map(([key, label]) => (
               <Link
                 key={key}
                 href={href({ sort: key === (q ? "relevance" : "popular") ? undefined : key })}
-                className={`rounded-lg px-3 py-1.5 ${activeSort === key ? "bg-brand-600 font-semibold text-white" : "text-slate-600 hover:bg-slate-50"}`}
+                className={`shrink-0 rounded-lg px-3 py-1.5 whitespace-nowrap ${activeSort === key ? "bg-brand-600 font-semibold text-white" : "text-slate-600 hover:bg-slate-50"}`}
               >
                 {t(label)}
               </Link>

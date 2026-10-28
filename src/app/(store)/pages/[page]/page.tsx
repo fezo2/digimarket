@@ -66,7 +66,7 @@ export default async function InfoPage({ params }: Props) {
     <div className="mx-auto max-w-6xl px-4 py-6">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(structured) }} />
       <Breadcrumbs items={[{ label: t("الرئيسية"), href: "/" }, { label: page.title[lang] }]} />
-      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
         <nav className="card no-scrollbar flex gap-1 overflow-x-auto p-2 text-sm lg:flex-col lg:self-start">
           {MENU.map((s) => (
             <Link

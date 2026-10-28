@@ -11,7 +11,7 @@ export async function Footer() {
   return (
     <footer className="mt-16 border-t border-slate-200 bg-white">
       <div className="border-b border-slate-100">
-        <div className="mx-auto grid max-w-7xl gap-4 px-4 py-6 text-sm sm:grid-cols-3">
+        <div className="mx-auto grid max-w-7xl grid-cols-3 gap-2 px-4 py-5 text-xs sm:gap-4 sm:py-6 sm:text-sm">
           {(
             [
               ["bolt", t("تسليم فوري"), t("الكود أو الملف يوصلك بعد الدفع")],
@@ -19,27 +19,27 @@ export async function Footer() {
               ["thumb", t("ضمان حقك"), t("أرباح التاجر بتتعلّق لحد ما تتأكد")],
             ] as [IconName, string, string][]
           ).map(([icon, title, text]) => (
-            <div key={title} className="flex items-center gap-3">
+            <div key={title} className="flex flex-col items-center gap-1.5 text-center sm:flex-row sm:gap-3 sm:text-start">
               <Icon name={icon} className="h-6 w-6 shrink-0 text-brand-600" />
               <span>
                 <span className="block font-bold text-slate-900">{title}</span>
-                <span className="text-slate-500">{text}</span>
+                <span className="hidden text-slate-500 sm:inline">{text}</span>
               </span>
             </div>
           ))}
         </div>
       </div>
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-5">
-        <div>
+      <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-4 gap-y-8 px-4 py-8 text-sm text-slate-600 sm:py-10 lg:grid-cols-5">
+        <div className="col-span-2 lg:col-span-1">
           <p className="text-xl font-black text-brand-600">
             {t(SITE_NAME)}{" "}
             {lang === "ar" && <span className="text-sm font-semibold text-slate-400">{SITE_NAME_EN}</span>}
           </p>
           <p className="mt-2 leading-6">{t("سوق مصري للمنتجات الرقمية من تجار موثّقين، بتسليم فوري بعد الدفع.")}</p>
         </div>
-        <div>
+        <div className="col-span-2 sm:col-span-1">
           <p className="mb-3 font-bold text-slate-900">{t("الأقسام")}</p>
-          <ul className="space-y-2">
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-2 sm:block sm:space-y-2">
             {categories.map((c) => (
               <li key={c.slug}>
                 <Link href={`/categories/${c.slug}`} className="hover:text-brand-600">{cat(c)}</Link>
@@ -75,6 +75,8 @@ export async function Footer() {
       <p className="border-t border-slate-100 py-4 text-center text-xs text-slate-400">
         © {new Date().getFullYear()} {t(SITE_NAME)}
       </p>
+      {/* Room for the phone tab bar, which is pinned over the bottom of the page. */}
+      <div aria-hidden className="h-16 md:hidden" />
     </footer>
   );
 }

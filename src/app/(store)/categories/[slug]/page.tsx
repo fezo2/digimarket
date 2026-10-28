@@ -168,11 +168,12 @@ export default async function CategoryPage({
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+          {/* On phones the picture tiles above already list the subcategories. */}
           {top && (
-            <div className="card p-3">
-              <p className="mb-2 px-2 text-sm font-bold">{t("الأقسام")}</p>
+            <div className={`card p-1.5 lg:block lg:p-3 ${category.children.length > 0 ? "hidden" : ""}`}>
+              <p className="mb-2 hidden px-2 text-sm font-bold lg:block">{t("الأقسام")}</p>
               <nav className="no-scrollbar flex gap-1 overflow-x-auto text-sm lg:flex-col">
                 {[{ id: top.id, slug: top.slug, label: t("الكل"), count: top.count }, ...top.children.map((c) => ({ id: c.id, slug: c.slug, label: cat(c), count: undefined }))].map(
                   (c) => (
@@ -191,15 +192,16 @@ export default async function CategoryPage({
               </nav>
             </div>
           )}
-          <form className="card space-y-3 p-4">
+          <form className="card space-y-3 p-3 lg:p-4">
             <p className="text-sm font-bold">{t("السعر (ج.م)")}</p>
             {query.sort && <input type="hidden" name="sort" value={query.sort} />}
             <div className="flex items-center gap-2">
               <input name="min" type="number" min={0} inputMode="numeric" defaultValue={query.min} placeholder={t("من")} aria-label={t("أقل سعر")} className="input" />
               <span className="text-slate-400">–</span>
               <input name="max" type="number" min={0} inputMode="numeric" defaultValue={query.max} placeholder={t("إلى")} aria-label={t("أعلى سعر")} className="input" />
+              <button className="btn-outline shrink-0 lg:hidden">{t("تطبيق")}</button>
             </div>
-            <button className="btn-outline w-full">{t("تطبيق")}</button>
+            <button className="btn-outline hidden w-full lg:flex">{t("تطبيق")}</button>
             {(query.min || query.max) && (
               <Link href={keep({ min: undefined, max: undefined })} className="block text-center text-xs text-slate-500 hover:text-red-600">
                 {t("مسح الفلتر")}
@@ -209,8 +211,8 @@ export default async function CategoryPage({
         </aside>
 
         <div>
-          <div className="card mb-4 flex flex-wrap items-center gap-1 p-1.5 text-sm">
-            <span className="px-2 text-slate-500">{t("ترتيب:")}</span>
+          <div className="card no-scrollbar mb-4 flex items-center gap-1 overflow-x-auto p-1.5 text-sm lg:flex-wrap">
+            <span className="shrink-0 px-2 text-slate-500">{t("ترتيب:")}</span>
             {[
               ["popular", t("الأكثر مبيعاً")],
               ["newest", t("الأحدث")],
@@ -220,7 +222,7 @@ export default async function CategoryPage({
               <Link
                 key={key}
                 href={keep({ sort: key === "popular" ? undefined : key })}
-                className={`rounded-lg px-3 py-1.5 ${sortKey === key ? "bg-brand-600 font-semibold text-white" : "text-slate-600 hover:bg-slate-50"}`}
+                className={`shrink-0 rounded-lg px-3 py-1.5 whitespace-nowrap ${sortKey === key ? "bg-brand-600 font-semibold text-white" : "text-slate-600 hover:bg-slate-50"}`}
               >
                 {label}
               </Link>
