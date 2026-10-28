@@ -10,6 +10,7 @@ import { storeCategories } from "@/lib/storefront";
 import { CatalogMenu } from "./catalog-menu";
 import { Icon, type IconName } from "./icons";
 import { CategoryThumb } from "./category-thumb";
+import { MobileTabBar } from "./mobile-tab-bar";
 
 // Store header, laid out like the big digital-goods marketplaces: a thin
 // utility bar, then logo + catalog + search + account shortcuts (the only
@@ -52,6 +53,7 @@ export async function Header() {
         <CatalogMenu
           label={t("الكتالوج")}
           allLabel={t("كل المنتجات")}
+          closeLabel={t("إغلاق")}
           categories={categories.map((c) => ({
             slug: c.slug,
             name: cat(c),
@@ -88,8 +90,10 @@ export async function Header() {
           {user?.seller && <NavIcon href={portalHref("seller")} icon="store" label={t("متجري")} />}
           {user ? (
             <>
-              <NavIcon href="/account" icon="bag" label={t("مشترياتي")} badge={unread} />
-              <form action={logout} className="hidden sm:block">
+              <span className="hidden md:block">
+                <NavIcon href="/account" icon="bag" label={t("مشترياتي")} badge={unread} />
+              </span>
+              <form action={logout} className="hidden md:block">
                 <button className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1 text-[11px] text-white/70 hover:bg-white/10 hover:text-white">
                   <Icon name="logout" />
                   {t("خروج")}
@@ -98,8 +102,10 @@ export async function Header() {
             </>
           ) : (
             <>
-              <NavIcon href="/login" icon="user" label={t("دخول")} />
-              <Link href="/register" className="btn ms-1 hidden bg-yellow-400 font-bold text-brand-950 hover:bg-yellow-300 sm:inline-flex">
+              <span className="hidden md:block">
+                <NavIcon href="/login" icon="user" label={t("دخول")} />
+              </span>
+              <Link href="/register" className="btn ms-1 h-9 bg-yellow-400 px-3 text-sm font-bold text-brand-950 hover:bg-yellow-300 md:h-auto md:px-4">
                 {t("حساب جديد")}
               </Link>
             </>
@@ -123,6 +129,13 @@ export async function Header() {
           ))}
         </div>
       </nav>
+
+      <MobileTabBar
+        labels={{ home: t("الرئيسية"), categories: t("الأقسام"), search: t("بحث"), account: user ? t("مشترياتي") : t("دخول") }}
+        accountHref={user ? "/account" : "/login"}
+        accountIcon={user ? "bag" : "user"}
+        badge={unread}
+      />
     </>
   );
 }

@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { orderStatusLabels } from "@/lib/order-snapshot";
 import { releaseExpiredOrders } from "@/lib/orders";
+import { logout } from "@/app/(auth)/actions";
 
 export async function generateMetadata() {
   return { title: (await i18n()).t("حسابي") };
@@ -24,8 +25,14 @@ export default async function AccountPage() {
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
       <div>
         <h1 className="text-2xl font-bold">{t("أهلاً ")}{user.name}</h1>
-        <p className="text-sm text-slate-500" dir="ltr">{user.email}</p>
-        <Link href="/account/security" className="text-sm font-semibold text-brand-600">{t("تغيير الباسورد")}</Link>
+        <p className="text-sm text-slate-500"><span dir="ltr">{user.email}</span></p>
+        <div className="mt-1 flex items-center gap-4">
+          <Link href="/account/security" className="text-sm font-semibold text-brand-600">{t("تغيير الباسورد")}</Link>
+          {/* The header's log-out button is hidden on phones. */}
+          <form action={logout} className="md:hidden">
+            <button className="text-sm font-semibold text-red-600">{t("خروج")}</button>
+          </form>
+        </div>
       </div>
       <div className="card p-6">
         <h2 className="mb-4 font-bold">{t("مكتبتي (مشترياتي)")}</h2>

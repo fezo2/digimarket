@@ -10,6 +10,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { BuyBox } from "@/components/product-pricing";
+import { MobileBuyBar } from "@/components/mobile-buy-bar";
 import { releaseExpiredOrders } from "@/lib/orders";
 import { SELLER_TIERS } from "@/lib/config";
 import type { Metadata } from "next";
@@ -55,7 +56,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProductPage({
   params,
 }: Props) {
-  const { t, cat, num } = await i18n();
+  const { t, cat, num, money } = await i18n();
   const { slug } = await params;
   await releaseExpiredOrders();
   const product = await db.product.findUnique({
@@ -167,9 +168,9 @@ export default async function ProductPage({
         ]}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <section className="card grid gap-5 p-4 sm:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] sm:p-5">
-          <div className="relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-brand-50 to-slate-100">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="card grid grid-cols-1 gap-5 p-4 sm:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] sm:p-5">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-gradient-to-br sm:aspect-square from-brand-50 to-slate-100">
             {product.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -187,7 +188,7 @@ export default async function ProductPage({
             )}
           </div>
           <div className="flex flex-col gap-4">
-            <h1 className="text-2xl leading-9 font-extrabold">{product.title}</h1>
+            <h1 className="text-xl leading-8 font-extrabold sm:text-2xl sm:leading-9">{product.title}</h1>
             <div className="flex flex-wrap gap-2 text-sm">
               <span className="badge bg-slate-100 py-1 text-slate-700">
                 {t("اتباع {n}", { n: num(product.soldCount) })}
@@ -228,7 +229,7 @@ export default async function ProductPage({
         </section>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
-          <div className="card space-y-4 p-5 shadow-sm">
+          <div id="buy" className="card scroll-mt-32 space-y-4 p-5 shadow-sm">
             <BuyBox
               productId={product.id}
               slug={product.slug}
@@ -330,6 +331,7 @@ export default async function ProductPage({
           <ProductScroller products={similar} />
         </section>
       )}
+      {inStock && <MobileBuyBar price={money(product.price)} label={t("اشتري دلوقتي")} target="buy" />}
     </div>
   );
 }

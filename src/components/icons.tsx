@@ -14,6 +14,7 @@ const PATHS = {
   chevron: "M9 6l6 6-6 6",
   fire: "M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-6-1 4-4 7-4 12 0 4 3 7 7 7z",
   logout: "M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10",
+  close: "M6 6l12 12M18 6 6 18",
 } as const;
 
 export type IconName = keyof typeof PATHS;
