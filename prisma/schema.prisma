@@ -530,6 +530,20 @@ model LoginAttempt {
   @@index([key, createdAt])
 }
 
+// A sign-up waiting for its emailed code. The User row is only created once
+// the code is entered, so unconfirmed addresses never reach the users table.
+model PendingSignup {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  codeHash     String
+  attempts     Int      @default(0)
+  next         String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+}
+
 model EmailVerificationToken {
   id        String   @id @default(cuid())
   userId    String
