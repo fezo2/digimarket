@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { SignJWT } from "jose";
 import bcrypt from "bcryptjs";
 import { sessionIsCurrent } from "./account-security";
+import { isVerified } from "./email-verification";
 import { db } from "./db";
 import { siteForHost, type Site } from "./sites";
 import {
@@ -78,6 +79,14 @@ export const getCurrentUser = cache(async function getCurrentUser() {
 export async function requireUser(next = "/") {
   const user = await getCurrentUser();
   if (!user) redirect(`/login?next=${encodeURIComponent(next)}`);
+  return user;
+}
+
+// Buying and opening a store need a confirmed email.
+export async function requireVerifiedUser(next = "/") {
+  const user = await requireUser(next);
+  if (!isVerified(user))
+    redirect(`/verify-email?next=${encodeURIComponent(next)}`);
   return user;
 }
 

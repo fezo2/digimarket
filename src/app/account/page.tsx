@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { orderStatusLabels } from "@/lib/order-snapshot";
 import { releaseExpiredOrders } from "@/lib/orders";
 import { logout } from "@/app/(auth)/actions";
+import { isVerified } from "@/lib/email-verification";
 
 export async function generateMetadata() {
   return { title: (await i18n()).t("حسابي") };
@@ -23,6 +24,12 @@ export default async function AccountPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
+      {!isVerified(user) && (
+        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          {t("إيميلك لسه مش متأكد، ومش هتقدر تشتري قبل ما تأكده.")}{" "}
+          <Link href="/verify-email?next=/account" className="font-semibold underline">{t("أكّد دلوقتي")}</Link>
+        </p>
+      )}
       <div>
         <h1 className="text-2xl font-bold">{t("أهلاً ")}{user.name}</h1>
         <p className="text-sm text-slate-500"><span dir="ltr">{user.email}</span></p>

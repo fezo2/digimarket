@@ -1,6 +1,6 @@
 import { i18n } from "@/lib/prefs";
 import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/auth";
+import { requireVerifiedUser } from "@/lib/auth";
 import { SELLER_TIERS } from "@/lib/config";
 import { JoinForm } from "./join-form";
 
@@ -10,7 +10,7 @@ export async function generateMetadata() {
 
 export default async function JoinPage() {
   const { t, num } = await i18n();
-  const user = await requireUser("/seller/join");
+  const user = await requireVerifiedUser("/seller/join");
   if (user.seller) redirect("/seller");
 
   return (

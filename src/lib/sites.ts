@@ -15,6 +15,7 @@ const SHARED = [
   "/register",
   "/forgot-password",
   "/reset-password",
+  "/verify-email",
   "/api",
   "/uploads",
   "/_next",

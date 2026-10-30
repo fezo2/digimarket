@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { PricingError } from "@/lib/pricing";
-import { requireUser } from "@/lib/auth";
+import { requireUser, requireVerifiedUser } from "@/lib/auth";
 import { applyCoupon, cancelPendingOrder, preparePayment, OrderError } from "@/lib/orders";
 import { getPaymentProvider } from "@/lib/payments";
 
@@ -30,7 +30,7 @@ export async function payNow(
   id: string,
   previousState: { error?: string } | undefined,
 ) {
-  const user = await requireUser(`/checkout/${id}`);
+  const user = await requireVerifiedUser(`/checkout/${id}`);
   void previousState;
   const parsed = z.string().min(1).max(100).safeParse(id);
   if (!parsed.success) return { error: "الطلب مش صحيح" };

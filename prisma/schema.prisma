@@ -86,17 +86,19 @@ enum DisputeStatus {
 }
 
 model User {
-  sessionVersion Int       @default(0)
-  id             String    @id @default(cuid())
-  email          String    @unique
-  name           String
-  phone          String?
-  passwordHash   String
-  role           Role      @default(BUYER)
-  createdAt      DateTime  @default(now())
-  suspendedAt    DateTime?
-  suspendReason  String?
-  adminNote      String?
+  sessionVersion  Int       @default(0)
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String
+  phone           String?
+  passwordHash    String
+  // Null until the owner opens the link we email at sign up.
+  emailVerifiedAt DateTime?
+  role            Role      @default(BUYER)
+  createdAt       DateTime  @default(now())
+  suspendedAt     DateTime?
+  suspendReason   String?
+  adminNote       String?
 
   seller   SellerProfile?
   orders   Order[]
@@ -526,6 +528,16 @@ model LoginAttempt {
   createdAt DateTime @default(now())
 
   @@index([key, createdAt])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model PasswordResetToken {
