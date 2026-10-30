@@ -8,7 +8,7 @@ export default async function Page() {
   return (
     <section className="card mx-auto my-8 max-w-md p-6">
       <h1 className="text-xl font-bold">{t("نسيت الباسورد")}</h1>
-      <ActionForm action={forgotPassword} button={t("ابعت لينك")}>
+      <ActionForm action={forgotPassword} button={t("ابعت لينك")} captcha>
         <label className="label">
           {t("الإيميل")}
           <input className="input" type="email" name="email" required />

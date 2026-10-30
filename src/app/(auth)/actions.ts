@@ -5,7 +5,13 @@ import { z } from "zod";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { alertAdmin } from "@/lib/notifications";
-import { authenticate, AccountError } from "@/lib/account-security";
+import {
+  authenticate,
+  AccountError,
+  withinLimit,
+} from "@/lib/account-security";
+import { CAPTCHA_ERROR, captchaPassed, clientIp } from "@/lib/captcha";
+import { passwordProblem } from "@/lib/password-policy";
 import { db } from "@/lib/db";
 import {
   createSession,
@@ -26,9 +32,9 @@ async function safeNext(value: FormDataEntryValue | null) {
 }
 
 const registerSchema = z.object({
-  name: z.string().trim().min(2, "اكتب اسمك"),
-  email: z.string().trim().toLowerCase().email("الإيميل مش صحيح"),
-  password: z.string().min(8, "الباسورد لازم 8 حروف على الأقل"),
+  name: z.string().trim().min(2, "اكتب اسمك").max(80, "الاسم طويل أوي"),
+  email: z.string().trim().toLowerCase().email("الإيميل مش صحيح").max(254, "الإيميل مش صحيح"),
+  password: z.string().max(200, "الباسورد طويل أوي"),
 });
 
 export async function register(
@@ -41,6 +47,11 @@ export async function register(
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   const { name, email, password } = parsed.data;
+  const weak = passwordProblem(password, email);
+  if (weak) return { error: weak };
+  if (!(await captchaPassed(form))) return { error: CAPTCHA_ERROR };
+  if (!(await withinLimit("register:" + (await clientIp()), 5, 3600000)))
+    return { error: "محاولات كتير، جرّب بعد شوية" };
   if (await db.user.findUnique({ where: { email } })) {
     return { error: "الإيميل ده مسجّل قبل كده" };
   }
@@ -68,8 +79,9 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
     })
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: "الإيميل أو الباسورد غلط" };
+  if (!(await captchaPassed(form))) return { error: CAPTCHA_ERROR };
   const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+  const ip = await clientIp();
   const where = `${ip} ${h.get("x-vercel-ip-country") ?? ""}`.trim();
   const adminSite = (await currentSite()) === "admin";
   let user;

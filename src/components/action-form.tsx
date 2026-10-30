@@ -3,6 +3,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { prepareUploads } from "@/lib/upload-form";
 import { useActionState } from "react";
 import type { UploadKind } from "@/lib/storage-rules";
+import { Captcha } from "@/components/captcha";
 export type ActionState = { error?: string; success?: string };
 export function ActionForm({
   action,
@@ -11,6 +12,7 @@ export function ActionForm({
   uploadOrderId,
   uploadKind = "chat",
   uploadFields = ["image"],
+  captcha = false,
 }: {
   action: (state: ActionState, form: FormData) => Promise<ActionState>;
   children?: React.ReactNode;
@@ -18,6 +20,7 @@ export function ActionForm({
   uploadOrderId?: string;
   uploadKind?: UploadKind;
   uploadFields?: string[];
+  captcha?: boolean;
 }) {
   const { t } = useI18n();
   const [state, submit, pending] = useActionState(
@@ -36,6 +39,7 @@ export function ActionForm({
   return (
     <form action={submit} className="space-y-3">
       {children}
+      {captcha && <Captcha resetKey={state} />}
       {state.error && (
         <p role="alert" className="text-red-700">
           {t(state.error)}

@@ -11,7 +11,7 @@ export default async function Page({
   return (
     <section className="card mx-auto my-8 max-w-md p-6">
       <h1 className="text-xl font-bold">{t("باسورد جديد")}</h1>
-      <ActionForm action={applyReset} button={t("غيّر الباسورد")}>
+      <ActionForm action={applyReset} button={t("غيّر الباسورد")} captcha>
         <input type="hidden" name="token" value={token || ""} />
         <label className="label">
           {t("الباسورد الجديد")}
@@ -19,10 +19,15 @@ export default async function Page({
             className="input"
             type="password"
             name="password"
-            minLength={8}
+            minLength={10}
             maxLength={200}
             required
+            autoComplete="new-password"
+            dir="ltr"
           />
+          <span className="mt-1 block text-xs font-normal text-slate-500">
+            {t("١٠ حروف على الأقل، فيها حرف ورقم ورمز زي ! أو @")}
+          </span>
         </label>
       </ActionForm>
     </section>

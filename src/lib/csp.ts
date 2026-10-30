@@ -12,15 +12,16 @@ export function contentSecurityPolicy(
     : "";
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com${dev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     `img-src 'self' data: blob:${r2}`,
-    `connect-src 'self'${r2}`,
-    "frame-src https://accept.paymob.com https://payments.kashier.io",
+    `connect-src 'self' https://challenges.cloudflare.com${r2}`,
+    "frame-src https://accept.paymob.com https://payments.kashier.io https://challenges.cloudflare.com",
     "form-action 'self' https://accept.paymob.com https://payments.kashier.io",
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'none'",
+    ...(dev ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");
 }

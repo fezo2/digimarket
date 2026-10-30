@@ -29,6 +29,10 @@ export function launchConfig(env: NodeJS.ProcessEnv = process.env) {
     !/^[a-zA-Z0-9_]+$/.test(env.TELEGRAM_BOT_USERNAME)
   )
     throw new Error("Invalid bot username");
+  if (!!env.TURNSTILE_SECRET_KEY !== !!env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)
+    throw new Error("Set both Turnstile keys, or neither");
+  if (env.NODE_ENV === "production" && !env.TURNSTILE_SECRET_KEY)
+    console.warn("Turnstile is off: sign-in forms have no captcha");
   if (!!env.RESEND_API_KEY !== !!env.EMAIL_FROM)
     throw new Error("Incomplete email configuration");
   if (env.NODE_ENV === "production") {

@@ -144,11 +144,11 @@ test("launch accounts, Telegram, event transactions and cron security", async (t
           where: { id: row.id },
           data: { expiresAt: new Date(Date.now() - 1) },
         });
-        await assert.rejects(resetPassword(raw, "new-password"));
+        await assert.rejects(resetPassword(raw, "New-pass#2026"));
         const valid = new URL(links[1]).searchParams.get("token")!;
         const outcomes = await Promise.allSettled([
-          resetPassword(valid, "new-password"),
-          resetPassword(valid, "new-password"),
+          resetPassword(valid, "New-pass#2026"),
+          resetPassword(valid, "New-pass#2026"),
         ]);
         assert.equal(
           outcomes.filter((r) => r.status === "fulfilled").length,
@@ -172,7 +172,7 @@ test("launch accounts, Telegram, event transactions and cron security", async (t
           ).payoutUpdatedAt!.getTime() >
             Date.now() - 10000,
         );
-        await changePassword(seller.id, "new-password", "changed-password");
+        await changePassword(seller.id, "New-pass#2026", "Changed#pass2026");
         assert.equal(
           (await db.user.findUniqueOrThrow({ where: { id: seller.id } }))
             .sessionVersion,

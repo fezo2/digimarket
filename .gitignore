@@ -44,3 +44,19 @@ next-env.d.ts
 
 # uploaded files (KYC documents, product files) in local dev
 /storage
+
+# secrets and credentials: never commit these
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+credentials*.json
+service-account*.json
+*secret*
+!src/**/*secret*
+/launch/
+*.dump
+*.sql.gz

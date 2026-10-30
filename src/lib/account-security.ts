@@ -5,11 +5,25 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "./db";
 import { tokenHash } from "./security";
+import { passwordProblem } from "./password-policy";
 const emailInput = z.string().trim().toLowerCase().email().max(254);
 export class AccountError extends Error {}
 async function lockKeys(tx: Prisma.TransactionClient, keys: string[]) {
   for (const key of [...keys].sort())
     await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key},0))::text`;
+}
+// Counts one attempt for key and says whether it is still within max per window.
+export async function withinLimit(key: string, max: number, windowMs: number) {
+  key = "limit:" + tokenHash(key);
+  return db.$transaction(async (tx) => {
+    await lockKeys(tx, [key]);
+    const used = await tx.loginAttempt.count({
+      where: { key, createdAt: { gte: new Date(Date.now() - windowMs) } },
+    });
+    if (used >= max) return false;
+    await tx.loginAttempt.create({ data: { key } });
+    return true;
+  });
 }
 export async function authenticate(
   email: string,
@@ -99,7 +113,8 @@ export async function resetPassword(token: string, password: string) {
   z.string()
     .regex(/^[a-f0-9]{64}$/)
     .parse(token);
-  z.string().min(8).max(200).parse(password);
+  const weak = passwordProblem(password);
+  if (weak) throw new AccountError(weak);
   const passwordHash = await bcrypt.hash(password, 12);
   return db.$transaction(async (tx) => {
     const target = await tx.passwordResetToken.findUnique({
@@ -130,7 +145,8 @@ export async function changePassword(
   oldPassword: string,
   newPassword: string,
 ) {
-  z.string().min(8).max(200).parse(newPassword);
+  const weak = passwordProblem(newPassword);
+  if (weak) throw new AccountError(weak);
   const passwordHash = await bcrypt.hash(newPassword, 12);
   await db.$transaction(async (tx) => {
     await lockKeys(tx, ["password:" + userId]);

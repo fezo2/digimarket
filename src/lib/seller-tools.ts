@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "./db";
 import { parsePeriod } from "./seller-period";
+import { passwordProblem, strongPassword } from "./password-policy";
 
 export class SellerToolError extends Error {}
 
@@ -34,10 +35,7 @@ export async function deleteReply(sellerId: string, id: string) {
 
 const passwordInput = z.object({
   current: z.string().min(1, "اكتب الباسورد الحالي").max(200),
-  next: z
-    .string()
-    .min(8, "الباسورد الجديد لازم 8 حروف على الأقل")
-    .max(200),
+  next: strongPassword,
 });
 
 // Returns the new session version so the caller can re-issue its cookie;
@@ -52,6 +50,8 @@ export async function changePassword(
     throw new SellerToolError("الباسورد الحالي غلط");
   if (v.current === v.next)
     throw new SellerToolError("اختار باسورد مختلف عن الحالي");
+  const weak = passwordProblem(v.next, user.email);
+  if (weak) throw new SellerToolError(weak);
   const passwordHash = await bcrypt.hash(v.next, 12);
   const changed = await db.user.updateMany({
     where: { id: userId, passwordHash: user.passwordHash },

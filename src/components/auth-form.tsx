@@ -4,6 +4,7 @@ import { useI18n } from "@/components/i18n-provider";
 import Link from "next/link";
 import { useActionState } from "react";
 import type { FormState } from "@/app/(auth)/actions";
+import { Captcha } from "@/components/captcha";
 
 type Props = {
   mode: "login" | "register";
@@ -41,12 +42,15 @@ export function AuthForm({ mode, action, next, title, allowSignup = true }: Prop
               name="password"
               type="password"
               required
-              minLength={isRegister ? 8 : undefined}
+              minLength={isRegister ? 10 : undefined}
+              maxLength={200}
               dir="ltr"
               className="input"
               autoComplete={isRegister ? "new-password" : "current-password"}
             />
+            {isRegister && <p className="mt-1 text-xs text-slate-500">{t("١٠ حروف على الأقل، فيها حرف ورقم ورمز زي ! أو @")}</p>}
           </div>
+          <Captcha resetKey={state} />
           {state?.error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{t(state.error)}</p>}
           <button disabled={pending} className="btn-primary w-full">
             {pending ? t("لحظة…") : isRegister ? t("إنشاء الحساب") : t("دخول")}
