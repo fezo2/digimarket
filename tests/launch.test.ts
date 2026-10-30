@@ -78,6 +78,7 @@ test("production headers deny framing and eval, allow required hosts", () => {
     "fonts.googleapis.com",
     "fonts.gstatic.com",
     "accept.paymob.com",
+    "payments.kashier.io",
     "testaccount.r2.cloudflarestorage.com",
   ])
     assert.ok(csp.includes(host));

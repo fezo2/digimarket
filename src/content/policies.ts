@@ -13,7 +13,7 @@ export type PolicyPage = {
 
 export type Faq = { q: Text; a: Text };
 
-export const POLICIES_UPDATED = "2026-10-27";
+export const POLICIES_UPDATED = "2026-10-30";
 
 export const POLICY_PAGES: Record<string, PolicyPage> = {
   about: {
@@ -102,8 +102,8 @@ export const POLICY_PAGES: Record<string, PolicyPage> = {
         heading: { ar: "٤. الشراء والدفع والتسليم", en: "4. Buying, payment and delivery" },
         paragraphs: [
           {
-            ar: "الأسعار بالجنيه المصري. الدفع بيتم بالطرق الظاهرة وقت الشراء (زي إنستاباي والمحافظ الإلكترونية)، والطلب بيتأكد بعد ما الدفع يوصل ويتراجع.",
-            en: "Prices are in Egyptian pounds. Payment is made by the methods shown at checkout (such as InstaPay and mobile wallets), and an order is confirmed once the payment arrives and is checked.",
+            ar: "الأسعار بالجنيه المصري. الدفع بيتم بالطرق الظاهرة وقت الشراء (زي الكروت البنكية والمحافظ الإلكترونية وإنستاباي)، والطلب بيتأكد بعد ما الدفع يوصل ويتراجع.",
+            en: "Prices are in Egyptian pounds. Payment is made by the methods shown at checkout (such as bank cards, mobile wallets and InstaPay), and an order is confirmed once the payment arrives and is checked.",
           },
           {
             ar: "المنتج بيظهر على صفحة الطلب في حسابك بعد تأكيد الدفع. اتأكد إن المنتج شغّال أول ما تستلمه.",
@@ -327,8 +327,8 @@ export const FAQS: Faq[] = [
   {
     q: { ar: "بدفع إزاي؟", en: "How do I pay?" },
     a: {
-      ar: "بإنستاباي أو المحافظ الإلكترونية. بعد ما تحوّل، اكتب رقم العملية في صفحة الدفع، وطلبك بيتأكد أول ما التحويل يتراجع.",
-      en: "With InstaPay or a mobile wallet. After you transfer, enter the transaction reference on the payment page; your order is confirmed as soon as the transfer is checked.",
+      ar: "بالطرق اللي بتظهرلك في صفحة الدفع: كارت بنكي (فيزا، ماستركارد، ميزة) أو محفظة إلكترونية، وطلبك بيتأكد تلقائي أول ما الدفع ينجح. ولو صفحة الدفع طلبت تحويل إنستاباي أو محفظة، حوّل واكتب رقم العملية، وطلبك بيتأكد أول ما التحويل يتراجع.",
+      en: "With the methods shown on the payment page: a bank card (Visa, Mastercard, Meeza) or a mobile wallet, and your order is confirmed automatically once the payment goes through. If the page asks for an InstaPay or wallet transfer instead, transfer and enter the transaction reference; your order is confirmed as soon as the transfer is checked.",
     },
   },
   {

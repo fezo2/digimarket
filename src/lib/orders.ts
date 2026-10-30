@@ -282,7 +282,7 @@ export async function applyCoupon(
 export async function preparePayment(
   orderId: string,
   buyerId: string,
-  provider: "test" | "paymob" | "manual",
+  provider: "test" | "paymob" | "manual" | "kashier",
 ) {
   await releaseExpiredOrders();
   return db.$transaction(async (tx) => {
@@ -316,7 +316,7 @@ export async function preparePayment(
 export async function markOrderPaid(
   orderId: string,
   payment: {
-    provider: "test" | "paymob" | "manual";
+    provider: "test" | "paymob" | "manual" | "kashier";
     reference: string;
     amount: number;
   },

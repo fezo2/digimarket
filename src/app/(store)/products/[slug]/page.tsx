@@ -11,6 +11,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { BuyBox } from "@/components/product-pricing";
 import { MobileBuyBar } from "@/components/mobile-buy-bar";
+import { takesCards } from "@/lib/payments/config";
 import { releaseExpiredOrders } from "@/lib/orders";
 import { SELLER_TIERS } from "@/lib/config";
 import type { Metadata } from "next";
@@ -216,7 +217,7 @@ export default async function ProductPage({
               </li>
               <li className="flex items-start gap-3">
                 <Icon name="card" className="mt-0.5 h-5 w-5 shrink-0 text-brand-600" />
-                <span>{t("ادفع بإنستاباي أو المحفظة.")}</span>
+                <span>{takesCards() ? t("ادفع بالكارت أو المحفظة الإلكترونية.") : t("ادفع بإنستاباي أو المحفظة.")}</span>
               </li>
             </ul>
             <p className="hidden line-clamp-4 text-sm leading-7 whitespace-pre-line text-slate-600 sm:block">
