@@ -235,11 +235,23 @@ function kashierProvider(
           });
           throw new Error("Kashier session request failed");
         }
-        const session = z
-          .object({ _id: z.string().min(1), sessionUrl: z.url() })
-          .parse(await response.json());
-        if (!session.sessionUrl.startsWith("https://payments.kashier.io/"))
-          throw new Error("Unexpected Kashier session URL");
+        const text = await response.text();
+        const shape = z.object({ _id: z.string().min(1), sessionUrl: z.url() });
+        let json: unknown = null;
+        try {
+          json = JSON.parse(text);
+        } catch {}
+        // The docs show the session at the top level; accept a { data } wrapper too.
+        const parsed = shape.safeParse(json);
+        const wrapped = shape.safeParse((json as { data?: unknown } | null)?.data);
+        const session = parsed.success ? parsed.data : wrapped.success ? wrapped.data : null;
+        const host = session ? new URL(session.sessionUrl) : null;
+        if (!session || host?.protocol !== "https:" || !(host.hostname === "kashier.io" || host.hostname.endsWith(".kashier.io"))) {
+          console.error("Unexpected Kashier session response", {
+            body: text.slice(0, 500),
+          });
+          throw new Error("Unexpected Kashier session response");
+        }
         const bound = await db.order.updateMany({
           where: {
             id: order.id,
@@ -265,6 +277,9 @@ function kashierProvider(
           data: { paymentRef: null },
         });
         if (error instanceof OrderError) throw error;
+        console.error("Kashier payment page could not be opened", {
+          error: error instanceof Error ? `${error.name}: ${error.message}` : "Unknown",
+        });
         throw new OrderError("مش قادرين نفتح صفحة الدفع دلوقتي، جرّب تاني");
       }
     },
