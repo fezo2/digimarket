@@ -2,10 +2,11 @@ import "server-only";
 import { z } from "zod";
 import { db } from "../db";
 import { OrderError } from "../orders";
-import { paymentConfig } from "./config";
+import { paymentConfig, type kashierConfig } from "./config";
+import { kashierAmount, kashierApiHost } from "./kashier";
 
 export interface PaymentProvider {
-  name: "test" | "paymob" | "manual";
+  name: "test" | "paymob" | "manual" | "kashier";
   createPayment(order: {
     id: string;
     number: number;
@@ -25,8 +26,21 @@ export function readPaymobIntent(value: string | null) {
   }
 }
 
+// While a Kashier order awaits payment, paymentRef holds its hosted session.
+export function readKashierSession(value: string | null) {
+  if (!value?.startsWith("session:")) return null;
+  try {
+    return z
+      .object({ id: z.string(), url: z.url() })
+      .parse(JSON.parse(value.slice(8)));
+  } catch {
+    return null;
+  }
+}
+
 export function getPaymentProvider(): PaymentProvider {
   const config = paymentConfig();
+  if (config.name === "kashier") return kashierProvider(config);
   if (config.name === "manual")
     return {
       name: "manual",
@@ -145,6 +159,112 @@ export function getPaymentProvider(): PaymentProvider {
           },
           data: { paymentRef: null },
         });
+        throw new OrderError("مش قادرين نفتح صفحة الدفع دلوقتي، جرّب تاني");
+      }
+    },
+  };
+}
+
+function kashierProvider(
+  config: ReturnType<typeof kashierConfig>,
+): PaymentProvider {
+  return {
+    name: "kashier",
+    async createPayment(order) {
+      const current = await db.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+      if (
+        current.status !== "PENDING_PAYMENT" ||
+        current.total !== order.total ||
+        current.paymentProvider !== "kashier" ||
+        current.expiresAt <= new Date()
+      )
+        throw new OrderError("الطلب مش متاح للدفع");
+      // Kashier refuses a second session for the same order reference, so a
+      // retry reuses the first one.
+      const existing = readKashierSession(current.paymentRef);
+      if (existing) return existing.url;
+      const claimed = await db.order.updateMany({
+        where: {
+          id: order.id,
+          status: "PENDING_PAYMENT",
+          paymentProvider: "kashier",
+          paymentRef: null,
+          total: order.total,
+        },
+        data: { paymentRef: "creating" },
+      });
+      if (!claimed.count)
+        throw new OrderError("بنجهّز صفحة الدفع، جرّب تاني بعد لحظة");
+      try {
+        const response = await fetch(
+          `${kashierApiHost(config.mode)}/v3/payment/sessions`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: config.secretKey,
+              "api-key": config.apiKey,
+              "Content-Type": "application/json",
+            },
+            signal: AbortSignal.timeout(15000),
+            body: JSON.stringify({
+              merchantId: config.merchantId,
+              order: order.id,
+              amount: kashierAmount(order.total),
+              currency: "EGP",
+              paymentType: "credit",
+              type: "one-time",
+              display: "ar",
+              expireAt: current.expiresAt.toISOString(),
+              maxFailureAttempts: 3,
+              allowedMethods: "card,wallet",
+              merchantRedirect: `${config.appUrl}/api/payments/kashier/return`,
+              failureRedirect: true,
+              serverWebhook: `${config.appUrl}/api/payments/kashier/webhook`,
+              description: `طلب #${order.number}`,
+              manualCapture: false,
+              brandColor: "#6d28d9",
+            }),
+          },
+        );
+        if (!response.ok) {
+          console.error("Kashier session request failed", {
+            status: response.status,
+            body: (await response.text()).slice(0, 500),
+          });
+          throw new Error("Kashier session request failed");
+        }
+        const session = z
+          .object({ _id: z.string().min(1), sessionUrl: z.url() })
+          .parse(await response.json());
+        if (!session.sessionUrl.startsWith("https://payments.kashier.io/"))
+          throw new Error("Unexpected Kashier session URL");
+        const bound = await db.order.updateMany({
+          where: {
+            id: order.id,
+            status: "PENDING_PAYMENT",
+            paymentRef: "creating",
+          },
+          data: {
+            paymentRef:
+              "session:" +
+              JSON.stringify({ id: session._id, url: session.sessionUrl }),
+          },
+        });
+        if (!bound.count)
+          throw new OrderError("مدة الطلب انتهت، ابدأ طلب جديد");
+        return session.sessionUrl;
+      } catch (error) {
+        await db.order.updateMany({
+          where: {
+            id: order.id,
+            status: "PENDING_PAYMENT",
+            paymentRef: "creating",
+          },
+          data: { paymentRef: null },
+        });
+        if (error instanceof OrderError) throw error;
         throw new OrderError("مش قادرين نفتح صفحة الدفع دلوقتي، جرّب تاني");
       }
     },

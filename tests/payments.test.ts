@@ -89,3 +89,115 @@ test("manual payments need a valid InstaPay address or wallet number", () => {
     /Invalid MANUAL_WALLET/,
   );
 });
+
+// Kashier: vectors published in developers.kashier.io (hashing and webhook pages).
+import {
+  kashierAmount,
+  kashierHmac,
+  kashierRedirectPayload,
+  verifyKashierRedirect,
+  verifyKashierWebhook,
+} from "../src/lib/payments/kashier";
+import { kashierConfig, takesCards } from "../src/lib/payments/config";
+
+test("Kashier order hash matches the documented vector", () => {
+  assert.equal(
+    kashierHmac("/?payment=mid-0-1.99.20.EGP", "11111"),
+    "606a8a1307d64caf4e2e9bb724738f115a8972c27eccb2a8acd9194c357e4bec",
+  );
+});
+
+const kashierWebhook = {
+  amount: 1,
+  channel: "online | e-commerce",
+  currency: "EGP",
+  kashierOrderId: "9ad06b17-755b-4e21-9774-aff3e2726ac9",
+  merchantOrderId: "1653481557813",
+  method: "card",
+  orderReference: "TEST-ORD-38855",
+  status: "SUCCESS",
+  transactionId: "TX-249893963",
+  transactionResponseCode: "00",
+  card: { cardInfo: { maskedCard: "511111******1118" } },
+  signatureKeys: [
+    "transactionResponseCode",
+    "amount",
+    "channel",
+    "currency",
+    "kashierOrderId",
+    "merchantOrderId",
+    "method",
+    "orderReference",
+    "status",
+    "transactionId",
+  ],
+};
+const kashierWebhookSig =
+  "9610477b2255b2a8ef84fd89adfaa5f1305ff9c20324205851890f1ea03109f4";
+
+test("Kashier webhook signature matches the documented vector", () => {
+  assert.equal(verifyKashierWebhook(kashierWebhook, kashierWebhookSig, "11111"), true);
+  assert.equal(
+    verifyKashierWebhook(kashierWebhook, kashierWebhookSig.toUpperCase(), "11111"),
+    true,
+  );
+});
+
+test("tampered or unsigned Kashier webhooks are rejected", () => {
+  for (const data of [
+    { ...kashierWebhook, merchantOrderId: "someone-else" },
+    { ...kashierWebhook, status: "FAILURE" },
+    { ...kashierWebhook, signatureKeys: [] },
+  ])
+    assert.equal(verifyKashierWebhook(data, kashierWebhookSig, "11111"), false);
+  assert.equal(verifyKashierWebhook(kashierWebhook, kashierWebhookSig, "other"), false);
+  assert.equal(verifyKashierWebhook(kashierWebhook, null, "11111"), false);
+  assert.equal(verifyKashierWebhook(kashierWebhook, "zz", "11111"), false);
+  assert.equal(verifyKashierWebhook(kashierWebhook, kashierWebhookSig, ""), false);
+});
+
+test("Kashier redirect signature covers fixed fields with missing ones as null", () => {
+  const query = new URLSearchParams({
+    paymentStatus: "SUCCESS",
+    merchantOrderId: "order-1",
+    orderId: "k-1",
+    transactionId: "TX-1",
+    amount: "120.00",
+    currency: "EGP",
+    mode: "test",
+  });
+  assert.equal(
+    kashierRedirectPayload(query),
+    "paymentStatus=SUCCESS&cardDataToken=null&maskedCard=null&merchantOrderId=order-1&orderId=k-1&cardBrand=null&orderReference=null&transactionId=TX-1&amount=120.00&currency=EGP",
+  );
+  query.set("signature", kashierHmac(kashierRedirectPayload(query), "key"));
+  assert.equal(verifyKashierRedirect(query, "key"), true);
+  query.set("merchantOrderId", "order-2");
+  assert.equal(verifyKashierRedirect(query, "key"), false);
+});
+
+test("Kashier amounts are major units with two decimals", () => {
+  assert.equal(kashierAmount(45000), "450.00");
+  assert.equal(kashierAmount(12345), "123.45");
+});
+
+test("Kashier config requires a merchant ID, both keys and a valid mode", () => {
+  const env = {
+    NODE_ENV: "test",
+    APP_URL: "https://digiegy.test",
+    KASHIER_MERCHANT_ID: "MID-123-456",
+    KASHIER_API_KEY: "api",
+    KASHIER_SECRET_KEY: "secret",
+  } as NodeJS.ProcessEnv;
+  assert.equal(kashierConfig(env).mode, "test");
+  assert.equal(kashierConfig(env).appUrl, "https://digiegy.test");
+  assert.equal(paymentConfig({ ...env, PAYMENT_PROVIDER: "kashier" }).name, "kashier");
+  assert.throws(() => kashierConfig({ ...env, KASHIER_MERCHANT_ID: "123" }));
+  assert.throws(() => kashierConfig({ ...env, KASHIER_SECRET_KEY: "" }));
+  assert.throws(() => kashierConfig({ ...env, KASHIER_MODE: "prod" }));
+  assert.throws(() =>
+    kashierConfig({ ...env, NODE_ENV: "production", APP_URL: "http://digiegy.test" }),
+  );
+  assert.equal(takesCards({ NODE_ENV: "test", PAYMENT_PROVIDER: "kashier" }), true);
+  assert.equal(takesCards({ NODE_ENV: "test", PAYMENT_PROVIDER: "manual" }), false);
+});

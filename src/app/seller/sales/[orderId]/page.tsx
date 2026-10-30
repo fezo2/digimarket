@@ -17,6 +17,7 @@ export async function generateMetadata() {
 const PROVIDERS: Record<string, string> = {
   manual: "تحويل يدوي",
   paymob: "Paymob",
+  kashier: "Kashier",
   test: "تجربة",
 };
 const METHODS = { INSTAPAY: "InstaPay", WALLET: "محفظة إلكترونية" } as const;

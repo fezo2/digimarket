@@ -10,6 +10,7 @@ import { CategoryThumb } from "@/components/category-thumb";
 import { siteHref } from "@/lib/sites";
 import type { Metadata } from "next";
 import { absolute, describe, jsonLd } from "@/lib/seo";
+import { takesCards } from "@/lib/payments/config";
 
 export const dynamic = "force-dynamic";
 
@@ -37,10 +38,12 @@ export async function generateMetadata({
   });
   const sub = category.children.map((c) => cat(c)).join(t("، "));
   const description = describe(
-    t("اشتري {name} أونلاين في مصر من تجار موثّقين بتسليم فوري{sub}. ادفع بإنستاباي أو المحفظة.", {
+    t("اشتري {name} أونلاين في مصر من تجار موثّقين بتسليم فوري{sub}.", {
       name: cat(category),
       sub: sub ? `: ${sub}` : "",
-    }),
+    }) +
+      " " +
+      (takesCards() ? t("ادفع بالكارت أو المحفظة الإلكترونية.") : t("ادفع بإنستاباي أو المحفظة.")),
   );
   const url = `/categories/${encodeURIComponent(category.slug)}`;
   return {
