@@ -165,8 +165,15 @@ export async function changePassword(
   });
 }
 export async function deliverResetEmail(email: string, url: string) {
+  await sendEmail(
+    email,
+    "تغيير باسورد ديجي مصر",
+    "غيّر الباسورد خلال ٣٠ دقيقة: " + url,
+  );
+}
+export async function sendEmail(to: string, subject: string, text: string) {
   if (process.env.NODE_ENV !== "production") {
-    console.log("Development password reset link:", url);
+    console.log(`Development email to ${to}: ${subject}\n${text}`);
     return;
   }
   const response = await fetch("https://api.resend.com/emails", {
@@ -175,12 +182,7 @@ export async function deliverResetEmail(email: string, url: string) {
       Authorization: "Bearer " + process.env.RESEND_API_KEY,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from: process.env.EMAIL_FROM,
-      to: email,
-      subject: "تغيير باسورد ديجي مصر",
-      text: "غيّر الباسورد خلال ٣٠ دقيقة: " + url,
-    }),
+    body: JSON.stringify({ from: process.env.EMAIL_FROM, to, subject, text }),
     signal: AbortSignal.timeout(10000),
   });
   if (!response.ok) throw new Error("Email delivery failed");

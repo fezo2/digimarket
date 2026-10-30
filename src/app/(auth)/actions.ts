@@ -12,6 +12,11 @@ import {
 } from "@/lib/account-security";
 import { CAPTCHA_ERROR, captchaPassed, clientIp } from "@/lib/captcha";
 import { passwordProblem } from "@/lib/password-policy";
+import {
+  sendVerificationEmail,
+  verificationOrigin,
+  verificationRequired,
+} from "@/lib/email-verification";
 import { db } from "@/lib/db";
 import {
   createSession,
@@ -64,11 +69,16 @@ export async function register(
     role: user.role,
     sessionVersion: user.sessionVersion,
   });
-  redirect(
-    (await currentSite()) === "seller"
-      ? "/seller/join"
-      : await safeNext(form.get("next")),
+  const site = await currentSite();
+  const next = site === "seller" ? "/seller/join" : await safeNext(form.get("next"));
+  if (!verificationRequired()) redirect(next);
+  const origin = verificationOrigin(site);
+  after(() =>
+    sendVerificationEmail(user, origin).catch(() =>
+      console.error("Verification email delivery failed"),
+    ),
   );
+  redirect(`/verify-email?next=${encodeURIComponent(next)}`);
 }
 
 export async function login(_: FormState, form: FormData): Promise<FormState> {

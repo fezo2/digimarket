@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireSeller, requireUser } from "@/lib/auth";
+import { requireSeller, requireVerifiedUser } from "@/lib/auth";
 import { deletePrivateFile, UploadError } from "@/lib/storage";
 import { finalizeUpload } from "@/lib/finalize-upload";
 import { slugify, uniqueSuffix } from "@/lib/slug";
@@ -24,7 +24,7 @@ export async function joinAsSeller(
   _: FormState,
   form: FormData,
 ): Promise<FormState> {
-  const user = await requireUser("/seller/join");
+  const user = await requireVerifiedUser("/seller/join");
   if (user.seller) redirect("/seller");
 
   const parsed = joinSchema.safeParse(Object.fromEntries(form));

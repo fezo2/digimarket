@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { PricingError } from "@/lib/pricing";
-import { requireUser } from "@/lib/auth";
+import { requireVerifiedUser } from "@/lib/auth";
 import { createOrder, OrderError } from "@/lib/orders";
 
 export async function buyProduct(
@@ -13,7 +13,7 @@ export async function buyProduct(
   _: { error?: string } | undefined,
   form: FormData,
 ) {
-  const user = await requireUser(`/products/${encodeURIComponent(slug)}`);
+  const user = await requireVerifiedUser(`/products/${encodeURIComponent(slug)}`);
   const parsed = z.coerce.number().int().min(1).safeParse(form.get("quantity"));
   if (!parsed.success) return { error: "اكتب كمية صحيحة" };
   const selections: Record<string, string> = {};
