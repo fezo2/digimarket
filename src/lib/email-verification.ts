@@ -7,9 +7,11 @@ import { siteOrigins, type Site } from "./sites";
 
 const LINK_TTL = 24 * 3600000;
 
-// Without an email provider nothing can be sent, so nobody is held back.
+// Always on in production: a missing email provider then shows up as a
+// failed send instead of silently letting unconfirmed sign-ups through.
+// In development it only runs when an email provider is configured.
 export function verificationRequired(env: NodeJS.ProcessEnv = process.env) {
-  return !!env.RESEND_API_KEY && !!env.EMAIL_FROM;
+  return env.NODE_ENV === "production" || (!!env.RESEND_API_KEY && !!env.EMAIL_FROM);
 }
 
 export function isVerified(user: { emailVerifiedAt: Date | null }) {

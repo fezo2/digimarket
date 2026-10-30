@@ -25,6 +25,7 @@ export async function cleanupBatch() {
       const tokens =
         await tx.$executeRaw`DELETE FROM "PasswordResetToken" WHERE id IN (SELECT id FROM "PasswordResetToken" WHERE "expiresAt" < (NOW() AT TIME ZONE 'UTC') LIMIT 100)`;
       await tx.$executeRaw`DELETE FROM "EmailVerificationToken" WHERE id IN (SELECT id FROM "EmailVerificationToken" WHERE "expiresAt" < (NOW() AT TIME ZONE 'UTC') LIMIT 100)`;
+      await tx.$executeRaw`DELETE FROM "PendingSignup" WHERE id IN (SELECT id FROM "PendingSignup" WHERE "expiresAt" < (NOW() AT TIME ZONE 'UTC') LIMIT 100)`;
       await tx.$executeRaw`DELETE FROM "LoginAttempt" WHERE id IN (SELECT id FROM "LoginAttempt" WHERE "createdAt" < (NOW() AT TIME ZONE 'UTC') - INTERVAL '1 day' LIMIT 100)`;
       await tx.$executeRaw`DELETE FROM "TelegramLinkToken" WHERE token IN (SELECT token FROM "TelegramLinkToken" WHERE "expiresAt" < (NOW() AT TIME ZONE 'UTC') LIMIT 100)`;
       return reads + tokens;
