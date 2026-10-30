@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { releaseExpiredOrders } from "@/lib/orders";
 import { orderStatusLabels } from "@/lib/order-snapshot";
 import { CopyCode, PaymentPolling } from "./delivery-controls";
+import { CancelOrderButton } from "@/app/checkout/[id]/checkout-forms";
 
 export default async function OrderPage({
   params,
@@ -86,10 +87,11 @@ export default async function OrderPage({
           <Link className="btn-primary" href={`/checkout/${id}`}>
             {t("استكمال الدفع")}
           </Link>
+          <CancelOrderButton id={id} />
         </>
       )}
       {order.status === "CANCELLED" && !order.manualPayment && (
-        <p>{t("مدة حجز الطلب انتهت. لو دفعت، استنى تأكيد الدفع أو كلّم الدعم.")}</p>
+        <p>{t("الطلب اتلغى. لو كنت دفعت، استنى تأكيد الدفع أو كلّم الدعم.")}</p>
       )}
       {order.items.map((item) => {
         const content = delivered.find((d) => d.id === item.id);

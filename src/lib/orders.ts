@@ -66,6 +66,35 @@ export async function releaseExpiredOrders() {
   });
 }
 
+// The buyer gives up an unpaid order: its codes go back on sale right away
+// instead of staying reserved until the order expires. The order is closed
+// exactly like an expired one (expiresAt moved to now), so a payment that
+// still lands from an already-open payment page is accepted and delivered.
+export async function cancelPendingOrder(orderId: string, buyerId: string) {
+  return db.$transaction(async (tx) => {
+    await lockOrder(tx, orderId);
+    const order = await tx.order.findFirst({
+      where: { id: orderId, buyerId },
+      select: {
+        status: true,
+        manualPayment: { select: { status: true } },
+      },
+    });
+    if (!order || order.status !== "PENDING_PAYMENT") return false;
+    if (
+      order.manualPayment &&
+      ["SUBMITTED", "CONFIRMED"].includes(order.manualPayment.status)
+    )
+      throw new OrderError("التحويل بتاعك بيتراجع، مينفعش تلغي الطلب دلوقتي");
+    await releaseOrderStock(tx, orderId);
+    await tx.order.update({
+      where: { id: orderId },
+      data: { status: "CANCELLED", expiresAt: new Date(Date.now() - 1000) },
+    });
+    return true;
+  });
+}
+
 export async function createOrder(input: z.input<typeof orderInput>) {
   const parsed = orderInput.safeParse(input);
   if (!parsed.success) throw new OrderError("راجع الكمية واختيارات المنتج");

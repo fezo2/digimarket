@@ -2,7 +2,7 @@
 import { useI18n } from "@/components/i18n-provider";
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { changeCoupon, payNow } from "./actions";
+import { cancelOrder, changeCoupon, payNow } from "./actions";
 
 export function CheckoutForms({
   id,
@@ -100,5 +100,25 @@ export function Countdown({ expiresAt }: { expiresAt: string }) {
         ? "…"
         : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}
     </p>
+  );
+}
+
+// Gives up an unpaid order so its reserved codes go back on sale now.
+export function CancelOrderButton({ id }: { id: string }) {
+  const { t } = useI18n();
+  const [state, action, pending] = useActionState(cancelOrder.bind(null, id), undefined);
+  return (
+    <form
+      action={action}
+      onSubmit={(e) => {
+        if (!confirm(t("متأكد إنك عايز تلغي الطلب ده؟"))) e.preventDefault();
+      }}
+      className="space-y-1"
+    >
+      <button disabled={pending} className="text-sm font-semibold text-red-600 hover:underline disabled:opacity-50">
+        {pending ? t("بنلغي الطلب…") : t("إلغاء الطلب")}
+      </button>
+      {state?.error && <p className="text-sm text-red-700">{t(state.error)}</p>}
+    </form>
   );
 }

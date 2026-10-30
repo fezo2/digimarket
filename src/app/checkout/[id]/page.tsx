@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { releaseExpiredOrders } from "@/lib/orders";
 import { readOrderSnapshot } from "@/lib/order-snapshot";
 import { quote } from "@/lib/pricing";
-import { CheckoutForms, Countdown } from "./checkout-forms";
+import { CancelOrderButton, CheckoutForms, Countdown } from "./checkout-forms";
 
 export default async function Checkout({
   params,
@@ -95,6 +95,7 @@ export default async function Checkout({
           coupon={order.coupon?.code ?? ""}
           locked={!!order.paymentProvider}
         />
+        <CancelOrderButton id={id} />
       </div>
     </div>
   );

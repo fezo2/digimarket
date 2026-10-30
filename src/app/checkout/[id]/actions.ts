@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { PricingError } from "@/lib/pricing";
 import { requireUser } from "@/lib/auth";
-import { applyCoupon, preparePayment, OrderError } from "@/lib/orders";
+import { applyCoupon, cancelPendingOrder, preparePayment, OrderError } from "@/lib/orders";
 import { getPaymentProvider } from "@/lib/payments";
 
 export async function changeCoupon(
@@ -45,4 +45,19 @@ export async function payNow(
     throw error;
   }
   redirect(url);
+}
+
+export async function cancelOrder(
+  id: string,
+  previousState: { error?: string } | undefined,
+) {
+  const user = await requireUser(`/account/orders/${id}`);
+  void previousState;
+  try {
+    await cancelPendingOrder(id, user.id);
+  } catch (error) {
+    if (error instanceof OrderError) return { error: error.message };
+    throw error;
+  }
+  redirect(`/account/orders/${id}`);
 }
