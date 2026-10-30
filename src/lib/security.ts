@@ -23,6 +23,11 @@ export function securityHeaders(env: NodeJS.ProcessEnv = process.env) {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "X-Frame-Options": "DENY",
-    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Permissions-Policy":
+      "camera=(), microphone=(), geolocation=(), usb=()",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-site",
+    "X-DNS-Prefetch-Control": "off",
+    "X-Permitted-Cross-Domain-Policies": "none",
   };
 }

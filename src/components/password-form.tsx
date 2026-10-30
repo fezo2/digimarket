@@ -14,7 +14,8 @@ export async function PasswordForm() {
         </label>
         <label className="label">
           {t("الباسورد الجديد")}
-          <input className="input" type="password" name="next" required minLength={8} autoComplete="new-password" dir="ltr" />
+          <input className="input" type="password" name="next" required minLength={10} maxLength={200} autoComplete="new-password" dir="ltr" />
+          <span className="mt-1 block text-xs font-normal text-slate-500">{t("١٠ حروف على الأقل، فيها حرف ورقم ورمز زي ! أو @")}</span>
         </label>
       </ActionForm>
     </section>

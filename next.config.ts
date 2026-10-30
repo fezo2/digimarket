@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 import { securityHeaders } from "./src/lib/security";
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  // Production builds never ship source maps to the browser.
+  productionBrowserSourceMaps: false,
   async headers() {
     return [
       {

@@ -56,20 +56,20 @@ test("seller tools against PostgreSQL", async (t) => {
 
     await t.test("password change checks the old one and signs out others", async () => {
       await assert.rejects(
-        tools.changePassword(buyer.id, { current: "wrong", next: "new-password" }),
+        tools.changePassword(buyer.id, { current: "wrong", next: "New-pass#2026" }),
         /الحالي غلط/,
       );
       await assert.rejects(
         tools.changePassword(buyer.id, { current: "old-password", next: "short" }),
-        /8/,
+        /١٠/,
       );
       const fresh = await tools.changePassword(buyer.id, {
         current: "old-password",
-        next: "new-password",
+        next: "New-pass#2026",
       });
       assert.equal(fresh.sessionVersion, 1);
       const u = await db.user.findUniqueOrThrow({ where: { id: buyer.id } });
-      assert.ok(await bcrypt.compare("new-password", u.passwordHash));
+      assert.ok(await bcrypt.compare("New-pass#2026", u.passwordHash));
     });
 
     await t.test("sales search finds by number, email, product and code", async () => {

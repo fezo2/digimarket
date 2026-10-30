@@ -2,10 +2,21 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, readSessionToken } from "@/lib/session-token";
 import { PATH_HEADER, siteForHost, siteForPath, siteOrigins } from "@/lib/sites";
 import { contentSecurityPolicy } from "@/lib/csp";
+import { corsVerdict } from "@/lib/cors";
 
 const PROTECTED = ["/account", "/seller", "/admin"];
 
 export async function middleware(req: NextRequest) {
+  const origins = siteOrigins();
+  const cors = corsVerdict(
+    req.method,
+    req.nextUrl.pathname,
+    req.headers.get("origin"),
+    origins ? Object.values(origins) : [req.nextUrl.origin],
+  );
+  if (cors === "preflight") return new NextResponse(null, { status: 204 });
+  if (cors === "forbidden")
+    return new NextResponse("Forbidden", { status: 403 });
   const csp = contentSecurityPolicy(btoa(crypto.randomUUID()));
   const res = await route(req, csp);
   res.headers.set("Content-Security-Policy", csp);
