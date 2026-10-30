@@ -16,6 +16,7 @@ test("checkout transactions and payment security against PostgreSQL", async (t) 
     markOrderPaid,
     releaseExpiredOrders,
     preparePayment,
+    cancelPendingOrder,
   } = await import("../../src/lib/orders");
   const key = randomUUID();
   const users: string[] = [];
@@ -431,6 +432,33 @@ test("checkout transactions and payment security against PostgreSQL", async (t) 
           (await getOrder(replacement.id)).items[0].stockItems[0].status,
           "RESERVED",
         );
+      },
+    );
+    await t.test(
+      "buyer cancelling an unpaid order frees its codes at once; a late payment still delivers",
+      async () => {
+        const order = await createOrder(input);
+        const held = (await getOrder(order.id)).items[0].stockItems.map((s) => s.id);
+        assert.ok(held.length > 0);
+        // Someone else cannot cancel it.
+        assert.equal(await cancelPendingOrder(order.id, buyer2.id), false);
+        assert.equal((await getOrder(order.id)).status, "PENDING_PAYMENT");
+        assert.equal(await cancelPendingOrder(order.id, input.buyerId), true);
+        const cancelled = await getOrder(order.id);
+        assert.equal(cancelled.status, "CANCELLED");
+        assert.equal(
+          await db.stockItem.count({ where: { id: { in: held }, status: "AVAILABLE", orderItemId: null } }),
+          held.length,
+        );
+        assert.equal(await cancelPendingOrder(order.id, input.buyerId), false);
+        await markOrderPaid(order.id, {
+          provider: "test",
+          reference: key + "-paid-after-cancel",
+          amount: 22800,
+        });
+        const paid = await getOrder(order.id);
+        assert.equal(paid.status, "PAID");
+        assert.ok(paid.items[0].deliveredAt);
       },
     );
     await t.test(

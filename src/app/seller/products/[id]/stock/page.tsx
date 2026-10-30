@@ -10,13 +10,22 @@ export default async function StockPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { t, date } = await i18n();
+  const { t, date, time } = await i18n();
   const { seller } = await requireSeller();
   if (seller.kycStatus !== "APPROVED") return null;
   const { id } = await params;
   const p = await db.product.findFirst({
     where: { id, sellerId: seller.id, deliveryType: "UNIQUE_CODES" },
-    include: { stock: { orderBy: { createdAt: "desc" } } },
+    include: {
+      stock: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          orderItem: {
+            select: { order: { select: { number: true, expiresAt: true } } },
+          },
+        },
+      },
+    },
   });
   if (!p) notFound();
   return (
@@ -45,6 +54,30 @@ export default async function StockPage({
           <p>{t("مفيش أكواد متاحة.")}</p>
         )}
       </section>
+      {p.stock.some((s) => s.status === "RESERVED") && (
+        <section className="card space-y-3 p-6">
+          <h2 className="font-bold">{t("محجوز لطلبات مستنية الدفع")}</h2>
+          <p className="text-sm text-slate-500">
+            {t("الأكواد دي محجوزة لمشترين لسه مدفعوش. لو الطلب اتلغى أو مدته خلصت بترجع للمتاح تلقائي.")}
+          </p>
+          {p.stock
+            .filter((s) => s.status === "RESERVED")
+            .map((s) => (
+              <p key={s.id}>
+                <code dir="ltr">{s.content.slice(0, 4)}••••</code>
+                {s.orderItem && (
+                  <>
+                    {" "}—{" "}
+                    {t("طلب #{n} · لحد {time}", {
+                      n: s.orderItem.order.number,
+                      time: time(s.orderItem.order.expiresAt),
+                    })}
+                  </>
+                )}
+              </p>
+            ))}
+        </section>
+      )}
       <section className="card space-y-3 p-6">
         <h2 className="font-bold">{t("المباع (للعرض فقط)")}</h2>
         {p.stock

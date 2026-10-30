@@ -6,6 +6,7 @@ import { releaseExpiredOrders } from "@/lib/orders";
 import { manualConfig } from "@/lib/payments/config";
 import { ActionForm } from "@/components/action-form";
 import { sendManualPayment } from "./actions";
+import { CancelOrderButton } from "@/app/checkout/[id]/checkout-forms";
 
 export default async function ManualPayment({
   params,
@@ -106,6 +107,7 @@ export default async function ManualPayment({
           />
         </label>
       </ActionForm>
+      <CancelOrderButton id={id} />
     </div>
   );
 }

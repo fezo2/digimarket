@@ -78,6 +78,13 @@ export default async function ProductPage({
   const inStock =
     product.deliveryType !== "UNIQUE_CODES" ||
     product._count.stock >= product.minQty;
+  // Out of free codes only because unpaid orders hold them: say so, since
+  // they come back when those orders are cancelled or expire.
+  const reservedOnly =
+    !inStock &&
+    product._count.stock +
+      (await db.stockItem.count({ where: { productId: product.id, status: "RESERVED" } })) >=
+      product.minQty;
 
   const url = absolute(`/products/${encodeURIComponent(product.slug)}`);
   const reviewCount = product.positiveReviews + product.negativeReviews;
@@ -202,7 +209,7 @@ export default async function ProductPage({
               </a>
               {product.deliveryType === "UNIQUE_CODES" && (
                 <span className={`badge py-1 ${inStock ? "bg-brand-50 text-brand-700" : "bg-red-50 text-red-700"}`}>
-                  {inStock ? t("المتاح: ") + num(product._count.stock) : t("نفذت الكمية")}
+                  {inStock ? t("المتاح: ") + num(product._count.stock) : reservedOnly ? t("محجوز مؤقتاً") : t("نفذت الكمية")}
                 </span>
               )}
             </div>
@@ -259,6 +266,11 @@ export default async function ProductPage({
               <Icon name="bolt" className="h-4 w-4 text-amber-500" />
               {t("تسليم فوري بعد الدفع")}
             </p>
+            {reservedOnly && (
+              <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+                {t("كل الكمية محجوزة لطلبات لسه مستنية الدفع. لو اتلغت أو مدتها خلصت (٣٠ دقيقة) هترجع للبيع.")}
+              </p>
+            )}
           </div>
 
           <div className="card p-4">
