@@ -1100,4 +1100,7 @@ export const en: Record<string, string> = {
   "تغيير الرقم": "Change number",
   "هتحوّل من رقم تاني؟": "Paying from another number?",
   "حوّلت ومر أكتر من 10 دقايق ولسه؟ ابعت الإيصال": "Paid more than 10 minutes ago and still waiting? Send the receipt",
+  "عام": "general",
+  "رتّب أقسام منتجات ProdSeller تلقائيًا": "Auto-sort ProdSeller products into categories",
+  "بيحط كل منتج مربوط في القسم المناسب لاسمه، وده بيلغي أي قسم غيّرته بإيدك.": "Puts each linked product in the category its name points to, replacing any category you set by hand.",
 };

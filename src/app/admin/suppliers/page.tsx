@@ -10,7 +10,7 @@ import {
   prodsellerConfigured,
   type SupplierProduct,
 } from "@/lib/suppliers/prodseller";
-import { importProducts, saveSettings, syncNow } from "./actions";
+import { importProducts, recategorize, saveSettings, syncNow } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -45,17 +45,35 @@ export default async function Suppliers() {
       orderBy: { createdAt: "asc" },
     }),
     db.category.findMany({
-      where: { parentId: { not: null } },
-      select: { id: true, slug: true, nameAr: true, parent: { select: { nameAr: true } } },
-      orderBy: [{ parentId: "asc" }, { sortOrder: "asc" }],
+      where: { parentId: null },
+      select: {
+        id: true,
+        slug: true,
+        nameAr: true,
+        children: {
+          select: { id: true, slug: true, nameAr: true },
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+      orderBy: { sortOrder: "asc" },
     }),
     db.product.findMany({
       where: { supplier: SUPPLIER },
       select: { supplierProductId: true, supplierSyncedAt: true },
     }),
   ]);
-  const allCategories = await db.category.findMany({ select: { id: true, slug: true } });
-  const bySlug = new Map(allCategories.map((c) => [c.slug, c.id]));
+  // Every category, a parent followed by its children, so a guess that
+  // names a parent (say "vpn") is selectable instead of falling back to the
+  // first option.
+  const options = categories.flatMap((parent) => [
+    { id: parent.id, slug: parent.slug, label: `${parent.nameAr} (${t("عام")})` },
+    ...parent.children.map((c) => ({
+      id: c.id,
+      slug: c.slug,
+      label: `${parent.nameAr} / ${c.nameAr}`,
+    })),
+  ]);
+  const bySlug = new Map(options.map((c) => [c.slug, c.id]));
   const done = new Set(imported.map((p) => p.supplierProductId));
   const lastSync = imported
     .map((p) => p.supplierSyncedAt)
@@ -128,6 +146,11 @@ export default async function Suppliers() {
           )}
         </p>
         <ActionForm action={syncNow} button={t("حدّث الأسعار والمخزون دلوقتي")} />
+        <ActionForm action={recategorize} button={t("رتّب أقسام منتجات ProdSeller تلقائيًا")}>
+          <p className="text-xs text-slate-500">
+            {t("بيحط كل منتج مربوط في القسم المناسب لاسمه، وده بيلغي أي قسم غيّرته بإيدك.")}
+          </p>
+        </ActionForm>
       </section>
 
       <section className="card space-y-3 p-5">
@@ -183,9 +206,9 @@ export default async function Suppliers() {
                             name={`cat_${p.id}`}
                             defaultValue={bySlug.get(guessCategorySlug(p.name)) ?? ""}
                           >
-                            {categories.map((c) => (
+                            {options.map((c) => (
                               <option key={c.id} value={c.id}>
-                                {c.parent?.nameAr} / {c.nameAr}
+                                {c.label}
                               </option>
                             ))}
                           </select>

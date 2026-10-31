@@ -11,8 +11,12 @@ test("ProdSeller resale against PostgreSQL", async (t) => {
   process.env.PRODSELLER_API_URL = "https://supplier.test/v1";
   const { db } = await import("../../src/lib/db");
   const { createOrder, markOrderPaid } = await import("../../src/lib/orders");
-  const { runSupplierJob, importSupplierProducts, saveSupplierSettings } =
-    await import("../../src/lib/supplier");
+  const {
+    runSupplierJob,
+    importSupplierProducts,
+    saveSupplierSettings,
+    recategorizeSupplierProducts,
+  } = await import("../../src/lib/supplier");
   const { redeliverOrder } = await import("../../src/lib/wallet");
 
   const key = randomUUID();
@@ -176,6 +180,14 @@ test("ProdSeller resale against PostgreSQL", async (t) => {
       });
       const p = await db.product.findUniqueOrThrow({ where: { id: product.id } });
       assert.equal(p.price, 20000);
+    });
+    await t.test("recategorize moves products to the category their name points to", async () => {
+      // The category tree comes from a migration, so it exists in every test DB.
+      const chatgpt = await db.category.findUniqueOrThrow({ where: { slug: "chatgpt" } });
+      assert.ok(await recategorizeSupplierProducts(admin.id) >= 1);
+      const p = await db.product.findUniqueOrThrow({ where: { id: product.id } });
+      assert.equal(p.categoryId, chatgpt.id);
+      assert.equal(await recategorizeSupplierProducts(admin.id), 0);
     });
   } finally {
     globalThis.fetch = originalFetch;

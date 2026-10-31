@@ -5,7 +5,7 @@ import { deliverPaidOrder, lockOrder } from "./orders";
 import { alertAdmin } from "./notifications";
 import { saveProductImageBytes } from "./product-image";
 import { slugify, uniqueSuffix } from "./slug";
-import { supplierPrice } from "./supplier-pricing";
+import { guessCategorySlug, supplierPrice } from "./supplier-pricing";
 import * as prodseller from "./suppliers/prodseller";
 import { SupplierError } from "./suppliers/prodseller";
 
@@ -161,6 +161,35 @@ export async function importSupplierProducts(
   // Fill in exact stock counts for the new products.
   if (created) await syncSupplierProducts().catch(() => 0);
   return created;
+}
+
+// Moves every imported product to the category its name points to.
+export async function recategorizeSupplierProducts(actorId: string) {
+  const bySlug = new Map(
+    (await db.category.findMany({ select: { id: true, slug: true } })).map(
+      (c) => [c.slug, c.id],
+    ),
+  );
+  const products = await db.product.findMany({
+    where: { supplier: SUPPLIER },
+    select: { id: true, title: true, categoryId: true },
+  });
+  let moved = 0;
+  for (const p of products) {
+    const target = bySlug.get(guessCategorySlug(p.title));
+    if (!target || target === p.categoryId) continue;
+    await db.product.update({ where: { id: p.id }, data: { categoryId: target } });
+    moved++;
+  }
+  await db.auditLog.create({
+    data: {
+      actorId,
+      action: "supplier.recategorized",
+      targetId: SUPPLIER,
+      data: JSON.stringify({ moved }),
+    },
+  });
+  return moved;
 }
 
 // Pulls cost and stock for every imported product and re-prices it from the
