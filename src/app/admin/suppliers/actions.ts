@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 import {
   SupplierImportError,
   importSupplierProducts,
+  recategorizeSupplierProducts,
   saveSupplierSettings,
   syncSupplierProducts,
 } from "@/lib/supplier";
@@ -64,6 +65,17 @@ export async function syncNow(): Promise<ActionState> {
     const changed = await syncSupplierProducts();
     revalidatePath("/", "layout");
     return { success: `اتحدّث ${changed} منتج` };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function recategorize(): Promise<ActionState> {
+  const admin = await requireAdmin();
+  try {
+    const changed = await recategorizeSupplierProducts(admin.id);
+    revalidatePath("/", "layout");
+    return { success: `اتنقل ${changed} منتج لقسمه الصح` };
   } catch (error) {
     return fail(error);
   }
