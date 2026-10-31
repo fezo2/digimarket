@@ -1082,4 +1082,7 @@ export const en: Record<string, string> = {
   "بيتشحن تلقائي من ProdSeller": "Delivered automatically from ProdSeller",
   "الإعدادات اتحفظت والأسعار اتحدثت": "Settings saved and prices updated",
   "المورد لسه بيجهّز الطلب، جرّب كمان شوية": "The supplier is still preparing the order, try again shortly",
+  "عام": "general",
+  "رتّب أقسام منتجات ProdSeller تلقائيًا": "Auto-sort ProdSeller products into categories",
+  "بيحط كل منتج مربوط في القسم المناسب لاسمه، وده بيلغي أي قسم غيّرته بإيدك.": "Puts each linked product in the category its name points to, replacing any category you set by hand.",
 };
