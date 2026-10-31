@@ -10,6 +10,8 @@ export interface ParsedNotice {
   phones: string[];
   // Long digit/letter runs that look like a transaction reference.
   references: string[];
+  // The wallet / account balance after this transfer, when the text says it.
+  balance: number | null;
 }
 
 const arabicDigits = /[٠-٩۰-۹]/g;
@@ -80,7 +82,20 @@ export function parseNotice(raw: string): ParsedNotice {
     ),
   ];
   const incoming = incomingWords.test(text) && !outgoingWords.test(text);
-  return { incoming, amounts, phones, references };
+  const b = text.match(
+    new RegExp(
+      `(?:رصيدك(?:\\s*الحالي)?|الرصيد(?:\\s*(?:الحالي|المتاح))?|available\\s+balance|avail(?:able)?\\.?\\s*bal(?:ance)?|balance)[^\\d]{0,20}${number}`,
+      "i",
+    ),
+  );
+  const balance = b ? toPiasters(b[1]) : NaN;
+  return {
+    incoming,
+    amounts,
+    phones,
+    references,
+    balance: Number.isSafeInteger(balance) ? balance : null,
+  };
 }
 
 // "01012345678", "+20 101 234 5678", "201012345678" → "01012345678".

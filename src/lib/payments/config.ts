@@ -93,17 +93,36 @@ function appOrigin(env: NodeJS.ProcessEnv) {
 }
 
 // Buyers transfer by hand to these accounts; an admin confirms each transfer.
+// Values are tidied first (case, spaces, +20) so a hand-typed setting works.
 export function manualConfig(env: NodeJS.ProcessEnv = process.env) {
-  const instapay = env.MANUAL_INSTAPAY?.trim() || "";
-  const wallet = env.MANUAL_WALLET?.trim() || "";
+  const instapay = tidyInstapay(env.MANUAL_INSTAPAY ?? "");
+  const wallet = tidyPhone(env.MANUAL_WALLET ?? "");
   if (!instapay && !wallet)
     throw new Error("Manual payments need MANUAL_INSTAPAY or MANUAL_WALLET");
   if (
     instapay &&
-    !/^([A-Za-z0-9._-]+@instapay|01[0125]\d{8})$/.test(instapay)
+    !/^([a-z0-9._-]+@instapay|01[0125]\d{8}|https:\/\/ipn\.eg\/\S+)$/.test(instapay)
   )
-    throw new Error("Invalid MANUAL_INSTAPAY");
+    throw new Error(
+      "Invalid MANUAL_INSTAPAY: use name@instapay, 01xxxxxxxxx or an https://ipn.eg/ link",
+    );
   if (wallet && !/^01[0125]\d{8}$/.test(wallet))
-    throw new Error("Invalid MANUAL_WALLET");
+    throw new Error("Invalid MANUAL_WALLET: use 01xxxxxxxxx");
   return { name: "manual", instapay, wallet } as const;
+}
+
+function tidyPhone(value: string) {
+  const text = value.trim();
+  if (!text) return "";
+  const digits = text.replace(/[\s-]/g, "");
+  const m = digits.match(/^(?:\+?20|0020)?0?(1[0125]\d{8})$/);
+  return m ? "0" + m[1] : digits;
+}
+
+function tidyInstapay(value: string) {
+  const text = value.trim();
+  if (!text) return "";
+  if (/^https?:\/\//i.test(text)) return text.replace(/^http:/i, "https:");
+  if (text.includes("@")) return text.replace(/\s+/g, "").toLowerCase();
+  return tidyPhone(text);
 }
