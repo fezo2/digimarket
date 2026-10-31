@@ -59,6 +59,7 @@ export default async function AdminLayout({
             items: [
               { href: "/admin/categories", label: t("الأقسام والعمولات"), icon: "🗂️" },
               { href: "/admin/news", label: t("إعلانات للتجار"), icon: "📢" },
+              { href: "/admin/suppliers", label: t("ProdSeller"), icon: "⚡" },
               { href: "/admin/audit", label: t("سجل الإجراءات"), icon: "📜" },
             ],
           },

@@ -156,7 +156,11 @@ export default async function ProductsPage({
                     </td>
                     <td className="whitespace-nowrap font-semibold">{money(p.price)}</td>
                     <td>
-                      {p.deliveryType === "UNIQUE_CODES" ? (
+                      {p.supplier ? (
+                        <span title={t("بيتشحن تلقائي من ProdSeller")}>
+                          {p.supplierStock === null ? "∞" : num(p.supplierStock)} ⚡
+                        </span>
+                      ) : p.deliveryType === "UNIQUE_CODES" ? (
                         <Link
                           href={`/seller/products/${p.id}/stock`}
                           className={`font-semibold underline-offset-4 hover:underline ${p._count.stock ? "" : "text-red-600"}`}

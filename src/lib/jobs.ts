@@ -7,6 +7,7 @@ export const jobs = [
   "release-expired-orders",
   "send-notifications",
   "cleanup",
+  "supplier-sync",
 ] as const;
 export function cronAuthorization(job: string, header: string | null) {
   if (!jobs.includes(job as (typeof jobs)[number])) return 404;
@@ -35,6 +36,8 @@ export async function cleanupBatch() {
 }
 export async function runJob(job: string) {
   if (job === "send-notifications") return sendNotifications();
+  if (job === "supplier-sync")
+    return (await import("./supplier")).runSupplierJob();
   const deadline = Date.now() + 25000;
   let total = 0;
   while (Date.now() + 7000 < deadline) {
