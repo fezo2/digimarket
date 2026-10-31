@@ -342,8 +342,14 @@ model Order {
   buyerIp         String?
   buyerCountry    String?
   manualPayment   ManualPayment?
+  // Manual (InstaPay / wallet) orders: the account the buyer says they pay
+  // from, and the exact amount asked for (total plus a few unique piasters)
+  // so a forwarded transfer SMS can be matched to this order on its own.
+  payFrom         String?
+  payAmount       Int?
 
   @@index([status, expiresAt])
+  @@index([paymentProvider, payAmount])
   @@index([buyerId, createdAt])
 }
 
@@ -607,6 +613,28 @@ model ManualPayment {
 
   @@unique([method, reference])
   @@index([status, createdAt])
+}
+
+enum PaymentNoticeStatus {
+  MATCHED
+  UNMATCHED
+  IGNORED
+}
+
+// A transfer SMS or app notification forwarded from the platform's phone.
+// Matched notices confirmed an order automatically.
+model PaymentNotice {
+  id        String              @id @default(cuid())
+  textHash  String              @unique
+  sender    String?
+  text      String
+  amount    Int?
+  status    PaymentNoticeStatus
+  orderId   String?
+  note      String?
+  createdAt DateTime            @default(now())
+
+  @@index([createdAt])
 }
 
 model Announcement {

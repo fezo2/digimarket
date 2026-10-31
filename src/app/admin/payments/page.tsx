@@ -20,6 +20,7 @@ export default async function AdminManualPayments({
   const { t, money, date } = await i18n();
   await requireAdmin();
   const query = await searchParams;
+  if (query.status === "AUTO") return <AutoNotices />;
   const status =
     query.status === "CONFIRMED" || query.status === "REJECTED"
       ? query.status
@@ -58,6 +59,9 @@ export default async function AdminManualPayments({
             {t(label)}
           </Link>
         ))}
+        <Link className="btn-outline" href="?status=AUTO">
+          {t("رسايل التحويل (تلقائي)")}
+        </Link>
       </nav>
       {payments.map((p) => (
         <section className="card space-y-3 p-5" key={p.id}>
@@ -140,6 +144,59 @@ export default async function AdminManualPayments({
         </section>
       ))}
       {!payments.length && <p>{t("مفيش تحويلات بالحالة دي.")}</p>}
+    </div>
+  );
+}
+
+const noticeLabels = {
+  MATCHED: "اتأكد تلقائي",
+  UNMATCHED: "مش مربوط بطلب",
+  IGNORED: "اتجاهل",
+} as const;
+
+async function AutoNotices() {
+  const { t, money, date } = await i18n();
+  const notices = await db.paymentNotice.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+  const orders = await db.order.findMany({
+    where: { id: { in: notices.flatMap((n) => (n.orderId ? [n.orderId] : [])) } },
+    select: { id: true, number: true, status: true },
+  });
+  const byId = new Map(orders.map((o) => [o.id, o]));
+  return (
+    <div className="space-y-5">
+      <h1 className="text-2xl font-bold">{t("رسايل التحويل (تلقائي)")}</h1>
+      <p>
+        {t("كل رسالة تحويل وصلت من موبايلك. اللي مش مربوطة بطلب: شوف المبلغ وأكد الطلب يدوي من صفحة الطلبات أو انتظر المشتري يبعت الإيصال.")}
+      </p>
+      <Link className="btn-outline" href="?status=SUBMITTED">
+        {t("رجوع للتحويلات اليدوية")}
+      </Link>
+      {notices.map((n) => {
+        const order = n.orderId ? byId.get(n.orderId) : undefined;
+        return (
+          <section className="card space-y-2 p-5" key={n.id}>
+            <p className="font-bold">
+              {t(noticeLabels[n.status])}
+              {n.amount !== null && ` · ${money(n.amount)}`}
+              {order && ` · ${t("طلب #")}${order.number}`}
+              {` · ${date(n.createdAt)}`}
+            </p>
+            {n.note && <p className="text-sm">{n.note}</p>}
+            {n.sender && (
+              <p className="text-sm" dir="ltr">
+                {n.sender}
+              </p>
+            )}
+            <p className="whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm">
+              {n.text}
+            </p>
+          </section>
+        );
+      })}
+      {!notices.length && <p>{t("لسه مفيش رسايل وصلت.")}</p>}
     </div>
   );
 }
