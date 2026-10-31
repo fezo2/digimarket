@@ -18,11 +18,22 @@ const ROOT = path.resolve(process.env.STORAGE_DIR ?? "./storage");
 const PUBLIC_PREFIX = "/img/";
 
 export async function saveProductImage(sellerId: string, file: File) {
-  const ext = productImageExt(file.size, file.type);
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  checkMagic(bytes, file.type);
+  return saveProductImageBytes(
+    sellerId,
+    new Uint8Array(await file.arrayBuffer()),
+    file.type,
+  );
+}
+
+export async function saveProductImageBytes(
+  sellerId: string,
+  bytes: Uint8Array,
+  type: string,
+) {
+  const ext = productImageExt(bytes.byteLength, type);
+  checkMagic(bytes, type);
   const key = validateKey(`images/${sellerId}/${randomUUID()}.${ext}`);
-  if (process.env.STORAGE_DRIVER === "r2") await r2().put(key, bytes, file.type);
+  if (process.env.STORAGE_DRIVER === "r2") await r2().put(key, bytes, type);
   else {
     const target = path.resolve(ROOT, key);
     await mkdir(path.dirname(target), { recursive: true });
