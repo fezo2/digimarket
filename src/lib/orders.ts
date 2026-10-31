@@ -100,6 +100,8 @@ export async function createOrder(input: z.input<typeof orderInput>) {
   if (!parsed.success) throw new OrderError("راجع الكمية واختيارات المنتج");
   const v = parsed.data;
   await releaseExpiredOrders();
+  // Resold products: check the supplier's live stock before reserving.
+  await (await import("./supplier")).refreshSupplierStock(v.productId);
   return db.$transaction(async (tx) => {
     // Keep the reviewed product/options stable until its purchase snapshot is saved.
     await tx.$queryRaw`SELECT id FROM "Product" WHERE id = ${v.productId} FOR SHARE`;
@@ -203,12 +205,17 @@ export async function createOrder(input: z.input<typeof orderInput>) {
             deliveryContent:
               p.deliveryType === "UNIQUE_CODES" ? null : p.deliveryContent,
             instructions: p.instructions,
+            supplier: p.supplier,
           },
         },
       },
       include: { items: { select: { id: true } } },
     });
-    if (
+    // A resold product keeps no codes here: it is bought once paid.
+    if (p.supplier) {
+      if (p.supplierStock !== null && p.supplierStock < v.quantity)
+        throw new OrderError("الكمية المتاحة مش كفاية");
+    } else if (
       p.deliveryType === "UNIQUE_CODES" &&
       (await reserveStock(tx, order.items[0].id, p.id, v.quantity)) !==
         v.quantity
@@ -356,7 +363,7 @@ export async function markOrderPaid(
     !Number.isSafeInteger(payment.amount)
   )
     throw new OrderError("بيانات الدفع مش صحيحة");
-  return db.$transaction(
+  await db.$transaction(
     async (tx) => {
       // Serializes replay of the same provider transaction across different order IDs.
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${payment.provider + ":" + payment.reference}, 0))::text`;
@@ -420,6 +427,8 @@ export async function markOrderPaid(
         },
       });
       if (!changed.count) return;
+      // Resold items are bought from the supplier after this commits.
+      if (order.items.some((i) => i.supplier)) return;
       const result = await deliverPaidOrder(tx, orderId);
       if (result.error) {
         await releaseOrderStock(tx, orderId);
@@ -434,6 +443,13 @@ export async function markOrderPaid(
       }
     },
     { timeout: 15000 },
+  );
+  const { fulfilSupplierOrder } = await import("./supplier");
+  await fulfilSupplierOrder(orderId).catch((error) =>
+    console.error("Supplier purchase failed; the job retries it", {
+      orderId,
+      error,
+    }),
   );
 }
 

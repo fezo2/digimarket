@@ -355,6 +355,23 @@ async function refundPaidOrder(
 }
 export async function redeliverOrder(actorId: string, orderId: string) {
   idSchema.parse(orderId);
+  // A resold item is bought again from the supplier (after the admin topped
+  // up the balance, say) before the usual delivery.
+  const resold = await db.orderItem.findFirst({
+    where: { orderId, supplier: { not: null }, deliveredAt: null },
+    select: { id: true },
+  });
+  if (resold) {
+    await db.$transaction((tx) => admin(tx, actorId));
+    const { fulfilSupplierOrder } = await import("./supplier");
+    const r = await fulfilSupplierOrder(orderId, { retryFailed: true });
+    if (r.error) throw new WalletError(r.error);
+    if (r.pending)
+      throw new WalletError("المورد لسه بيجهّز الطلب، جرّب كمان شوية");
+    if (r.delivered)
+      await db.$transaction((tx) => audit(tx, actorId, "order.redelivered", orderId));
+    return Boolean(r.delivered);
+  }
   return db.$transaction(
     async (tx) => {
       await admin(tx, actorId);

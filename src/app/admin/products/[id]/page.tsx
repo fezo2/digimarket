@@ -29,6 +29,8 @@ export default async function ProductReview({
       status: true,
       salesEnabled: true,
       deliveryType: true,
+      supplier: true,
+      supplierStock: true,
       category: { select: { nameAr: true } },
       seller: { select: { storeName: true, type: true } },
       options: {
@@ -63,7 +65,7 @@ export default async function ProductReview({
           {t("الكمية: من ")}{p.minQty}{t(" لـ ")}{p.maxQty}
         </p>
         <p>
-          {deliveryLabels[p.deliveryType]}{t(" — المخزون المتاح: ")}{p._count.stock}
+          {deliveryLabels[p.deliveryType]}{t(" — المخزون المتاح: ")}{p.supplier ? `${p.supplierStock ?? "?"} (ProdSeller)` : p._count.stock}
         </p>
         <p>{t("المبيعات: ")}{p.salesEnabled ? t("شغالة") : t("متوقفة")}</p>
         {p.options.map((o) => (

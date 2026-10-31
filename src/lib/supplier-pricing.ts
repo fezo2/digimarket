@@ -1,18 +1,15 @@
-// Store price for a resold supplier product, in piasters. The markup is what
-// the store keeps after the platform commission, so the commission is added
-// on top. Rounded up to a whole pound.
+// Store price for a resold supplier product, in piasters: supplier cost in
+// USD × the dollar rate × the price multiplier, rounded up to a whole pound.
+// The platform commission comes out of this price like any other sale.
 export function supplierPrice(input: {
   costMills: number;
   usdRate: number; // piasters per USD
-  markupBps: number;
-  commissionBps: number;
+  multiplierBps: number; // 25000 = 2.5×
 }) {
-  const { costMills, usdRate, markupBps, commissionBps } = input;
-  const keep = Math.max(1, 10000 - commissionBps);
-  const piasters = (costMills * usdRate * (10000 + markupBps)) / (1000 * keep);
+  const { costMills, usdRate, multiplierBps } = input;
+  const piasters = (costMills * usdRate * multiplierBps) / (1000 * 10000);
   return Math.max(100, Math.ceil(piasters / 100 - 1e-9) * 100);
 }
-
 // Best-guess store category for a supplier product name; the admin can
 // change it before importing. Order matters: specific brands first.
 const RULES: [RegExp, string][] = [

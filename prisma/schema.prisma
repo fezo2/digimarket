@@ -235,12 +235,21 @@ model Product {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  // Set when the product is resold from an outside supplier (src/lib/supplier.ts):
+  // no stock codes are kept here, each paid order is bought from the supplier.
+  supplier          String?
+  supplierProductId String?
+  supplierCostMills Int? // supplier unit price in 1/1000 USD
+  supplierStock     Int?
+  supplierSyncedAt  DateTime?
+
   options           ProductOption[]
   stock             StockItem[]
   quantityDiscounts QuantityDiscount[]
   orderItems        OrderItem[]
   reviews           Review[]
 
+  @@unique([supplier, supplierProductId])
   @@index([status, categoryId])
   @@index([sellerId])
 }
@@ -359,6 +368,12 @@ model OrderItem {
   deliveryType     DeliveryType
   deliveryContent  String?
   instructions     String?
+  // Supplier purchase for resold products. The attempt number is part of the
+  // idempotency key, so a retry after a network error never buys twice.
+  supplier         String?
+  supplierOrderId  String?
+  supplierAttempt  Int           @default(0)
+  supplierError    String?
 
   stockItems StockItem[]
   review     Review?
@@ -603,4 +618,14 @@ model Announcement {
   createdAt   DateTime @default(now())
 
   @@index([active, createdAt])
+}
+
+// One row per supplier (id = "prodseller"): which store resells it and how
+// supplier prices in USD become store prices in piasters.
+model SupplierSettings {
+  id        String   @id
+  sellerId  String?
+  usdRate   Int      @default(5500) // piasters per 1 USD
+  multiplierBps Int @default(25000) // 25000 = store price is 2.5x the cost
+  updatedAt DateTime @updatedAt
 }

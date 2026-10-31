@@ -75,13 +75,17 @@ export default async function ProductPage({
   });
   if (!product || !isListed(product)) notFound();
 
+  // A resold product shows the supplier's stock (null = unknown, allow).
+  const available = product.supplier
+    ? (product.supplierStock ?? 99)
+    : product._count.stock;
   const inStock =
-    product.deliveryType !== "UNIQUE_CODES" ||
-    product._count.stock >= product.minQty;
+    product.deliveryType !== "UNIQUE_CODES" || available >= product.minQty;
   // Out of free codes only because unpaid orders hold them: say so, since
   // they come back when those orders are cancelled or expire.
   const reservedOnly =
     !inStock &&
+    !product.supplier &&
     product._count.stock +
       (await db.stockItem.count({ where: { productId: product.id, status: "RESERVED" } })) >=
       product.minQty;
@@ -209,7 +213,7 @@ export default async function ProductPage({
               </a>
               {product.deliveryType === "UNIQUE_CODES" && (
                 <span className={`badge py-1 ${inStock ? "bg-brand-50 text-brand-700" : "bg-red-50 text-red-700"}`}>
-                  {inStock ? t("المتاح: ") + num(product._count.stock) : reservedOnly ? t("محجوز مؤقتاً") : t("نفذت الكمية")}
+                  {inStock ? t("المتاح: ") + num(available) : reservedOnly ? t("محجوز مؤقتاً") : t("نفذت الكمية")}
                 </span>
               )}
             </div>
@@ -244,7 +248,7 @@ export default async function ProductPage({
               price={product.price}
               compareAtPrice={product.compareAtPrice}
               minQty={product.minQty}
-              maxQty={product.maxQty}
+              maxQty={product.supplier ? Math.min(product.maxQty, Math.max(available, product.minQty)) : product.maxQty}
               inStock={inStock}
               options={product.options.map((o) => ({
                 id: o.id,
