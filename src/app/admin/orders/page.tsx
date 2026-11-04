@@ -1,3 +1,6 @@
+import { paginate } from "@/lib/pagination";
+import { Pager } from "@/components/pager";
+import type { Prisma } from "@prisma/client";
 import { i18n } from "@/lib/prefs";
 import { unreadCounts } from "@/lib/chat";
 import Link from "next/link";
@@ -8,27 +11,34 @@ import { db } from "@/lib/db";
 import { releaseExpiredOrders } from "@/lib/orders";
 import { orderStatusLabels } from "@/lib/order-snapshot";
 
+const PER_PAGE = 30;
+
 export default async function AdminOrders({
   searchParams,
 }: {
-  searchParams: Promise<{ review?: string; order?: string; repay?: string }>;
+  searchParams: Promise<{ review?: string; order?: string; repay?: string; page?: string }>;
 }) {
   const { t, money } = await i18n();
   const query = await searchParams;
+  const { page } = query;
+  const pageParams = query;
   const actor = await requireAdmin();
   const unread = await unreadCounts(actor.id, true);
   await releaseExpiredOrders();
+  const where: Prisma.OrderWhereInput = {
+    createdAt: adminFrom(actor),
+    ...(query.order ? { id: query.order } : {}),
+    ...(query.review === "1"
+      ? { status: "PAID", items: { some: { deliveredAt: null } } }
+      : {}),
+    ...(query.repay === "1" ? { status: "REFUNDED", refundPaidAt: null } : {}),
+  };
+  const info = paginate(await db.order.count({ where }), PER_PAGE, page);
   const orders = await db.order.findMany({
-    where: {
-      createdAt: adminFrom(actor),
-      ...(query.order ? { id: query.order } : {}),
-      ...(query.review === "1"
-        ? { status: "PAID", items: { some: { deliveredAt: null } } }
-        : {}),
-      ...(query.repay === "1" ? { status: "REFUNDED", refundPaidAt: null } : {}),
-    },
+    where,
     orderBy: { createdAt: "desc" },
-    take: 100,
+    skip: info.skip,
+    take: info.take,
     select: {
       id: true,
       number: true,
@@ -171,6 +181,7 @@ export default async function AdminOrders({
           </tbody>
         </table>
       </div>
+      <Pager {...info} params={pageParams} />
     </div>
   );
 }

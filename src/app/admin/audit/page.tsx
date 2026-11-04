@@ -1,7 +1,12 @@
+import { paginate } from "@/lib/pagination";
+import { Pager } from "@/components/pager";
+import type { Prisma } from "@prisma/client";
 import { i18n } from "@/lib/prefs";
 import { auditLabel } from "@/lib/audit-labels";
 import { adminFrom, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
+
+const PER_PAGE = 50;
 
 export async function generateMetadata() {
   return { title: (await i18n()).t("سجل الإجراءات") };
@@ -10,21 +15,25 @@ export async function generateMetadata() {
 export default async function Audit({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }) {
   const { t, date } = await i18n();
   const admin = await requireAdmin();
-  const { q = "" } = await searchParams;
+  const { q = "", page } = await searchParams;
   const term = q.trim().slice(0, 100);
+  const pageParams = { q: term || undefined };
+  const where: Prisma.AuditLogWhereInput = {
+    createdAt: adminFrom(admin),
+    ...(term
+      ? { OR: [{ action: { contains: term } }, { targetId: term }] }
+      : {}),
+  };
+  const info = paginate(await db.auditLog.count({ where }), PER_PAGE, page);
   const logs = await db.auditLog.findMany({
-    where: {
-      createdAt: adminFrom(admin),
-      ...(term
-        ? { OR: [{ action: { contains: term } }, { targetId: term }] }
-        : {}),
-    },
+    where,
     orderBy: { createdAt: "desc" },
-    take: 200,
+    skip: info.skip,
+    take: info.take,
   });
   const actors = await db.user.findMany({
     where: { id: { in: [...new Set(logs.map((l) => l.actorId))] } },
@@ -64,6 +73,7 @@ export default async function Audit({
         ))}
         {!logs.length && <p className="p-4 text-slate-500">{t("مفيش إجراءات")}</p>}
       </div>
+      <Pager {...info} params={pageParams} />
     </div>
   );
 }

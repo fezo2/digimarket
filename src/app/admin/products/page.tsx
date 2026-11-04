@@ -1,14 +1,25 @@
+import { paginate } from "@/lib/pagination";
+import { Pager } from "@/components/pager";
+import type { Prisma } from "@prisma/client";
 import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { SELLER_TIERS } from "@/lib/config";
 
-export default async function ProductQueue() {
+const PER_PAGE = 30;
+
+export default async function ProductQueue({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const { t } = await i18n();
   await requireAdmin();
+  const { page } = await searchParams;
+  const pageParams = {};
+  const where: Prisma.ProductWhereInput = { status: "PENDING_REVIEW" };
+  const info = paginate(await db.product.count({ where }), PER_PAGE, page);
   const products = await db.product.findMany({
-    where: { status: "PENDING_REVIEW" },
+    where,
+    skip: info.skip,
+    take: info.take,
     orderBy: { updatedAt: "asc" },
     include: { seller: true },
   });
@@ -30,6 +41,7 @@ export default async function ProductQueue() {
       {!products.length && (
         <p className="card p-6">{t("مفيش منتجات مستنية مراجعة.")}</p>
       )}
+      <Pager {...info} params={pageParams} />
     </div>
   );
 }

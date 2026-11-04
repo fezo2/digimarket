@@ -1,7 +1,12 @@
+import { paginate } from "@/lib/pagination";
+import { Pager } from "@/components/pager";
+import type { Prisma } from "@prisma/client";
 import { i18n } from "@/lib/prefs";
 import { adminFrom, requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { db } from "@/lib/db";
+
+const PER_PAGE = 30;
 
 export async function generateMetadata() {
   return { title: (await i18n()).t("رسائل مشبوهة") };
@@ -12,18 +17,22 @@ export async function generateMetadata() {
 export default async function FlaggedMessages({
   searchParams,
 }: {
-  searchParams: Promise<{ all?: string }>;
+  searchParams: Promise<{ all?: string; page?: string }>;
 }) {
   const { t, date } = await i18n();
   const admin = await requireAdmin();
-  const { all } = await searchParams;
+  const { all, page } = await searchParams;
+  const pageParams = { all };
+  const where: Prisma.MessageWhereInput = {
+    createdAt: adminFrom(admin),
+    ...(all === "1" ? { kind: "USER" } : { flagged: true }),
+  };
+  const info = paginate(await db.message.count({ where }), PER_PAGE, page);
   const messages = await db.message.findMany({
-    where: {
-      createdAt: adminFrom(admin),
-      ...(all === "1" ? { kind: "USER" } : { flagged: true }),
-    },
+    where,
     orderBy: { createdAt: "desc" },
-    take: 100,
+    skip: info.skip,
+    take: info.take,
     include: {
       sender: { select: { id: true, name: true, role: true } },
       order: { select: { id: true, number: true } },
@@ -64,6 +73,7 @@ export default async function FlaggedMessages({
         ))}
         {!messages.length && <p className="p-4 text-slate-500">{t("مفيش رسائل")}</p>}
       </div>
+      <Pager {...info} params={pageParams} />
     </div>
   );
 }

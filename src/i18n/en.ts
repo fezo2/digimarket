@@ -1150,4 +1150,8 @@ export const en: Record<string, string> = {
   "ملاحظة المراجعة: ": "Review note: ",
   "التاجر لسه مبعتش مستندات التوثيق.": "The seller hasn't submitted verification documents yet.",
   "مفيش مستندات ظاهرة ليك.": "No documents visible to you.",
+  // Pagination
+  "{from}–{to} من {total}": "{from}–{to} of {total}",
+  "{page} / {pages}": "{page} / {pages}",
+  "صفحة {n}": "Page {n}",
 };

@@ -161,7 +161,7 @@ export default async function FinancePage({
         ) : (
           <Empty icon="finance" title={t("لسه مفيش حركات.")} />
         )}
-        <Pager page={page} pages={pages} params={params} />
+        <Pager page={page} pages={pages} params={params} total={total} perPage={PER_PAGE} />
       </Panel>
     </Page>
   );

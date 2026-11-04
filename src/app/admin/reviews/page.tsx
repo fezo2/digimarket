@@ -1,3 +1,5 @@
+import { paginate } from "@/lib/pagination";
+import { Pager } from "@/components/pager";
 import { i18n } from "@/lib/prefs";
 import { adminFrom, requireAdmin } from "@/lib/auth";
 import Link from "next/link";
@@ -5,6 +7,8 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { ActionForm } from "@/components/action-form";
 import { changeVisibility } from "./actions";
+
+const PER_PAGE = 30;
 
 const FILTERS: Record<string, Prisma.ReviewWhereInput> = {
   negative: { positive: false },
@@ -16,28 +20,32 @@ const FILTERS: Record<string, Prisma.ReviewWhereInput> = {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string; q?: string }>;
+  searchParams: Promise<{ filter?: string; q?: string; page?: string }>;
 }) {
   const { t, day } = await i18n();
   const admin = await requireAdmin();
-  const { filter = "", q = "" } = await searchParams;
+  const { filter = "", q = "", page } = await searchParams;
   const term = q.trim().slice(0, 100);
+  const pageParams = { q: term || undefined, filter: filter || undefined };
+  const where: Prisma.ReviewWhereInput = {
+    createdAt: adminFrom(admin),
+    ...(FILTERS[filter] ?? {}),
+    ...(term
+      ? {
+          OR: [
+            { comment: { contains: term, mode: "insensitive" } },
+            { product: { title: { contains: term, mode: "insensitive" } } },
+            { seller: { storeName: { contains: term, mode: "insensitive" } } },
+          ],
+        }
+      : {}),
+  };
+  const info = paginate(await db.review.count({ where }), PER_PAGE, page);
   const reviews = await db.review.findMany({
-    where: {
-      createdAt: adminFrom(admin),
-      ...(FILTERS[filter] ?? {}),
-      ...(term
-        ? {
-            OR: [
-              { comment: { contains: term, mode: "insensitive" } },
-              { product: { title: { contains: term, mode: "insensitive" } } },
-              { seller: { storeName: { contains: term, mode: "insensitive" } } },
-            ],
-          }
-        : {}),
-    },
+    where,
     orderBy: { createdAt: "desc" },
-    take: 100,
+    skip: info.skip,
+    take: info.take,
     include: {
       product: { select: { title: true } },
       seller: { select: { id: true, storeName: true } },
@@ -108,6 +116,7 @@ export default async function Page({
         </section>
       ))}
       {!reviews.length && <p className="text-slate-500">{t("مفيش تقييمات")}</p>}
+      <Pager {...info} params={pageParams} />
     </div>
   );
 }

@@ -7,18 +7,27 @@ import { orderStatusLabels } from "@/lib/order-snapshot";
 import { releaseExpiredOrders } from "@/lib/orders";
 import { logout } from "@/app/(auth)/actions";
 import { isVerified } from "@/lib/email-verification";
+import { paginate } from "@/lib/pagination";
+import { Pager } from "@/components/pager";
+
+const PER_PAGE = 15;
 
 export async function generateMetadata() {
   return { title: (await i18n()).t("حسابي") };
 }
 
-export default async function AccountPage() {
+export default async function AccountPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const { t, money } = await i18n();
+  const query = await searchParams;
   const user = await requireUser("/account");
   await releaseExpiredOrders();
+  const where = { buyerId: user.id };
+  const info = paginate(await db.order.count({ where }), PER_PAGE, query.page);
   const orders = await db.order.findMany({
-    where: { buyerId: user.id },
+    where,
     orderBy: { createdAt: "desc" },
+    skip: info.skip,
+    take: info.take,
     include: { items: { select: { title: true, quantity: true } } },
   });
 
@@ -59,6 +68,7 @@ export default async function AccountPage() {
             ))}
           </ul>
         )}
+        <Pager {...info} params={query} className="mt-4" />
       </div>
       {!user.seller && (
         <div className="card flex flex-wrap items-center gap-3 p-6">

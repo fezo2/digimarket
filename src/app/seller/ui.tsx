@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { i18n } from "@/lib/prefs";
+export { Pager } from "@/components/pager";
 import { withParams, type Period, type PeriodKey } from "@/lib/seller-period";
 import { Icon, type IconName } from "./icons";
 
@@ -134,39 +135,6 @@ export async function SearchBox({ value, placeholder }: { value?: string; placeh
         <Icon name="search" />
       </button>
     </div>
-  );
-}
-
-export async function Pager({ page, pages, params }: { page: number; pages: number; params: Params }) {
-  const { t, num } = await i18n();
-  if (pages <= 1) return null;
-  const near = [...new Set([1, page - 1, page, page + 1, pages])].filter((p) => p >= 1 && p <= pages);
-  const cls = "grid h-9 min-w-9 place-items-center rounded-xl px-2 text-sm font-semibold";
-  return (
-    <nav className="flex flex-wrap items-center justify-end gap-1.5" aria-label={t("الصفحات")}>
-      {page > 1 && (
-        <Link className={`${cls} hover:bg-slate-100`} href={withParams(params, { page: String(page - 1) })}>
-          {t("السابق")}
-        </Link>
-      )}
-      {near.map((p, i) => (
-        <span key={p} className="contents">
-          {i > 0 && p - near[i - 1] > 1 && <span className="px-1 text-slate-400">…</span>}
-          <Link
-            href={withParams(params, { page: p === 1 ? undefined : String(p) })}
-            aria-current={p === page ? "page" : undefined}
-            className={`${cls} ${p === page ? "ring-2 ring-brand-500" : "bg-slate-100 hover:bg-slate-200"}`}
-          >
-            {num(p)}
-          </Link>
-        </span>
-      ))}
-      {page < pages && (
-        <Link className={`${cls} hover:bg-slate-100`} href={withParams(params, { page: String(page + 1) })}>
-          {t("التالي")}
-        </Link>
-      )}
-    </nav>
   );
 }
 

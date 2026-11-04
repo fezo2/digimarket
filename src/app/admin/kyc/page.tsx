@@ -1,7 +1,12 @@
+import { paginate } from "@/lib/pagination";
+import { Pager } from "@/components/pager";
+import type { Prisma } from "@prisma/client";
 import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { adminFrom, requireAdmin } from "@/lib/auth";
+
+const PER_PAGE = 30;
 
 export async function generateMetadata() {
   return { title: (await i18n()).t("طلبات التوثيق") };
@@ -14,18 +19,23 @@ const STATUS = {
   NOT_SUBMITTED: ["-", ""],
 } as const;
 
-export default async function KycQueue({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
+export default async function KycQueue({ searchParams }: { searchParams: Promise<{ all?: string; page?: string }> }) {
   const { t, day } = await i18n();
   const admin = await requireAdmin();
-  const showAll = (await searchParams).all === "1";
+  const { all, page } = await searchParams;
+  const showAll = all === "1";
+  const pageParams = { all };
+  const where: Prisma.KycSubmissionWhereInput = {
+    submittedAt: adminFrom(admin),
+    ...(showAll ? {} : { status: "PENDING" }),
+  };
+  const info = paginate(await db.kycSubmission.count({ where }), PER_PAGE, page);
   const submissions = await db.kycSubmission.findMany({
-    where: {
-      submittedAt: adminFrom(admin),
-      ...(showAll ? {} : { status: "PENDING" }),
-    },
+    where,
     orderBy: { submittedAt: showAll ? "desc" : "asc" },
     include: { seller: { select: { storeName: true } } },
-    take: 100,
+    skip: info.skip,
+    take: info.take,
   });
 
   return (
@@ -66,6 +76,7 @@ export default async function KycQueue({ searchParams }: { searchParams: Promise
           </table>
         </div>
       )}
+      <Pager {...info} params={pageParams} />
     </div>
   );
 }
