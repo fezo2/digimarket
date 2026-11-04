@@ -10,6 +10,18 @@ import { ActionForm } from "@/components/action-form";
 import { BalanceCards } from "@/components/ledger-view";
 import { AuditList } from "../../audit-list";
 import { sellerPayouts, sellerSales, sellerTerms } from "../../control-actions";
+import { KycDocs } from "../../kyc/kyc-docs";
+
+const KYC_STATUS: Record<string, string> = {
+  PENDING: "مستني مراجعة",
+  APPROVED: "مقبول",
+  REJECTED: "مرفوض",
+};
+const PAYOUT: Record<string, string> = {
+  INSTAPAY: "InstaPay",
+  MOBILE_WALLET: "محفظة موبايل",
+  BANK_TRANSFER: "تحويل بنكي",
+};
 
 export async function generateMetadata() {
   return { title: (await i18n()).t("إدارة متجر") };
@@ -51,7 +63,7 @@ export default async function SellerDetail({
     },
   });
   if (!seller) notFound();
-  const [balance, sales, openDisputes, refunds, logs] = await Promise.all([
+  const [balance, sales, openDisputes, refunds, logs, kyc] = await Promise.all([
     sellerBalance(id),
     db.orderItem.aggregate({
       where: { sellerId: id, order: { status: "PAID", createdAt: from } },
@@ -72,6 +84,11 @@ export default async function SellerDetail({
       where: { targetId: { in: [id, seller.userId] }, createdAt: from },
       orderBy: { createdAt: "desc" },
       take: 30,
+    }),
+    db.kycSubmission.findMany({
+      where: { sellerId: id, submittedAt: from },
+      orderBy: { submittedAt: "desc" },
+      take: 10,
     }),
   ]);
   const tier = SELLER_TIERS[seller.type];
@@ -97,6 +114,9 @@ export default async function SellerDetail({
           <Link className="btn-outline" href={`/admin/users/${seller.user.id}`}>
             {t("حساب ")}{seller.user.name}
           </Link>
+          <a className="btn-outline" href="#kyc">
+            {t("مستندات التوثيق")}
+          </a>
           <Link className="btn-outline" href={`/admin/sellers/${id}/ledger`}>
             {t("الحسابات والتسويات")}
           </Link>
@@ -206,6 +226,59 @@ export default async function SellerDetail({
           </ActionForm>
         </section>
       </div>
+
+      <section id="kyc" className="card space-y-4 p-5">
+        <h2 className="font-bold">{t("مستندات التوثيق")}</h2>
+        {kyc.map((k, i) => (
+          <div key={k.id} className={i ? "space-y-3 border-t border-slate-100 pt-4" : "space-y-3"}>
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <span className="badge bg-slate-100 text-slate-700">
+                {t(KYC_STATUS[k.status] ?? k.status)}
+              </span>
+              <span className="text-slate-500">
+                {t("اتبعت ")}{date(k.submittedAt)}
+              </span>
+              {i > 0 && <span className="text-slate-500">{t("(طلب قديم)")}</span>}
+              <Link className="ms-auto text-brand-600" href={`/admin/kyc/${k.id}`}>
+                {k.status === "PENDING" ? t("راجع الطلب") : t("تفاصيل الطلب")}
+              </Link>
+            </div>
+            <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
+              {(
+                [
+                  [t("النوع"), k.type === "COMPANY" ? t("شركة") : t("فرد")],
+                  [t("الاسم"), k.fullName],
+                  [t("الرقم القومي"), k.nationalId],
+                  [t("الموبايل"), k.phone],
+                  [t("اسم الشركة"), k.companyName],
+                  [t("السجل التجاري"), k.commercialRegNo],
+                  [t("البطاقة الضريبية"), k.taxCardNo],
+                  [t("استلام الأرباح"), `${t(PAYOUT[k.payoutMethod] ?? k.payoutMethod)}: ${k.payoutAccount}`],
+                  [t("اسم صاحب الحساب"), k.payoutAccountName],
+                ] as [string, string | null][]
+              )
+                .filter(([, v]) => v)
+                .map(([label, v]) => (
+                  <div key={label} className="flex justify-between gap-3 border-b border-slate-100 py-1">
+                    <dt className="text-slate-500">{label}</dt>
+                    <dd className="font-semibold" dir="auto">{v}</dd>
+                  </div>
+                ))}
+            </dl>
+            {k.reviewNote && (
+              <p className="text-sm text-slate-500">{t("ملاحظة المراجعة: ")}{k.reviewNote}</p>
+            )}
+            <KycDocs s={k} small />
+          </div>
+        ))}
+        {!kyc.length && (
+          <p className="text-sm text-slate-500">
+            {seller.kycStatus === "NOT_SUBMITTED"
+              ? t("التاجر لسه مبعتش مستندات التوثيق.")
+              : t("مفيش مستندات ظاهرة ليك.")}
+          </p>
+        )}
+      </section>
 
       <section className="card p-5">
         <h2 className="mb-3 font-bold">{t("المنتجات")}</h2>
