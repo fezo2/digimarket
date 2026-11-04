@@ -1,6 +1,7 @@
 import { i18n } from "@/lib/prefs";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { hiddenFromAdmin, requireAdmin } from "@/lib/auth";
 import { reviewKyc } from "../../actions";
 
 const PAYOUT = { INSTAPAY: "InstaPay", MOBILE_WALLET: "محفظة موبايل", BANK_TRANSFER: "تحويل بنكي" } as const;
@@ -13,13 +14,14 @@ export default async function KycReview({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { t } = await i18n();
+  const admin = await requireAdmin();
   const { id } = await params;
   const { error } = await searchParams;
   const s = await db.kycSubmission.findUnique({
     where: { id },
     include: { seller: { include: { user: { select: { email: true, createdAt: true } } } } },
   });
-  if (!s) notFound();
+  if (!s || hiddenFromAdmin(admin, s.submittedAt)) notFound();
 
   const docs = [
     [t("البطاقة (وش)"), s.idFrontKey],

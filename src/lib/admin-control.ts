@@ -3,6 +3,8 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "./db";
 import { enqueueNotice } from "./notifications";
+import bcrypt from "bcryptjs";
+import { passwordProblem } from "./password-policy";
 
 // Every admin action on an account: status-guarded, audit-logged, and
 // re-checked against the database so a stale form can't act twice.
@@ -291,6 +293,125 @@ export async function setAnnouncementActive(
       active ? "announcement.shown" : "announcement.hidden",
       announcementId,
     );
+    return true;
+  });
+}
+
+// ---- Staff admins -------------------------------------------------------
+// A staff admin has every admin tool but only sees records created on or
+// after adminDataFrom. Only a full admin (adminDataFrom null) manages them.
+
+async function fullAdminActor(tx: Tx, actorId: string) {
+  const actor = await tx.user.findUnique({ where: { id: actorId } });
+  if (actor?.role !== "ADMIN" || actor.suspendedAt || actor.adminDataFrom)
+    throw new AdminControlError("غير مسموح");
+}
+
+// "YYYY-MM-DD" is midnight Cairo time; empty means from right now.
+export function parseDataFrom(value: string, now = new Date()) {
+  const v = value.trim();
+  if (!v) return now;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v))
+    throw new AdminControlError("التاريخ مش صحيح");
+  const at = new Date(`${v}T00:00:00+02:00`);
+  if (Number.isNaN(at.getTime())) throw new AdminControlError("التاريخ مش صحيح");
+  return at;
+}
+
+export const staffInput = z.object({
+  name: z.string().trim().min(2, "الاسم قصير").max(100),
+  email: z.string().trim().toLowerCase().email("الإيميل مش صحيح").max(200),
+  password: z.string().max(200),
+  dataFrom: z.string().max(20),
+});
+
+// Creates a new staff admin, or turns an existing non-admin account into one
+// (that account keeps its password). Returns the user id.
+export async function addStaffAdmin(
+  actorId: string,
+  input: z.input<typeof staffInput>,
+) {
+  const v = staffInput.parse(input);
+  const adminDataFrom = parseDataFrom(v.dataFrom);
+  const existing = await db.user.findUnique({ where: { email: v.email } });
+  if (existing?.role === "ADMIN")
+    throw new AdminControlError("الحساب ده أدمن بالفعل");
+  let passwordHash: string | null = null;
+  if (!existing) {
+    const problem = passwordProblem(v.password, v.email);
+    if (problem) throw new AdminControlError(problem);
+    passwordHash = await bcrypt.hash(v.password, 12);
+  }
+  return db.$transaction(async (tx) => {
+    await fullAdminActor(tx, actorId);
+    const user = existing
+      ? await tx.user.update({
+          where: { id: existing.id },
+          data: {
+            role: "ADMIN",
+            adminDataFrom,
+            sessionVersion: { increment: 1 },
+          },
+        })
+      : await tx.user.create({
+          data: {
+            name: v.name,
+            email: v.email,
+            passwordHash: passwordHash!,
+            role: "ADMIN",
+            adminDataFrom,
+            emailVerifiedAt: new Date(),
+          },
+        });
+    await audit(tx, actorId, "admin.staff_added", user.id, {
+      from: adminDataFrom.toISOString(),
+      existing: Boolean(existing),
+    });
+    return user.id;
+  });
+}
+
+async function staffTarget(tx: Tx, userId: string) {
+  const target = await tx.user.findUnique({ where: { id: userId } });
+  if (target?.role !== "ADMIN" || !target.adminDataFrom)
+    throw new AdminControlError("ده مش حساب أدمن محدود");
+  return target;
+}
+
+export async function setStaffDataFrom(
+  actorId: string,
+  userId: string,
+  value: string,
+) {
+  id.parse(userId);
+  const adminDataFrom = parseDataFrom(value);
+  return db.$transaction(async (tx) => {
+    await fullAdminActor(tx, actorId);
+    await staffTarget(tx, userId);
+    await tx.user.update({ where: { id: userId }, data: { adminDataFrom } });
+    await audit(tx, actorId, "admin.staff_date", userId, {
+      from: adminDataFrom.toISOString(),
+    });
+    return true;
+  });
+}
+
+// Takes admin access away and signs the account out everywhere.
+export async function removeStaffAdmin(actorId: string, userId: string) {
+  id.parse(userId);
+  return db.$transaction(async (tx) => {
+    await fullAdminActor(tx, actorId);
+    await staffTarget(tx, userId);
+    const seller = await tx.sellerProfile.findUnique({ where: { userId } });
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        role: seller ? "SELLER" : "BUYER",
+        adminDataFrom: null,
+        sessionVersion: { increment: 1 },
+      },
+    });
+    await audit(tx, actorId, "admin.staff_removed", userId);
     return true;
   });
 }

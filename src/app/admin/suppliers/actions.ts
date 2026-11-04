@@ -6,6 +6,7 @@ import {
   SupplierImportError,
   importSupplierProducts,
   recategorizeSupplierProducts,
+  saveSupplierKey,
   saveSupplierSettings,
   syncSupplierProducts,
 } from "@/lib/supplier";
@@ -36,6 +37,21 @@ export async function saveSettings(
     });
     revalidatePath("/", "layout");
     return { success: "الإعدادات اتحفظت والأسعار اتحدثت" };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function saveKey(
+  _: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const admin = await requireAdmin();
+  try {
+    const key = text(form, "apiKey");
+    await saveSupplierKey(admin.id, key);
+    revalidatePath("/", "layout");
+    return { success: key.trim() ? "المفتاح اتحفظ" : "المفتاح اتمسح" };
   } catch (error) {
     return fail(error);
   }

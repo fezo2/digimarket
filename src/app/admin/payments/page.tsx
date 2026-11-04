@@ -1,6 +1,6 @@
 import { i18n } from "@/lib/prefs";
 import Link from "next/link";
-import { requireAdmin } from "@/lib/auth";
+import { adminFrom, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ActionForm } from "@/components/action-form";
 import { handleManualPayment, saveWalletBalance, vouchNotice } from "./actions";
@@ -18,15 +18,16 @@ export default async function AdminManualPayments({
   searchParams: Promise<{ status?: string }>;
 }) {
   const { t, money, date } = await i18n();
-  await requireAdmin();
+  const admin = await requireAdmin();
+  const from = adminFrom(admin);
   const query = await searchParams;
-  if (query.status === "AUTO") return <AutoNotices />;
+  if (query.status === "AUTO") return <AutoNotices from={from} />;
   const status =
     query.status === "CONFIRMED" || query.status === "REJECTED"
       ? query.status
       : "SUBMITTED";
   const payments = await db.manualPayment.findMany({
-    where: { status },
+    where: { status, createdAt: from },
     orderBy: { createdAt: status === "SUBMITTED" ? "asc" : "desc" },
     take: 100,
     include: {
@@ -155,9 +156,10 @@ const noticeLabels = {
   IGNORED: "اتجاهل",
 } as const;
 
-async function AutoNotices() {
+async function AutoNotices({ from }: { from?: { gte: Date } }) {
   const { t, money, date } = await i18n();
   const notices = await db.paymentNotice.findMany({
+    where: { createdAt: from },
     orderBy: { createdAt: "desc" },
     take: 100,
   });

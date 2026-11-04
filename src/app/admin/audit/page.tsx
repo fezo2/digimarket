@@ -1,6 +1,6 @@
 import { i18n } from "@/lib/prefs";
 import { auditLabel } from "@/lib/audit-labels";
-import { requireAdmin } from "@/lib/auth";
+import { adminFrom, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export async function generateMetadata() {
@@ -13,13 +13,16 @@ export default async function Audit({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { t, date } = await i18n();
-  await requireAdmin();
+  const admin = await requireAdmin();
   const { q = "" } = await searchParams;
   const term = q.trim().slice(0, 100);
   const logs = await db.auditLog.findMany({
-    where: term
-      ? { OR: [{ action: { contains: term } }, { targetId: term }] }
-      : {},
+    where: {
+      createdAt: adminFrom(admin),
+      ...(term
+        ? { OR: [{ action: { contains: term } }, { targetId: term }] }
+        : {}),
+    },
     orderBy: { createdAt: "desc" },
     take: 200,
   });

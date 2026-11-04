@@ -1,6 +1,7 @@
 import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { adminFrom, requireAdmin } from "@/lib/auth";
 
 export async function generateMetadata() {
   return { title: (await i18n()).t("طلبات التوثيق") };
@@ -15,9 +16,13 @@ const STATUS = {
 
 export default async function KycQueue({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
   const { t, day } = await i18n();
+  const admin = await requireAdmin();
   const showAll = (await searchParams).all === "1";
   const submissions = await db.kycSubmission.findMany({
-    where: showAll ? {} : { status: "PENDING" },
+    where: {
+      submittedAt: adminFrom(admin),
+      ...(showAll ? {} : { status: "PENDING" }),
+    },
     orderBy: { submittedAt: showAll ? "desc" : "asc" },
     include: { seller: { select: { storeName: true } } },
     take: 100,

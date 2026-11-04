@@ -23,6 +23,7 @@ export async function supplierSettings() {
       sellerId: null,
       usdRate: 5500,
       multiplierBps: 25000,
+      apiKey: null as string | null,
       updatedAt: new Date(0),
     }
   );
@@ -62,6 +63,34 @@ export async function saveSupplierSettings(
     });
   });
   await syncSupplierProducts();
+  return true;
+}
+
+const keyInput = z
+  .string()
+  .trim()
+  .min(10, "المفتاح قصير، انسخه كامل من ProdSeller")
+  .max(300)
+  .regex(/^\S+$/, "المفتاح مينفعش يكون فيه مسافات");
+
+// Saves (or with an empty key, removes) the ProdSeller key. The key itself is
+// never written to the audit log or sent back to a page.
+export async function saveSupplierKey(actorId: string, key: string) {
+  const apiKey = key.trim() ? keyInput.parse(key) : null;
+  await db.$transaction(async (tx) => {
+    await tx.supplierSettings.upsert({
+      where: { id: SUPPLIER },
+      create: { id: SUPPLIER, apiKey },
+      update: { apiKey },
+    });
+    await tx.auditLog.create({
+      data: {
+        actorId,
+        action: apiKey ? "supplier.key_saved" : "supplier.key_removed",
+        targetId: SUPPLIER,
+      },
+    });
+  });
   return true;
 }
 
@@ -195,7 +224,7 @@ export async function recategorizeSupplierProducts(actorId: string) {
 // Pulls cost and stock for every imported product and re-prices it from the
 // current settings. A product the supplier dropped shows as out of stock.
 export async function syncSupplierProducts() {
-  if (!prodseller.prodsellerConfigured()) return 0;
+  if (!(await prodseller.prodsellerConfigured())) return 0;
   const products = await db.product.findMany({
     where: { supplier: SUPPLIER },
   });
@@ -369,7 +398,7 @@ export async function fulfilSupplierOrder(
 // Job: retry purchases that hit a network error or are still being prepared
 // by the supplier, then refresh the catalogue.
 export async function runSupplierJob() {
-  if (!prodseller.prodsellerConfigured()) return 0;
+  if (!(await prodseller.prodsellerConfigured())) return 0;
   const waiting = await db.orderItem.findMany({
     where: {
       supplier: SUPPLIER,
