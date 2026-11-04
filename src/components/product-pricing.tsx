@@ -1,10 +1,11 @@
 "use client";
 
 import { useI18n } from "@/components/i18n-provider";
+import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import { quote } from "@/lib/pricing";
-import { buyProduct } from "@/app/(store)/products/[slug]/actions";
+import { addToCart, buyProduct } from "@/app/(store)/products/[slug]/actions";
 
 type Props = {
   productId: string;
@@ -38,6 +39,10 @@ export function BuyBox({
   const { t, money } = useI18n();
   const [state, action, pending] = useActionState(
     buyProduct.bind(null, productId, slug),
+    undefined,
+  );
+  const [cartState, cartAction, adding] = useActionState(
+    addToCart.bind(null, productId),
     undefined,
   );
   const [selected, setSelected] = useState<Record<string, string>>(() =>
@@ -166,12 +171,34 @@ export function BuyBox({
           {t(state.error)}
         </p>
       )}
+      {cartState?.error && (
+        <p role="alert" className="text-red-700">
+          {t(cartState.error)}
+        </p>
+      )}
+      {cartState?.added && !adding && (
+        <p role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
+          {t("المنتج اتضاف للسلة")}
+          <Link href="/cart" className="font-bold underline">
+            {t("روح للسلة")}
+          </Link>
+        </p>
+      )}
       <button
         className="btn w-full bg-yellow-400 py-3.5 text-base font-extrabold text-brand-950 shadow-sm hover:bg-yellow-300"
-        disabled={!inStock || pending || !pricing}
+        disabled={!inStock || pending || adding || !pricing}
       >
         {!inStock ? t("نفذت الكمية") : pending ? t("بنحجز طلبك…") : t("اشتري دلوقتي")}
       </button>
+      {inStock && (
+        <button
+          formAction={cartAction}
+          className="btn w-full border-2 border-brand-600 py-3 text-base font-bold text-brand-700 hover:bg-brand-50"
+          disabled={pending || adding || !pricing}
+        >
+          {adding ? t("بنضيفه للسلة…") : t("أضف للسلة")}
+        </button>
+      )}
     </form>
   );
 }

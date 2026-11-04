@@ -20,12 +20,12 @@ test("Vodafone Cash style Arabic SMS: amount, sender, not the balance", () => {
 
 test("real Vodafone Cash receipt wording", () => {
   const n = parseNotice(
-    "تم استلام مبلغ 5.00 جنيه من 01129791666؛\nالمسجل بإسم KAREM EMAD على رقم محفظتك 01011964843 بتاريخ 31-10-26 19:39.\nرصيدك الحالي: 178.51 جنيه\nرقم العملية: 025291598184",
+    "تم استلام مبلغ 5.00 جنيه من 01000000001؛\nالمسجل بإسم TEST SENDER على رقم محفظتك 01000000002 بتاريخ 31-10-26 19:39.\nرصيدك الحالي: 178.51 جنيه\nرقم العملية: 000000000001",
   );
   assert.equal(n.incoming, true);
   assert.deepEqual(n.amounts, [500]);
   assert.equal(n.balance, 17851);
-  assert.ok(n.phones.includes("01129791666"));
+  assert.ok(n.phones.includes("01000000001"));
   // Vodafone's "confirm a payment" prompts are not incoming money.
   assert.equal(
     parseNotice("لتأكيد دفع مبلغ 10.0 جنيه ج ل Twist من محفظة فودافون كاش؛ اطلب #9*55*").incoming,
