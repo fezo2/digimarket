@@ -67,8 +67,9 @@ test("seller tools against PostgreSQL", async (t) => {
         current: "old-password",
         next: "New-pass#2026",
       });
-      assert.equal(fresh.sessionVersion, 1);
+      assert.equal(fresh.id, buyer.id);
       const u = await db.user.findUniqueOrThrow({ where: { id: buyer.id } });
+      assert.equal(u.storeSessionVersion, 1);
       assert.ok(await bcrypt.compare("New-pass#2026", u.passwordHash));
     });
 

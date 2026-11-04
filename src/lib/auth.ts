@@ -8,6 +8,7 @@ import { sessionIsCurrent } from "./account-security";
 import { isVerified } from "./email-verification";
 import { db } from "./db";
 import { siteForHost, type Site } from "./sites";
+import { siteSessionVersion } from "./site-password";
 import {
   SESSION_COOKIE as COOKIE,
   authSecret,
@@ -28,7 +29,12 @@ export async function verifyPassword(password: string, hash: string) {
 export async function createSession(session: Session) {
   const user = await db.user.findUniqueOrThrow({
     where: { id: session.userId },
-    select: { sessionVersion: true },
+    select: {
+      sessionVersion: true,
+      storeSessionVersion: true,
+      sellerSessionVersion: true,
+      adminSessionVersion: true,
+    },
   });
   if (
     session.sessionVersion !== undefined &&
@@ -36,8 +42,11 @@ export async function createSession(session: Session) {
   )
     redirect("/login");
   const token = await new SignJWT({
-    ...session,
+    userId: session.userId,
+    role: session.role,
     sessionVersion: user.sessionVersion,
+    // Cookies are per host, so this cookie only ever serves this portal.
+    siteVersion: siteSessionVersion(user, await currentSite()),
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -71,7 +80,8 @@ export const getCurrentUser = cache(async function getCurrentUser() {
   });
   return user &&
     !user.suspendedAt &&
-    sessionIsCurrent(session.sessionVersion, user.sessionVersion)
+    sessionIsCurrent(session.sessionVersion, user.sessionVersion) &&
+    session.siteVersion === siteSessionVersion(user, await currentSite())
     ? user
     : null;
 });

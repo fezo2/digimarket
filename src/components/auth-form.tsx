@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import type { FormState } from "@/app/(auth)/actions";
 import { Captcha } from "@/components/captcha";
+import { SocialSignIn } from "@/components/social-sign-in";
 
 type Props = {
   mode: "login" | "register";
@@ -12,9 +13,11 @@ type Props = {
   next?: string;
   title?: string;
   allowSignup?: boolean;
+  providers?: ("google" | "apple")[];
+  notice?: string;
 };
 
-export function AuthForm({ mode, action, next, title, allowSignup = true }: Props) {
+export function AuthForm({ mode, action, next, title, allowSignup = true, providers = [], notice }: Props) {
   const { t } = useI18n();
   const [state, formAction, pending] = useActionState(action, undefined);
   const isRegister = mode === "register";
@@ -23,6 +26,8 @@ export function AuthForm({ mode, action, next, title, allowSignup = true }: Prop
     <div className="mx-auto max-w-md px-4 py-12">
       <div className="card p-6 sm:p-8">
         <h1 className="mb-6 text-2xl font-bold">{title ?? (isRegister ? t("حساب جديد") : t("تسجيل الدخول"))}</h1>
+        {notice && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{t(notice)}</p>}
+        <SocialSignIn providers={providers} next={next} />
         <form action={formAction} className="space-y-4">
           <input type="hidden" name="next" value={next ?? "/"} />
           {isRegister && (

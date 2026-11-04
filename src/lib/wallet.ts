@@ -4,6 +4,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { passwordHashFor } from "./site-password";
 import { enqueueNotice } from "./notifications";
 import { db } from "./db";
 import { sellerBalance } from "./ledger";
@@ -62,7 +63,7 @@ export async function saveDestination(
       where: { id: owner.id },
       include: { user: true },
     });
-    if (!(await bcrypt.compare(password, seller.user.passwordHash)))
+    if (!(await bcrypt.compare(password, passwordHashFor(seller.user, "seller"))))
       throw new WalletError("الباسورد الحالي مش صحيح");
     if (
       seller.payoutMethod === value.method &&
@@ -402,7 +403,7 @@ export async function adjustLedger(
   passwordSchema.parse(password);
   return db.$transaction(async (tx) => {
     const actor = await admin(tx, actorId);
-    if (!(await bcrypt.compare(password, actor.passwordHash)))
+    if (!(await bcrypt.compare(password, passwordHashFor(actor, "admin"))))
       throw new WalletError("الباسورد الحالي مش صحيح");
     await lockSeller(tx, sellerId);
     if (!(await tx.sellerProfile.findUnique({ where: { id: sellerId } })))

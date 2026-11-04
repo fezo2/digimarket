@@ -5,6 +5,8 @@ import { z } from "zod";
 import { db } from "./db";
 import { parsePeriod } from "./seller-period";
 import { passwordProblem, strongPassword } from "./password-policy";
+import { passwordHashFor, sitePasswordUpdate } from "./site-password";
+import type { Site } from "./sites";
 
 export class SellerToolError extends Error {}
 
@@ -38,24 +40,36 @@ const passwordInput = z.object({
   next: strongPassword,
 });
 
-// Returns the new session version so the caller can re-issue its cookie;
-// every other device is signed out.
+// Changes this portal's password only and signs out this portal's other
+// devices; the caller re-issues its own cookie.
 export async function changePassword(
   userId: string,
   input: z.input<typeof passwordInput>,
+  site: Site = "store",
 ) {
   const v = passwordInput.parse(input);
-  const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
-  if (!(await bcrypt.compare(v.current, user.passwordHash)))
+  const found = await db.user.findUniqueOrThrow({
+    where: { id: userId },
+    include: { seller: { select: { id: true } } },
+  });
+  const user = { ...found, hasStore: !!found.seller };
+  const current = passwordHashFor(user, site);
+  if (!(await bcrypt.compare(v.current, current)))
     throw new SellerToolError("الباسورد الحالي غلط");
   if (v.current === v.next)
     throw new SellerToolError("اختار باسورد مختلف عن الحالي");
   const weak = passwordProblem(v.next, user.email);
   if (weak) throw new SellerToolError(weak);
-  const passwordHash = await bcrypt.hash(v.next, 12);
+  const hash = await bcrypt.hash(v.next, 12);
+  // Only if nothing changed the passwords since we read them.
   const changed = await db.user.updateMany({
-    where: { id: userId, passwordHash: user.passwordHash },
-    data: { passwordHash, sessionVersion: { increment: 1 } },
+    where: {
+      id: userId,
+      passwordHash: user.passwordHash,
+      sellerPasswordHash: user.sellerPasswordHash,
+      adminPasswordHash: user.adminPasswordHash,
+    },
+    data: sitePasswordUpdate(user, site, hash),
   });
   if (!changed.count) throw new SellerToolError("حصل تغيير قبل كده، جرّب تاني");
   return db.user.findUniqueOrThrow({

@@ -8,6 +8,7 @@ import {
   withinLimit,
 } from "@/lib/account-security";
 import { CAPTCHA_ERROR, captchaPassed, clientIp } from "@/lib/captcha";
+import { currentSite } from "@/lib/auth";
 export async function forgotPassword(
   _: { error?: string; success?: string },
   form: FormData,
@@ -23,7 +24,7 @@ export async function forgotPassword(
   if (!(await withinLimit("forgot:" + (await clientIp()), 10, 3600000)))
     return { error: "محاولات كتير، جرّب بعد شوية" };
   if (email.success && process.env.RESEND_API_KEY && process.env.EMAIL_FROM)
-    await requestPasswordReset(email.data, deliverResetEmail);
+    await requestPasswordReset(email.data, deliverResetEmail, await currentSite());
   return { success: "لو الإيميل مسجل هيوصلك لينك" };
 }
 export async function applyReset(
@@ -39,7 +40,7 @@ export async function applyReset(
   if (!v.success) return { error: "اللينك منتهي أو اتستخدم" };
   if (!(await captchaPassed(form))) return { error: CAPTCHA_ERROR };
   try {
-    await resetPassword(v.data.token, v.data.password);
+    await resetPassword(v.data.token, v.data.password, await currentSite());
     return { success: "الباسورد اتغير. سجّل دخول بالباسورد الجديد" };
   } catch (e) {
     return {
