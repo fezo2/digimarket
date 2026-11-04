@@ -60,3 +60,12 @@ service-account*.json
 /launch/
 *.dump
 *.sql.gz
+
+# impeccable design skill: engine binary is downloaded per machine, plus local caches
+**/skills/impeccable/scripts/bin/
+**/skills/impeccable/scripts/config.json
+**/.impeccable/hook.cache.json
+**/.impeccable/hook.pending.json
+.impeccable/live/
+.impeccable/history/
+.impeccable/config.local.json
