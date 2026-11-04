@@ -11,6 +11,7 @@ import { CatalogMenu } from "./catalog-menu";
 import { Icon, type IconName } from "./icons";
 import { CategoryThumb } from "./category-thumb";
 import { MobileTabBar } from "./mobile-tab-bar";
+import { readCart } from "@/lib/cart";
 
 // Store header, laid out like the big digital-goods marketplaces: a thin
 // utility bar, then logo + catalog + search + account shortcuts (the only
@@ -18,7 +19,7 @@ import { MobileTabBar } from "./mobile-tab-bar";
 export async function Header() {
   const { t, lang, cat } = await i18n();
   const { theme } = await getPrefs();
-  const [user, categories] = await Promise.all([getCurrentUser(), storeCategories()]);
+  const [user, categories, cart] = await Promise.all([getCurrentUser(), storeCategories(), readCart()]);
   const unread = user
     ? [...(await unreadCounts(user.id, false, "buyer")).values()].reduce(
         (a, b) => a + b,
@@ -88,6 +89,9 @@ export async function Header() {
             <NavIcon href={portalHref("admin")} icon="shield" label={t("الإدارة")} />
           )}
           {user?.seller && <NavIcon href={portalHref("seller")} icon="store" label={t("متجري")} />}
+          <span className="hidden md:block">
+            <NavIcon href="/cart" icon="cart" label={t("السلة")} badge={cart.length} />
+          </span>
           {user ? (
             <>
               <span className="hidden md:block">
@@ -131,7 +135,8 @@ export async function Header() {
       </nav>
 
       <MobileTabBar
-        labels={{ home: t("الرئيسية"), categories: t("الأقسام"), search: t("بحث"), account: user ? t("مشترياتي") : t("دخول") }}
+        labels={{ home: t("الرئيسية"), categories: t("الأقسام"), cart: t("السلة"), account: user ? t("مشترياتي") : t("دخول") }}
+        cartCount={cart.length}
         accountHref={user ? "/account" : "/login"}
         accountIcon={user ? "bag" : "user"}
         badge={unread}
