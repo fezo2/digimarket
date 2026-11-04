@@ -4,6 +4,8 @@ import { requireSeller } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { OrderChat } from "@/components/order-chat";
 import { withParams } from "@/lib/seller-period";
+import { paginate } from "@/lib/pagination";
+import { Pager } from "@/components/pager";
 import { Icon } from "../icons";
 
 export async function generateMetadata() {
@@ -12,14 +14,16 @@ export async function generateMetadata() {
 
 // Every order conversation in one inbox: the list on one side, the open
 // conversation on the other (one at a time on phones).
+const PER_PAGE = 30;
+
 export default async function SellerMessages({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; unread?: string; open?: string }>;
+  searchParams: Promise<{ q?: string; unread?: string; open?: string; page?: string }>;
 }) {
   const { t, num, day, time } = await i18n();
   const { user, seller } = await requireSeller();
-  const { q = "", unread, open } = await searchParams;
+  const { q = "", unread, open, page } = await searchParams;
   const term = q.trim().slice(0, 100);
   const threads = await db.$queryRaw<
     {
@@ -50,7 +54,9 @@ export default async function SellerMessages({
       AND (${term} = '' OR u.email ILIKE '%' || ${term} || '%' OR o.number::text = ${term.replace(/^#/, "")})
     ORDER BY last."createdAt" DESC
     LIMIT 200`;
-  const list = unread === "1" ? threads.filter((th) => th.unread > 0) : threads;
+  const filtered = unread === "1" ? threads.filter((th) => th.unread > 0) : threads;
+  const info = paginate(filtered.length, PER_PAGE, page);
+  const list = filtered.slice(info.skip, info.skip + info.take);
   // Only a conversation from this seller's own inbox can be opened here.
   const current = threads.find((th) => th.orderId === open);
   const replies = current
@@ -60,7 +66,11 @@ export default async function SellerMessages({
         select: { id: true, title: true, body: true },
       })
     : [];
-  const keep = { q: term || undefined, unread: unread === "1" ? "1" : undefined };
+  const keep = {
+    q: term || undefined,
+    unread: unread === "1" ? "1" : undefined,
+    page: info.page > 1 ? String(info.page) : undefined,
+  };
 
   return (
     <div className="p-0 lg:p-6">
@@ -115,6 +125,7 @@ export default async function SellerMessages({
             ))}
             {!list.length && <p className="p-6 text-center text-slate-500">{t("مفيش رسائل")}</p>}
           </div>
+          <Pager {...info} params={{ ...keep, open }} compact className="border-t border-slate-200 px-4 py-2.5" />
         </div>
         <div className={`min-w-0 flex-1 overflow-y-auto ${current ? "" : "max-lg:hidden"}`}>
           {current ? (

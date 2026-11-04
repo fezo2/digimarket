@@ -11,8 +11,12 @@ import { siteHref } from "@/lib/sites";
 import type { Metadata } from "next";
 import { absolute, describe, jsonLd } from "@/lib/seo";
 import { takesCards } from "@/lib/payments/config";
+import { pageParam, paginate } from "@/lib/pagination";
+import { Pager } from "@/components/pager";
 
 export const dynamic = "force-dynamic";
+
+const PER_PAGE = 40;
 
 const SORTS = {
   popular: { soldCount: "desc" },
@@ -23,11 +27,14 @@ const SORTS = {
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ page?: string }>;
 }): Promise<Metadata> {
-  const { t, cat } = await i18n();
+  const { t, cat, num } = await i18n();
   const { slug } = await params;
+  const page = pageParam((await searchParams).page);
   const category = await db.category.findUnique({
     where: { slug: decodeURIComponent(slug) },
     include: { children: { select: { id: true, nameAr: true, nameEn: true } } },
@@ -45,11 +52,15 @@ export async function generateMetadata({
       " " +
       (takesCards() ? t("ادفع بالكارت أو المحفظة الإلكترونية.") : t("ادفع بإنستاباي أو المحفظة.")),
   );
-  const url = `/categories/${encodeURIComponent(category.slug)}`;
+  const base = `/categories/${encodeURIComponent(category.slug)}`;
+  // Each page of the listing is its own canonical URL (Google no longer reads
+  // rel=prev/next); sort orders and price filters still point at the plain one.
+  const url = page > 1 ? `${base}?page=${page}` : base;
   return {
-    title: t("{nameAr} | أسعار وعروض", { nameAr: cat(category) }),
+    title:
+      t("{nameAr} | أسعار وعروض", { nameAr: cat(category) }) +
+      (page > 1 ? ` · ${t("صفحة {n}", { n: num(page) })}` : ""),
     description,
-    // Sort orders are the same listing; point them all at the plain URL.
     alternates: { canonical: url },
     // An empty category is a thin page; keep it out of the index (and the
     // sitemap) until its first product is listed.
@@ -69,7 +80,7 @@ export default async function CategoryPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ sort?: string; min?: string; max?: string }>;
+  searchParams: Promise<{ sort?: string; min?: string; max?: string; page?: string }>;
 }) {
   const { t, cat, num } = await i18n();
   const { slug } = await params;
@@ -83,19 +94,21 @@ export default async function CategoryPage({
   const sortKey = (query.sort && query.sort in SORTS ? query.sort : "popular") as keyof typeof SORTS;
   const min = priceParam(query.min);
   const max = priceParam(query.max);
-  const [products, tree] = await Promise.all([
-    db.product.findMany({
-      where: {
-        ...listedProduct,
-        categoryId: { in: [category.id, ...category.children.map((c) => c.id)] },
-        ...(min !== undefined || max !== undefined ? { price: { gte: min, lte: max } } : {}),
-      },
-      orderBy: SORTS[sortKey],
-      take: 120,
-      select: productCardSelect,
-    }),
-    storeCategories(),
-  ]);
+  const where = {
+    ...listedProduct,
+    categoryId: { in: [category.id, ...category.children.map((c) => c.id)] },
+    ...(min !== undefined || max !== undefined ? { price: { gte: min, lte: max } } : {}),
+  };
+  const [total, tree] = await Promise.all([db.product.count({ where }), storeCategories()]);
+  const info = paginate(total, PER_PAGE, query.page);
+  const products = await db.product.findMany({
+    where,
+    // id breaks ties so a product never shows on two pages.
+    orderBy: [SORTS[sortKey], { id: "asc" }],
+    skip: info.skip,
+    take: info.take,
+    select: productCardSelect,
+  });
   // The sidebar lists the subcategories of the top-level category we are in.
   const top = tree.find((c) => c.id === (category.parentId ?? category.id));
   const keep = (change: Record<string, string | undefined>) => {
@@ -105,7 +118,8 @@ export default async function CategoryPage({
     const qs = next.toString();
     return qs ? `?${qs}` : "?";
   };
-  const url = absolute(`/categories/${encodeURIComponent(category.slug)}`);
+  const path = `/categories/${encodeURIComponent(category.slug)}`;
+  const url = absolute(path);
   const structured = [
     {
       "@context": "https://schema.org",
@@ -125,10 +139,10 @@ export default async function CategoryPage({
       url,
       mainEntity: {
         "@type": "ItemList",
-        numberOfItems: products.length,
+        numberOfItems: total,
         itemListElement: products.slice(0, 30).map((p, i) => ({
           "@type": "ListItem",
-          position: i + 1,
+          position: info.skip + i + 1,
           url: absolute(`/products/${encodeURIComponent(p.slug)}`),
           name: p.title,
         })),
@@ -153,7 +167,7 @@ export default async function CategoryPage({
         />
         <div>
           <h1 className="text-2xl font-extrabold sm:text-3xl">{cat(category)}</h1>
-          <p className="text-sm text-slate-500">{t("{n} منتج", { n: num(products.length) })}</p>
+          <p className="text-sm text-slate-500">{t("{n} منتج", { n: num(total) })}</p>
         </div>
       </div>
 
@@ -251,6 +265,7 @@ export default async function CategoryPage({
           ) : (
             <ProductGrid products={products} dense />
           )}
+          <Pager {...info} params={{ sort: query.sort, min: query.min, max: query.max }} path={path} />
         </div>
       </div>
     </div>

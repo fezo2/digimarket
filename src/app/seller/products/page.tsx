@@ -218,7 +218,7 @@ export default async function ProductsPage({
             )}
           </Empty>
         )}
-        <Pager page={page} pages={pages} params={params} />
+        <Pager page={page} pages={pages} params={params} total={total} perPage={PER_PAGE} />
       </Panel>
     </>
   );

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { adminFrom, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ActionForm } from "@/components/action-form";
+import { Pager } from "@/components/pager";
+import { paginate } from "@/lib/pagination";
 import { handleManualPayment, saveWalletBalance, vouchNotice } from "./actions";
 
 const statusLabels = {
@@ -10,26 +12,30 @@ const statusLabels = {
   CONFIRMED: "اتأكد",
   REJECTED: "اترفض",
 } as const;
+const PER_PAGE = 30;
 const methodLabels = { INSTAPAY: "إنستاباي", WALLET: "محفظة موبايل" } as const;
 
 export default async function AdminManualPayments({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; page?: string }>;
 }) {
   const { t, money, date } = await i18n();
   const admin = await requireAdmin();
   const from = adminFrom(admin);
   const query = await searchParams;
-  if (query.status === "AUTO") return <AutoNotices from={from} />;
+  if (query.status === "AUTO") return <AutoNotices from={from} page={query.page} />;
   const status =
     query.status === "CONFIRMED" || query.status === "REJECTED"
       ? query.status
       : "SUBMITTED";
+  const where = { status: status as "SUBMITTED" | "CONFIRMED" | "REJECTED", createdAt: from };
+  const info = paginate(await db.manualPayment.count({ where }), PER_PAGE, query.page);
   const payments = await db.manualPayment.findMany({
-    where: { status, createdAt: from },
+    where,
     orderBy: { createdAt: status === "SUBMITTED" ? "asc" : "desc" },
-    take: 100,
+    skip: info.skip,
+    take: info.take,
     include: {
       order: {
         select: {
@@ -145,6 +151,7 @@ export default async function AdminManualPayments({
         </section>
       ))}
       {!payments.length && <p>{t("مفيش تحويلات بالحالة دي.")}</p>}
+      <Pager {...info} params={{ status: query.status }} />
     </div>
   );
 }
@@ -156,12 +163,14 @@ const noticeLabels = {
   IGNORED: "اتجاهل",
 } as const;
 
-async function AutoNotices({ from }: { from?: { gte: Date } }) {
+async function AutoNotices({ from, page }: { from?: { gte: Date }; page?: string }) {
   const { t, money, date } = await i18n();
+  const info = paginate(await db.paymentNotice.count({ where: { createdAt: from } }), PER_PAGE, page);
   const notices = await db.paymentNotice.findMany({
     where: { createdAt: from },
     orderBy: { createdAt: "desc" },
-    take: 100,
+    skip: info.skip,
+    take: info.take,
   });
   const anchor = await db.paymentNotice.findFirst({
     where: { trusted: true, balance: { not: null } },
@@ -239,6 +248,7 @@ async function AutoNotices({ from }: { from?: { gte: Date } }) {
         );
       })}
       {!notices.length && <p>{t("لسه مفيش رسايل وصلت.")}</p>}
+      <Pager {...info} params={{ status: "AUTO" }} />
     </div>
   );
 }

@@ -6,11 +6,15 @@ import { productCardSelect } from "@/components/product-card";
 import { listedProduct } from "@/lib/catalog";
 import { Breadcrumbs, ProductGrid } from "@/components/store-ui";
 import { storeCategories } from "@/lib/storefront";
-import { SEARCH_SORTS, type SearchSort, searchProductIds } from "@/lib/search";
+import { SEARCH_SORTS, type SearchSort, searchProductPage } from "@/lib/search";
+import { pageParam, paginate, type PageInfo } from "@/lib/pagination";
+import { Pager } from "@/components/pager";
 
 export const dynamic = "force-dynamic";
 
-type Search = { q?: string; sort?: string; cat?: string };
+type Search = { q?: string; sort?: string; cat?: string; page?: string };
+
+const PER_PAGE = 40;
 
 export async function generateMetadata({
   searchParams,
@@ -49,18 +53,28 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const categoryIds = category ? [category.id, ...category.children.map((c) => c.id)] : undefined;
 
   let products;
+  let info: PageInfo;
   if (q) {
-    const ids = await searchProductIds({ q, sort, categoryIds });
+    const want = pageParam(params.page);
+    const first = await searchProductPage({ q, sort, categoryIds, limit: PER_PAGE, offset: (want - 1) * PER_PAGE });
+    let ids = first.ids;
+    info = paginate(first.total, PER_PAGE, want);
+    // A stale link past the last page shows the last page instead.
+    if (ids.length === 0 && first.total > 0)
+      ({ ids } = await searchProductPage({ q, sort, categoryIds, limit: PER_PAGE, offset: info.skip }));
     const found = ids.length
       ? await db.product.findMany({ where: { id: { in: ids } }, select: { id: true, ...productCardSelect } })
       : [];
     const byId = new Map(found.map((p) => [p.id, p]));
     products = ids.map((id) => byId.get(id)).filter((p) => p !== undefined);
   } else {
+    const where = { ...listedProduct, ...(categoryIds ? { categoryId: { in: categoryIds } } : {}) };
+    info = paginate(await db.product.count({ where }), PER_PAGE, params.page);
     products = await db.product.findMany({
-      where: { ...listedProduct, ...(categoryIds ? { categoryId: { in: categoryIds } } : {}) },
-      orderBy: BROWSE_ORDER[sort],
-      take: 60,
+      where,
+      orderBy: [BROWSE_ORDER[sort], { id: "asc" }],
+      skip: info.skip,
+      take: info.take,
       select: productCardSelect,
     });
   }
@@ -119,8 +133,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         <div>
           <h1 className="mb-3 text-xl font-extrabold">
             {q
-              ? products.length > 0
-                ? t("نتائج \"{q}\" ({length}{length2})", { q, length: products.length, length2: products.length === 60 ? "+" : "" })
+              ? info.total > 0
+                ? t("نتائج \"{q}\" ({length}{length2})", { q, length: num(info.total), length2: "" })
                 : t("مالقيناش نتايج لـ \"{q}\"", { q })
               : category
                 ? cat(category)
@@ -147,6 +161,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           ) : (
             <ProductGrid products={products} dense />
           )}
+          <Pager {...info} params={{ q: q || undefined, sort: params.sort, cat: params.cat }} path="/search" />
         </div>
       </div>
     </div>

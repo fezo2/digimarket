@@ -198,7 +198,7 @@ export default async function SellerOrders({
         ) : (
           <Empty icon="orders" title={filtered ? t("مفيش نتايج") : t("لسه مفيش مبيعات.")} />
         )}
-        <Pager page={page} pages={pages} params={params} />
+        <Pager page={page} pages={pages} params={params} total={total} perPage={PER_PAGE} />
       </Panel>
     </Page>
   );

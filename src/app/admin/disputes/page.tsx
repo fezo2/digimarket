@@ -1,3 +1,6 @@
+import { paginate } from "@/lib/pagination";
+import { Pager } from "@/components/pager";
+import type { Prisma } from "@prisma/client";
 import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { adminFrom, requireAdmin } from "@/lib/auth";
@@ -7,21 +10,28 @@ import { sellerBalance } from "@/lib/ledger";
 import { ActionForm } from "@/components/action-form";
 import { OrderChat } from "@/components/order-chat";
 import { decideDispute } from "./actions";
+
+const PER_PAGE = 30;
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ id?: string }>;
+  searchParams: Promise<{ id?: string; page?: string }>;
 }) {
   const { t, money } = await i18n();
   const user = await requireAdmin();
   const query = await searchParams;
+  const { page } = query;
+  const pageParams = query;
+  const where: Prisma.DisputeWhereInput = {
+    createdAt: adminFrom(user),
+    ...(query.id ? { id: query.id } : {}),
+  };
+  const info = paginate(await db.dispute.count({ where }), PER_PAGE, page);
   const disputes = await db.dispute.findMany({
-    where: {
-      createdAt: adminFrom(user),
-      ...(query.id ? { id: query.id } : {}),
-    },
+    where,
     orderBy: [{ status: "asc" }, { createdAt: "asc" }],
-    take: 100,
+    skip: info.skip,
+    take: info.take,
     include: {
       orderItem: {
         include: {
@@ -112,6 +122,7 @@ export default async function Page({
           );
         }),
       )}
+      <Pager {...info} params={pageParams} />
     </div>
   );
 }

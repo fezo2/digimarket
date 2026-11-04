@@ -109,8 +109,19 @@ export async function searchProductIds(opts: {
   sort?: SearchSort;
   limit?: number;
 }): Promise<string[]> {
+  return (await searchProductPage(opts)).ids;
+}
+
+// One page of matches plus how many there are in all (for the pager).
+export async function searchProductPage(opts: {
+  q: string;
+  categoryIds?: string[];
+  sort?: SearchSort;
+  limit?: number;
+  offset?: number;
+}): Promise<{ ids: string[]; total: number }> {
   const groups = queryGroups(opts.q);
-  if (groups.length === 0) return [];
+  if (groups.length === 0) return { ids: [], total: 0 };
 
   const title = fold(Prisma.sql`p."title"`);
   const hay = fold(
@@ -143,8 +154,8 @@ export async function searchProductIds(opts: {
     ? Prisma.sql`AND p."categoryId" IN (${Prisma.join(opts.categoryIds)})`
     : Prisma.empty;
 
-  const rows = await db.$queryRaw<{ id: string }[]>`
-    SELECT p."id", (${titleScore}) AS score
+  const rows = await db.$queryRaw<{ id: string; total: bigint }[]>`
+    SELECT p."id", (${titleScore}) AS score, count(*) OVER () AS total
     FROM "Product" p
     JOIN "Category" c ON c."id" = p."categoryId"
     JOIN "SellerProfile" s ON s."id" = p."sellerId"
@@ -153,6 +164,19 @@ export async function searchProductIds(opts: {
       ${inCategory}
       AND (${matchAll})
     ORDER BY ${order}, p."id"
-    LIMIT ${opts.limit ?? 60}`;
-  return rows.map((r) => r.id);
+    LIMIT ${opts.limit ?? 60} OFFSET ${opts.offset ?? 0}`;
+  if (rows.length === 0 && (opts.offset ?? 0) > 0) {
+    // Past the last page: the window count comes back empty, so count apart.
+    const [{ total }] = await db.$queryRaw<{ total: bigint }[]>`
+      SELECT count(*) AS total
+      FROM "Product" p
+      JOIN "Category" c ON c."id" = p."categoryId"
+      JOIN "SellerProfile" s ON s."id" = p."sellerId"
+      WHERE p."status" = 'ACTIVE' AND p."salesEnabled" = true
+        AND s."kycStatus" = 'APPROVED' AND s."salesSuspendedAt" IS NULL
+        ${inCategory}
+        AND (${matchAll})`;
+    return { ids: [], total: Number(total) };
+  }
+  return { ids: rows.map((r) => r.id), total: rows.length ? Number(rows[0].total) : 0 };
 }

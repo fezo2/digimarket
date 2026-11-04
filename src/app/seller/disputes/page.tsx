@@ -3,12 +3,22 @@ import Link from "next/link";
 import { requireSeller } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { disputeLabels } from "@/lib/disputes";
-export default async function Page() {
+import { paginate } from "@/lib/pagination";
+import { Pager } from "@/components/pager";
+
+const PER_PAGE = 20;
+
+export default async function Page({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const { t } = await i18n();
+  const query = await searchParams;
   const { seller } = await requireSeller();
+  const where = { orderItem: { sellerId: seller.id } };
+  const info = paginate(await db.dispute.count({ where }), PER_PAGE, query.page);
   const disputes = await db.dispute.findMany({
-    where: { orderItem: { sellerId: seller.id } },
+    where,
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    skip: info.skip,
+    take: info.take,
     include: { orderItem: { select: { orderId: true, title: true } } },
   });
   return (
@@ -29,6 +39,7 @@ export default async function Page() {
           </Link>
         </section>
       ))}
+      <Pager {...info} params={query} />
     </div>
   );
 }

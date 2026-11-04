@@ -1,8 +1,12 @@
+import { paginate } from "@/lib/pagination";
+import { Pager } from "@/components/pager";
 import { i18n } from "@/lib/prefs";
 import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+
+const PER_PAGE = 30;
 
 export async function generateMetadata() {
   return { title: (await i18n()).t("المستخدمين") };
@@ -13,12 +17,13 @@ const ROLES = { BUYER: "مشتري", SELLER: "تاجر", ADMIN: "أدمن" } as 
 export default async function Users({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; filter?: string }>;
+  searchParams: Promise<{ q?: string; filter?: string; page?: string }>;
 }) {
   const { t, num } = await i18n();
   await requireAdmin();
-  const { q = "", filter = "" } = await searchParams;
+  const { q = "", filter = "", page } = await searchParams;
   const term = q.trim().slice(0, 100);
+  const pageParams = { q: term || undefined, filter: filter || undefined };
   const where: Prisma.UserWhereInput = {
     ...(term
       ? {
@@ -34,10 +39,12 @@ export default async function Users({
     ...(filter === "sellers" ? { seller: { isNot: null } } : {}),
     ...(filter === "admins" ? { role: "ADMIN" } : {}),
   };
+  const info = paginate(await db.user.count({ where }), PER_PAGE, page);
   const users = await db.user.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    take: 100,
+    skip: info.skip,
+    take: info.take,
     select: {
       id: true,
       name: true,
@@ -105,6 +112,7 @@ export default async function Users({
         ))}
         {!users.length && <p className="p-4 text-slate-500">{t("مفيش نتايج")}</p>}
       </div>
+      <Pager {...info} params={pageParams} />
     </div>
   );
 }

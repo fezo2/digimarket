@@ -1,3 +1,6 @@
+import { paginate } from "@/lib/pagination";
+import { Pager } from "@/components/pager";
+import type { Prisma } from "@prisma/client";
 import { i18n } from "@/lib/prefs";
 import Link from "next/link";
 import { adminFrom, requireAdmin } from "@/lib/auth";
@@ -6,22 +9,29 @@ import { sellerBalance, methodLabels, payoutLabels } from "@/lib/ledger";
 import { SELLER_TIERS } from "@/lib/config";
 import { ActionForm } from "@/components/action-form";
 import { handlePayout } from "./actions";
+
+const PER_PAGE = 30;
 export default async function AdminPayouts({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; page?: string }>;
 }) {
   const { t, money, date } = await i18n();
   const admin = await requireAdmin();
   const query = await searchParams;
+  const { page } = query;
+  const pageParams = query;
   const status =
     query.status === "PAID" || query.status === "REJECTED"
       ? query.status
       : "REQUESTED";
+  const where: Prisma.PayoutWhereInput = { status, createdAt: adminFrom(admin) };
+  const info = paginate(await db.payout.count({ where }), PER_PAGE, page);
   const payouts = await db.payout.findMany({
-    where: { status, createdAt: adminFrom(admin) },
+    where,
     orderBy: { createdAt: status === "REQUESTED" ? "asc" : "desc" },
-    take: 100,
+    skip: info.skip,
+    take: info.take,
     include: {
       seller: {
         include: {
@@ -125,6 +135,7 @@ export default async function AdminPayouts({
         );
       })}
       {!payouts.length && <p>{t("مفيش طلبات بالحالة دي.")}</p>}
+      <Pager {...info} params={pageParams} />
     </div>
   );
 }
