@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ActionForm } from "@/components/action-form";
-import { handleManualPayment } from "./actions";
+import { handleManualPayment, saveWalletBalance, vouchNotice } from "./actions";
 
 const statusLabels = {
   SUBMITTED: "مستني المراجعة",
@@ -150,6 +150,7 @@ export default async function AdminManualPayments({
 
 const noticeLabels = {
   MATCHED: "اتأكد تلقائي",
+  HELD: "مستني تأكيدك",
   UNMATCHED: "مش مربوط بطلب",
   IGNORED: "اتجاهل",
 } as const;
@@ -159,6 +160,11 @@ async function AutoNotices() {
   const notices = await db.paymentNotice.findMany({
     orderBy: { createdAt: "desc" },
     take: 100,
+  });
+  const anchor = await db.paymentNotice.findFirst({
+    where: { trusted: true, balance: { not: null } },
+    orderBy: { createdAt: "desc" },
+    select: { balance: true, createdAt: true },
   });
   const orders = await db.order.findMany({
     where: { id: { in: notices.flatMap((n) => (n.orderId ? [n.orderId] : [])) } },
@@ -174,6 +180,22 @@ async function AutoNotices() {
       <Link className="btn-outline" href="?status=SUBMITTED">
         {t("رجوع للتحويلات اليدوية")}
       </Link>
+      <section className="card space-y-3 p-5">
+        <p className="font-bold">
+          {anchor?.balance != null
+            ? t("آخر رصيد مؤكد للمحفظة: {amount}", { amount: money(anchor.balance) })
+            : t("لسه مفيش رصيد مؤكد، فكل التحويلات هتستنى تأكيدك.")}
+        </p>
+        <p className="text-sm">
+          {t("الطلب بيتأكد لوحده بس لو رصيد الرسالة = آخر رصيد مؤكد + المبلغ، فالرسالة المزوّرة مش بتعدّي. لو صرفت من المحفظة، اكتب رصيدك الحالي هنا أو أكد أول تحويل بعدها.")}
+        </p>
+        <ActionForm action={saveWalletBalance} button={t("حفظ الرصيد")}>
+          <label className="label">
+            {t("رصيد المحفظة دلوقتي بالجنيه")}
+            <input className="input" name="balance" dir="ltr" required />
+          </label>
+        </ActionForm>
+      </section>
       {notices.map((n) => {
         const order = n.orderId ? byId.get(n.orderId) : undefined;
         return (
@@ -185,6 +207,24 @@ async function AutoNotices() {
               {` · ${date(n.createdAt)}`}
             </p>
             {n.note && <p className="text-sm">{n.note}</p>}
+            {n.balance !== null && (
+              <p className="text-sm">
+                {t("الرصيد في الرسالة: {amount}", { amount: money(n.balance) })}
+                {n.trusted && ` · ${t("مؤكد")}`}
+              </p>
+            )}
+            {(n.status === "HELD" || (n.status === "UNMATCHED" && !n.trusted)) && (
+              <ActionForm
+                action={vouchNotice}
+                button={
+                  n.status === "HELD"
+                    ? t("الفلوس وصلت فعلًا، أكد الطلب")
+                    : t("الرسالة دي حقيقية")
+                }
+              >
+                <input type="hidden" name="id" value={n.id} />
+              </ActionForm>
+            )}
             {n.sender && (
               <p className="text-sm" dir="ltr">
                 {n.sender}

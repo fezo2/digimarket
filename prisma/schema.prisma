@@ -617,6 +617,9 @@ model ManualPayment {
 
 enum PaymentNoticeStatus {
   MATCHED
+  // Matched an order, but the balance did not prove the SMS is real: the
+  // admin checks the wallet and confirms it.
+  HELD
   UNMATCHED
   IGNORED
 }
@@ -632,9 +635,15 @@ model PaymentNotice {
   status    PaymentNoticeStatus
   orderId   String?
   note      String?
+  // Wallet balance the SMS reports. A notice is trusted when its balance
+  // continues the last trusted one (old + amount), or the admin vouched for
+  // it; a forged SMS cannot know the balance.
+  balance   Int?
+  trusted   Boolean             @default(false)
   createdAt DateTime            @default(now())
 
   @@index([createdAt])
+  @@index([trusted, createdAt])
 }
 
 model Announcement {

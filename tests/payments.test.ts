@@ -88,6 +88,19 @@ test("manual payments need a valid InstaPay address or wallet number", () => {
     () => paymentConfig({ ...prod, MANUAL_WALLET: "0101234" }),
     /Invalid MANUAL_WALLET/,
   );
+  // Hand-typed values are tidied instead of taking the site down.
+  assert.deepEqual(
+    paymentConfig({
+      ...prod,
+      MANUAL_INSTAPAY: " Digiegy@InstaPay ",
+      MANUAL_WALLET: "+20 101 234 5678",
+    }),
+    { name: "manual", instapay: "digiegy@instapay", wallet: "01012345678" },
+  );
+  assert.deepEqual(
+    paymentConfig({ ...prod, MANUAL_INSTAPAY: "https://ipn.eg/S/digiegy/instapay/abc" }),
+    { name: "manual", instapay: "https://ipn.eg/S/digiegy/instapay/abc", wallet: "" },
+  );
 });
 
 // Kashier: vectors published in developers.kashier.io (hashing and webhook pages).

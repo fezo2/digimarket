@@ -8,6 +8,8 @@ import {
   rejectManualPayment,
 } from "@/lib/manual-payments";
 import { amountSchema, idSchema } from "@/lib/wallet-validation";
+import { setWalletBalance, vouchForNotice } from "@/lib/auto-payments";
+import { OrderError } from "@/lib/orders";
 import type { ActionState } from "@/components/action-form";
 
 export async function handleManualPayment(
@@ -44,6 +46,40 @@ export async function handleManualPayment(
         : "التحويل اتعالج قبل كده",
     };
   } catch (error) {
+    return manualActionError(error);
+  }
+}
+
+export async function vouchNotice(
+  _: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const actor = await requireAdmin();
+  try {
+    const paid = await vouchForNotice(actor.id, idSchema.parse(form.get("id")));
+    revalidatePath("/admin/payments");
+    return {
+      success: paid
+        ? "اتأكد، والرصيد ده بقى المرجع للتحويلات الجاية"
+        : "الرسالة اتأكدت بس الطلب محتاج مراجعة في صفحة الطلبات",
+    };
+  } catch (error) {
+    if (error instanceof OrderError) return { error: error.message };
+    return manualActionError(error);
+  }
+}
+
+export async function saveWalletBalance(
+  _: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const actor = await requireAdmin();
+  try {
+    await setWalletBalance(actor.id, amountSchema.parse(form.get("balance")));
+    revalidatePath("/admin/payments");
+    return { success: "الرصيد اتسجل، التحويلات الجاية هتتأكد على أساسه" };
+  } catch (error) {
+    if (error instanceof OrderError) return { error: error.message };
     return manualActionError(error);
   }
 }
