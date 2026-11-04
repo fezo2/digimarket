@@ -157,9 +157,11 @@ test("launch accounts, Telegram, event transactions and cron security", async (t
         const updated = await db.user.findUniqueOrThrow({
           where: { id: seller.id },
         });
-        assert.equal(updated.sessionVersion, 1);
-        assert.ok(!sessionIsCurrent(0, updated.sessionVersion));
-        assert.ok(sessionIsCurrent(1, updated.sessionVersion));
+        // Only the store portal's sessions are signed out.
+        assert.equal(updated.storeSessionVersion, 1);
+        assert.equal(updated.sessionVersion, 0);
+        assert.ok(!sessionIsCurrent(0, updated.storeSessionVersion));
+        assert.ok(sessionIsCurrent(1, updated.storeSessionVersion));
         assert.equal(
           await db.passwordResetToken.count({ where: { userId: seller.id } }),
           1,
@@ -175,7 +177,7 @@ test("launch accounts, Telegram, event transactions and cron security", async (t
         await changePassword(seller.id, "New-pass#2026", "Changed#pass2026");
         assert.equal(
           (await db.user.findUniqueOrThrow({ where: { id: seller.id } }))
-            .sessionVersion,
+            .storeSessionVersion,
           2,
         );
       },

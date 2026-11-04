@@ -91,7 +91,16 @@ model User {
   email           String    @unique
   name            String
   phone           String?
+  // Store password. The seller portal and admin panel each keep their own;
+  // while one is still null that portal accepts the store password.
   passwordHash    String
+  sellerPasswordHash String?
+  adminPasswordHash  String?
+  // Bumped by a password change on that portal only; sessionVersion above
+  // still signs the account out everywhere (suspension, role changes).
+  storeSessionVersion  Int @default(0)
+  sellerSessionVersion Int @default(0)
+  adminSessionVersion  Int @default(0)
   // Null until the owner opens the link we email at sign up.
   emailVerifiedAt DateTime?
   role            Role      @default(BUYER)
@@ -107,6 +116,22 @@ model User {
   reviews  Review[]
   messages Message[]
   disputes Dispute[]
+  oauthAccounts OAuthAccount[]
+}
+
+// A Google or Apple identity linked to a user. Apple sends the email only on
+// the first sign in, so later sign ins are matched by subject alone.
+model OAuthAccount {
+  id        String   @id @default(cuid())
+  provider  String
+  subject   String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email     String?
+  createdAt DateTime @default(now())
+
+  @@unique([provider, subject])
+  @@index([userId])
 }
 
 model SellerProfile {
@@ -580,6 +605,8 @@ model EmailVerificationToken {
 model PasswordResetToken {
   id        String    @id @default(cuid())
   userId    String
+  // Which portal's password this link resets: store, seller or admin.
+  site      String    @default("store")
   tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?

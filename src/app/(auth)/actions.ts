@@ -152,7 +152,12 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
   const adminSite = (await currentSite()) === "admin";
   let user;
   try {
-    user = await authenticate(parsed.data.email, parsed.data.password, ip);
+    user = await authenticate(
+      parsed.data.email,
+      parsed.data.password,
+      ip,
+      await currentSite(),
+    );
   } catch (e) {
     if (e instanceof AccountError) {
       // Someone is hammering the admin login: tell the owner.
@@ -186,17 +191,21 @@ export async function updatePassword(
 ): Promise<ActionState> {
   const user = await requireUser();
   try {
-    const fresh = await changePassword(user.id, {
-      current: String(form.get("current") ?? ""),
-      next: String(form.get("next") ?? ""),
-    });
+    const fresh = await changePassword(
+      user.id,
+      {
+        current: String(form.get("current") ?? ""),
+        next: String(form.get("next") ?? ""),
+      },
+      await currentSite(),
+    );
     // Re-issue this device's cookie; every other session is now invalid.
     await createSession({
       userId: fresh.id,
       role: fresh.role,
       sessionVersion: fresh.sessionVersion,
     });
-    return { success: "الباسورد اتغيّر، وكل الأجهزة التانية اتعمل لها خروج" };
+    return { success: "الباسورد اتغيّر للموقع ده بس، والأجهزة التانية عليه اتعمل لها خروج" };
   } catch (error) {
     return toolError(error);
   }

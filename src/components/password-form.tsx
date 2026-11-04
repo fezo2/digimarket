@@ -7,6 +7,7 @@ export async function PasswordForm() {
   return (
     <section className="card space-y-3 p-6">
       <h2 className="text-lg font-bold">{t("تغيير الباسورد")}</h2>
+      <p className="text-sm text-slate-500">{t("كل موقع (المتجر، لوحة البايع، الإدارة) ليه باسورد خاص بيه، والتغيير هنا للموقع ده بس.")}</p>
       <ActionForm action={updatePassword} button={t("غيّر الباسورد")}>
         <label className="label">
           {t("الباسورد الحالي")}

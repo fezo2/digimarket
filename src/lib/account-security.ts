@@ -6,6 +6,8 @@ import { z } from "zod";
 import { db } from "./db";
 import { tokenHash } from "./security";
 import { passwordProblem } from "./password-policy";
+import { passwordHashFor, sitePasswordUpdate } from "./site-password";
+import { siteOrigins, type Site } from "./sites";
 const emailInput = z.string().trim().toLowerCase().email().max(254);
 export class AccountError extends Error {}
 async function lockKeys(tx: Prisma.TransactionClient, keys: string[]) {
@@ -29,6 +31,7 @@ export async function authenticate(
   email: string,
   password: string,
   ip: string,
+  site: Site = "store",
 ) {
   email = emailInput.parse(email);
   z.string().max(200).parse(password);
@@ -46,7 +49,8 @@ export async function authenticate(
       if (counts[0] >= 5 || counts[1] >= 20)
         throw new AccountError("محاولات كتير، جرّب بعد شوية");
       const user = await tx.user.findUnique({ where: { email } });
-      const valid = user && (await bcrypt.compare(password, user.passwordHash));
+      const valid =
+        user && (await bcrypt.compare(password, passwordHashFor(user, site)));
       if (!valid) {
         await tx.loginAttempt.createMany({
           data: keys.map((key) => ({ key })),
@@ -65,6 +69,14 @@ export async function authenticate(
     { timeout: 15000 },
   );
 }
+// The account with what sitePasswordUpdate needs to know about it.
+export async function passwordOwner(tx: Prisma.TransactionClient, userId: string) {
+  const user = await tx.user.findUniqueOrThrow({
+    where: { id: userId },
+    include: { seller: { select: { id: true } } },
+  });
+  return { ...user, hasStore: !!user.seller };
+}
 export function sessionIsCurrent(
   version: number | undefined,
   userVersion: number,
@@ -74,6 +86,7 @@ export function sessionIsCurrent(
 export async function requestPasswordReset(
   email: string,
   deliver: (email: string, url: string) => Promise<void>,
+  site: Site = "store",
 ) {
   email = emailInput.parse(email);
   const key = "reset:" + tokenHash(email);
@@ -93,15 +106,17 @@ export async function requestPasswordReset(
       data: {
         userId: user.id,
         tokenHash: tokenHash(token),
+        site,
         expiresAt: new Date(Date.now() + 30 * 60000),
       },
     });
     return true;
   });
   if (issued) {
+    // The link opens on the portal whose password is being reset.
     const url = new URL(
       "/reset-password",
-      process.env.APP_URL || "http://localhost:3000",
+      siteOrigins()?.[site] || process.env.APP_URL || "http://localhost:3000",
     );
     url.searchParams.set("token", token);
     await deliver(email, url.toString()).catch(() => {
@@ -109,7 +124,13 @@ export async function requestPasswordReset(
     });
   }
 }
-export async function resetPassword(token: string, password: string) {
+// Resets the password of the portal the link was requested from; site is the
+// portal this page is open on and must match it.
+export async function resetPassword(
+  token: string,
+  password: string,
+  site: Site = "store",
+) {
   z.string()
     .regex(/^[a-f0-9]{64}$/)
     .parse(token);
@@ -120,7 +141,8 @@ export async function resetPassword(token: string, password: string) {
     const target = await tx.passwordResetToken.findUnique({
       where: { tokenHash: tokenHash(token) },
     });
-    if (!target) throw new AccountError("اللينك منتهي أو اتستخدم");
+    if (!target || target.site !== site)
+      throw new AccountError("اللينك منتهي أو اتستخدم");
     await lockKeys(tx, ["password:" + target.userId]);
     const claimed = await tx.passwordResetToken.updateMany({
       where: { id: target.id, usedAt: null, expiresAt: { gt: new Date() } },
@@ -129,10 +151,10 @@ export async function resetPassword(token: string, password: string) {
     if (!claimed.count) throw new AccountError("اللينك منتهي أو اتستخدم");
     await tx.user.update({
       where: { id: target.userId },
-      data: { passwordHash, sessionVersion: { increment: 1 } },
+      data: sitePasswordUpdate(await passwordOwner(tx, target.userId), site, passwordHash),
     });
     await tx.passwordResetToken.deleteMany({
-      where: { userId: target.userId, id: { not: target.id } },
+      where: { userId: target.userId, site, id: { not: target.id } },
     });
     await tx.sellerProfile.updateMany({
       where: { userId: target.userId, payoutAccount: { not: null } },
@@ -144,20 +166,21 @@ export async function changePassword(
   userId: string,
   oldPassword: string,
   newPassword: string,
+  site: Site = "store",
 ) {
   const weak = passwordProblem(newPassword);
   if (weak) throw new AccountError(weak);
   const passwordHash = await bcrypt.hash(newPassword, 12);
   await db.$transaction(async (tx) => {
     await lockKeys(tx, ["password:" + userId]);
-    const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
-    if (!(await bcrypt.compare(oldPassword, user.passwordHash)))
+    const user = await passwordOwner(tx, userId);
+    if (!(await bcrypt.compare(oldPassword, passwordHashFor(user, site))))
       throw new AccountError("الباسورد الحالي غلط");
     await tx.user.update({
       where: { id: userId },
-      data: { passwordHash, sessionVersion: { increment: 1 } },
+      data: sitePasswordUpdate(user, site, passwordHash),
     });
-    await tx.passwordResetToken.deleteMany({ where: { userId } });
+    await tx.passwordResetToken.deleteMany({ where: { userId, site } });
     await tx.sellerProfile.updateMany({
       where: { userId, payoutAccount: { not: null } },
       data: { payoutUpdatedAt: new Date() },

@@ -33,6 +33,12 @@ export function launchConfig(env: NodeJS.ProcessEnv = process.env) {
     throw new Error("Set both Turnstile keys, or neither");
   if (env.NODE_ENV === "production" && !env.TURNSTILE_SECRET_KEY)
     console.warn("Turnstile is off: sign-in forms have no captcha");
+  // Half-set sign-in providers stay off (no button) rather than failing.
+  if (!!env.GOOGLE_CLIENT_ID !== !!env.GOOGLE_CLIENT_SECRET)
+    console.warn("Google sign in is off: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET");
+  const apple = [env.APPLE_CLIENT_ID, env.APPLE_TEAM_ID, env.APPLE_KEY_ID, env.APPLE_PRIVATE_KEY];
+  if (apple.some(Boolean) && !apple.every(Boolean))
+    console.warn("Apple sign in is off: set all four APPLE_* settings");
   if (!!env.RESEND_API_KEY !== !!env.EMAIL_FROM)
     throw new Error("Incomplete email configuration");
   if (env.NODE_ENV === "production") {

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { register } from "../actions";
 import { currentSite } from "@/lib/auth";
+import { enabledProviders } from "@/lib/oauth";
 
 export async function generateMetadata() {
   return { title: (await i18n()).t("حساب جديد") };
@@ -20,6 +21,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
       action={register}
       next={safeRedirectPath(next) ?? undefined}
       title={site === "seller" ? t("افتح حساب تاجر") : undefined}
+      providers={enabledProviders()}
     />
   );
 }

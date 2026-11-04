@@ -5,7 +5,13 @@ import type { Role } from "@prisma/client";
 
 export const SESSION_COOKIE = "dm_session";
 
-export type Session = { userId: string; role: Role; sessionVersion?: number };
+export type Session = {
+  userId: string;
+  role: Role;
+  sessionVersion?: number;
+  // The portal's own counter (see site-password.ts); older cookies lack it.
+  siteVersion?: number;
+};
 
 export function authSecret() {
   const value = process.env.AUTH_SECRET;
@@ -27,6 +33,8 @@ export async function readSessionToken(
         typeof payload.sessionVersion === "number"
           ? payload.sessionVersion
           : undefined,
+      siteVersion:
+        typeof payload.siteVersion === "number" ? payload.siteVersion : 0,
     };
   } catch {
     return null;
