@@ -28,9 +28,9 @@ test("automatic InstaPay / wallet confirmation from forwarded SMS", async (t) =>
   process.env.MANUAL_WALLET = "01000000001";
   process.env.SMS_WEBHOOK_SECRET = "test-secret";
   delete process.env.SMS_ALLOWED_SENDERS;
-  const { startAutoPayment, handlePaymentNotice } = await import(
-    "../../src/lib/auto-payments"
-  );
+  delete process.env.SMS_BALANCE_CHECK;
+  const { startAutoPayment, handlePaymentNotice, vouchForNotice, setWalletBalance } =
+    await import("../../src/lib/auto-payments");
   const { submitManualPayment } = await import("../../src/lib/manual-payments");
   const key = randomUUID();
   const users: string[] = [];
@@ -118,26 +118,26 @@ test("automatic InstaPay / wallet confirmation from forwarded SMS", async (t) =>
         },
       });
 
+    await db.paymentNotice.deleteMany({});
+    await setWalletBalance(admin.id, 100000);
+    let balance = 100000;
+
     await t.test("unique amount confirms and delivers the order", async () => {
       const order = await newOrder();
       const started = await startAutoPayment(order.id, order.buyerId, "+20 101 234 5678");
       assert.equal(started.payFrom, "01012345678");
       assert.ok(started.payAmount! > order.total && started.payAmount! < order.total + 100);
       const amount = (started.payAmount! / 100).toFixed(2);
-      const r = await handlePaymentNotice({
-        sender: "VF-Cash",
-        text: `تم استلام مبلغ ${amount} جنيه من رقم 01299999999. رصيدك الحالي 5000.00 جنيه`,
-      });
+      balance += started.payAmount!;
+      const text = `تم استلام مبلغ ${amount} جنيه من رقم 01299999999. رصيدك الحالي ${(balance / 100).toFixed(2)} جنيه`;
+      const r = await handlePaymentNotice({ sender: "VF-Cash", text });
       assert.equal(r.status, "MATCHED");
       const paid = await load(order.id);
       assert.equal(paid.status, "PAID");
       assert.equal(paid.paidAmount, order.total);
       assert.ok(paid.items[0].deliveredAt);
       // The same SMS forwarded again does nothing more.
-      const again = await handlePaymentNotice({
-        sender: "VF-Cash",
-        text: `تم استلام مبلغ ${amount} جنيه من رقم 01299999999. رصيدك الحالي 5000.00 جنيه`,
-      });
+      const again = await handlePaymentNotice({ sender: "VF-Cash", text });
       assert.equal(again.status, "DUPLICATE");
     });
 
@@ -145,8 +145,9 @@ test("automatic InstaPay / wallet confirmation from forwarded SMS", async (t) =>
       const order = await newOrder();
       await startAutoPayment(order.id, order.buyerId, "01155555555");
       await submitManualPayment(order.buyerId, order.id, details("REF-AUTO01"), png());
+      balance += 10000;
       const r = await handlePaymentNotice({
-        text: "تم استلام مبلغ 100 جنيه من رقم 01155555555 رقم العملية 778899",
+        text: `تم استلام مبلغ 100 جنيه من رقم 01155555555 رصيدك الحالي ${(balance / 100).toFixed(2)} جنيه رقم العملية 778899`,
       });
       assert.equal(r.status, "MATCHED");
       const paid = await load(order.id);
@@ -178,11 +179,43 @@ test("automatic InstaPay / wallet confirmation from forwarded SMS", async (t) =>
         const r = await handlePaymentNotice({
           text: `استلمت ${(s.payAmount! / 100).toFixed(2)} جنيه`,
         });
-        assert.equal(r.status, "UNMATCHED");
+        assert.equal(r.status, "HELD");
         assert.equal((await load(order.id)).status, "PENDING_PAYMENT");
       } finally {
         delete process.env.AUTO_CONFIRM_MAX_EGP;
       }
+    });
+    await t.test("a forged SMS with a guessed balance waits; the admin's vouch pays it and re-anchors", async () => {
+      const order = await newOrder();
+      const s = await startAutoPayment(order.id, order.buyerId, "01033333333");
+      const amount = (s.payAmount! / 100).toFixed(2);
+      const forged = await handlePaymentNotice({
+        text: `تم استلام مبلغ ${amount} جنيه من 01033333333 رصيدك الحالي 99999.00 جنيه`,
+      });
+      assert.equal(forged.status, "HELD");
+      assert.equal((await load(order.id)).status, "PENDING_PAYMENT");
+      // No balance at all (a bank SMS) waits too.
+      const order2 = await newOrder();
+      const s2 = await startAutoPayment(order2.id, order2.buyerId, "01044444444");
+      const plain = await handlePaymentNotice({
+        text: `تم استلام مبلغ ${(s2.payAmount! / 100).toFixed(2)} جنيه من 01044444444`,
+      });
+      assert.equal(plain.status, "HELD");
+      // The admin checked the wallet: the held notice pays its order.
+      const held = await db.paymentNotice.findFirstOrThrow({
+        where: { orderId: order.id, status: "HELD" },
+      });
+      await vouchForNotice(admin.id, held.id);
+      assert.equal((await load(order.id)).status, "PAID");
+      // ...and its balance is now the reference: the next real SMS passes.
+      const order3 = await newOrder();
+      const s3 = await startAutoPayment(order3.id, order3.buyerId, "01055555555");
+      const next = 9999900 + s3.payAmount!;
+      const ok = await handlePaymentNotice({
+        text: `تم استلام مبلغ ${(s3.payAmount! / 100).toFixed(2)} جنيه من 01055555555 رصيدك الحالي ${(next / 100).toFixed(2)} جنيه`,
+      });
+      assert.equal(ok.status, "MATCHED");
+      assert.equal((await load(order3.id)).status, "PAID");
     });
   } finally {
     if (users.length) {
