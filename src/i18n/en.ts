@@ -1133,4 +1133,12 @@ export const en: Record<string, string> = {
   "مؤكد": "verified",
   "الفلوس وصلت فعلًا، أكد الطلب": "The money really arrived, confirm the order",
   "الرسالة دي حقيقية": "This message is genuine",
+  "مستندات التوثيق": "Verification documents",
+  "اتبعت ": "Submitted ",
+  "(طلب قديم)": "(older request)",
+  "راجع الطلب": "Review request",
+  "تفاصيل الطلب": "Request details",
+  "ملاحظة المراجعة: ": "Review note: ",
+  "التاجر لسه مبعتش مستندات التوثيق.": "The seller hasn't submitted verification documents yet.",
+  "مفيش مستندات ظاهرة ليك.": "No documents visible to you.",
 };

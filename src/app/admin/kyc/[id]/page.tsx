@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { hiddenFromAdmin, requireAdmin } from "@/lib/auth";
 import { reviewKyc } from "../../actions";
+import { KycDocs } from "../kyc-docs";
 
 const PAYOUT = { INSTAPAY: "InstaPay", MOBILE_WALLET: "محفظة موبايل", BANK_TRANSFER: "تحويل بنكي" } as const;
 
@@ -22,14 +23,6 @@ export default async function KycReview({
     include: { seller: { include: { user: { select: { email: true, createdAt: true } } } } },
   });
   if (!s || hiddenFromAdmin(admin, s.submittedAt)) notFound();
-
-  const docs = [
-    [t("البطاقة (وش)"), s.idFrontKey],
-    [t("البطاقة (ضهر)"), s.idBackKey],
-    [t("سيلفي بالبطاقة"), s.selfieKey],
-    [t("السجل التجاري"), s.commercialRegKey],
-    [t("البطاقة الضريبية"), s.taxCardKey],
-  ].filter((d): d is [string, string] => Boolean(d[1]));
 
   const rows: [string, string | null][] = [
     [t("المتجر"), s.seller.storeName],
@@ -64,22 +57,7 @@ export default async function KycReview({
             {t("اتأكد إن الاسم على البطاقة هو نفس اسم صاحب حساب الأرباح، وإن السيلفي لنفس الشخص.")}
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {docs.map(([label, key]) => {
-            const url = `/api/admin/files/${key}`;
-            return (
-              <a key={key} href={url} target="_blank" className="card block overflow-hidden hover:border-brand-500">
-                <p className="p-2 text-sm font-semibold">{label}</p>
-                {key.endsWith(".pdf") ? (
-                  <p className="p-6 text-center text-brand-600">{t("فتح ملف PDF")}</p>
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={url} alt={label} className="aspect-[4/3] w-full bg-slate-100 object-contain" />
-                )}
-              </a>
-            );
-          })}
-        </div>
+        <KycDocs s={s} />
       </div>
 
       {s.status === "PENDING" ? (
