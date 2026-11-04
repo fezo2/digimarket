@@ -99,6 +99,8 @@ model User {
   suspendedAt     DateTime?
   suspendReason   String?
   adminNote       String?
+  // Staff admin: sees only records created on or after this moment.
+  adminDataFrom   DateTime?
 
   seller   SellerProfile?
   orders   Order[]
@@ -655,5 +657,6 @@ model SupplierSettings {
   sellerId  String?
   usdRate   Int      @default(5500) // piasters per 1 USD
   multiplierBps Int @default(25000) // 25000 = store price is 2.5x the cost
+  apiKey    String? // ProdSeller key saved from the admin panel; env is the fallback
   updatedAt DateTime @updatedAt
 }

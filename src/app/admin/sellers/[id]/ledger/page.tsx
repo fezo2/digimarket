@@ -1,6 +1,6 @@
 import { i18n } from "@/lib/prefs";
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { adminFrom, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sellerBalance } from "@/lib/ledger";
 import { BalanceCards, LedgerTable } from "@/components/ledger-view";
@@ -12,14 +12,14 @@ export default async function AdminSellerLedger({
   params: Promise<{ id: string }>;
 }) {
   const { t } = await i18n();
-  await requireAdmin();
+  const admin = await requireAdmin();
   const { id } = await params;
   const seller = await db.sellerProfile.findUnique({ where: { id } });
   if (!seller) notFound();
   const [balance, entries] = await Promise.all([
     sellerBalance(id),
     db.ledgerEntry.findMany({
-      where: { sellerId: id },
+      where: { sellerId: id, createdAt: adminFrom(admin) },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 50,
       include: {

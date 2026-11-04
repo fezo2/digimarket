@@ -1,5 +1,5 @@
 import { i18n } from "@/lib/prefs";
-import { requireAdmin } from "@/lib/auth";
+import { adminFrom, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { PortalNav } from "@/components/portal-nav";
 
@@ -9,17 +9,24 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const { t } = await i18n();
-  await requireAdmin();
+  const admin = await requireAdmin();
+  const from = adminFrom(admin);
+  const weekAgo = new Date(Date.now() - 7 * 86400000);
   const [kyc, products, payments, payouts, disputes, flagged, repay] = await Promise.all([
-    db.kycSubmission.count({ where: { status: "PENDING" } }),
+    db.kycSubmission.count({ where: { status: "PENDING", submittedAt: from } }),
     db.product.count({ where: { status: "PENDING_REVIEW" } }),
-    db.manualPayment.count({ where: { status: "SUBMITTED" } }),
-    db.payout.count({ where: { status: "REQUESTED" } }),
-    db.dispute.count({ where: { status: "OPEN" } }),
+    db.manualPayment.count({ where: { status: "SUBMITTED", createdAt: from } }),
+    db.payout.count({ where: { status: "REQUESTED", createdAt: from } }),
+    db.dispute.count({ where: { status: "OPEN", createdAt: from } }),
     db.message.count({
-      where: { flagged: true, createdAt: { gte: new Date(Date.now() - 7 * 86400000) } },
+      where: {
+        flagged: true,
+        createdAt: { gte: from && from.gte > weekAgo ? from.gte : weekAgo },
+      },
     }),
-    db.order.count({ where: { status: "REFUNDED", refundPaidAt: null } }),
+    db.order.count({
+      where: { status: "REFUNDED", refundPaidAt: null, createdAt: from },
+    }),
   ]);
   return (
     <div className="flex min-h-[calc(100vh-4rem)] flex-col lg:flex-row">
@@ -61,6 +68,9 @@ export default async function AdminLayout({
               { href: "/admin/news", label: t("إعلانات للتجار"), icon: "📢" },
               { href: "/admin/suppliers", label: t("ProdSeller"), icon: "⚡" },
               { href: "/admin/audit", label: t("سجل الإجراءات"), icon: "📜" },
+              ...(admin.adminDataFrom
+                ? []
+                : [{ href: "/admin/admins", label: t("حسابات الأدمن"), icon: "🔑" }]),
             ],
           },
         ]}

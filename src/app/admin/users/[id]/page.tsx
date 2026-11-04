@@ -1,5 +1,5 @@
 import { i18n } from "@/lib/prefs";
-import { requireAdmin } from "@/lib/auth";
+import { adminFrom, requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
@@ -25,19 +25,26 @@ export default async function UserDetail({
   params: Promise<{ id: string }>;
 }) {
   const { t, money, date, day } = await i18n();
-  await requireAdmin();
+  const admin = await requireAdmin();
+  const from = adminFrom(admin);
   const { id } = await params;
   const user = await db.user.findUnique({
     where: { id },
     include: {
       seller: { select: { id: true, storeName: true, kycStatus: true } },
-      orders: { orderBy: { createdAt: "desc" }, take: 20 },
+      orders: {
+        where: { createdAt: from },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
       disputes: {
+        where: { createdAt: from },
         orderBy: { createdAt: "desc" },
         take: 20,
         include: { orderItem: { select: { title: true, orderId: true } } },
       },
       reviews: {
+        where: { createdAt: from },
         orderBy: { createdAt: "desc" },
         take: 20,
         include: { product: { select: { title: true } } },
@@ -47,11 +54,11 @@ export default async function UserDetail({
   if (!user) notFound();
   const [spent, logs] = await Promise.all([
     db.order.aggregate({
-      where: { buyerId: id, status: "PAID" },
+      where: { buyerId: id, status: "PAID", createdAt: from },
       _sum: { total: true },
     }),
     db.auditLog.findMany({
-      where: { targetId: { in: [id, user.seller?.id ?? id] } },
+      where: { targetId: { in: [id, user.seller?.id ?? id] }, createdAt: from },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),

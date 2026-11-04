@@ -1,5 +1,5 @@
 import { i18n } from "@/lib/prefs";
-import { requireAdmin } from "@/lib/auth";
+import { adminFrom, requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { db } from "@/lib/db";
 
@@ -15,10 +15,13 @@ export default async function FlaggedMessages({
   searchParams: Promise<{ all?: string }>;
 }) {
   const { t, date } = await i18n();
-  await requireAdmin();
+  const admin = await requireAdmin();
   const { all } = await searchParams;
   const messages = await db.message.findMany({
-    where: all === "1" ? { kind: "USER" } : { flagged: true },
+    where: {
+      createdAt: adminFrom(admin),
+      ...(all === "1" ? { kind: "USER" } : { flagged: true }),
+    },
     orderBy: { createdAt: "desc" },
     take: 100,
     include: {

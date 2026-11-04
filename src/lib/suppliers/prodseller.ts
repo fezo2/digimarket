@@ -1,7 +1,9 @@
 import "server-only";
+import { db } from "../db";
 
 // Client for the ProdSeller reseller API (https://prodseller.com/api-docs/).
-// Prices come back in USDT; the key lives only in PRODSELLER_API_KEY.
+// Prices come back in USDT. The key is saved from the admin panel
+// (SupplierSettings.apiKey); PRODSELLER_API_KEY is the fallback.
 
 export type SupplierProduct = {
   id: string;
@@ -33,8 +35,16 @@ export class SupplierError extends Error {
   }
 }
 
-export function prodsellerConfigured(env: NodeJS.ProcessEnv = process.env) {
-  return Boolean(env.PRODSELLER_API_KEY);
+export async function prodsellerKey() {
+  const saved = await db.supplierSettings.findUnique({
+    where: { id: "prodseller" },
+    select: { apiKey: true },
+  });
+  return saved?.apiKey || process.env.PRODSELLER_API_KEY || "";
+}
+
+export async function prodsellerConfigured() {
+  return Boolean(await prodsellerKey());
 }
 
 const base = () =>
@@ -45,7 +55,7 @@ async function call<T>(
   init: { method?: string; body?: unknown; idempotencyKey?: string } = {},
   fetcher: typeof fetch = fetch,
 ): Promise<T> {
-  const key = process.env.PRODSELLER_API_KEY;
+  const key = await prodsellerKey();
   if (!key) throw new SupplierError("مفتاح ProdSeller مش متضاف", 401);
   let res: Response;
   try {

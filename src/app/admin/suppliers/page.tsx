@@ -7,10 +7,16 @@ import { guessCategorySlug, supplierPrice } from "@/lib/supplier-pricing";
 import {
   getBalance,
   listProducts,
-  prodsellerConfigured,
+  prodsellerKey,
   type SupplierProduct,
 } from "@/lib/suppliers/prodseller";
-import { importProducts, recategorize, saveSettings, syncNow } from "./actions";
+import {
+  importProducts,
+  recategorize,
+  saveKey,
+  saveSettings,
+  syncNow,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -20,25 +26,49 @@ export async function generateMetadata() {
 
 const usd = (mills: number) => `$${(mills / 1000).toFixed(2)}`;
 
+// Shows only the last 4 characters: the key itself never reaches a page.
+async function KeyForm({ current, saved }: { current: string; saved: boolean }) {
+  const { t } = await i18n();
+  return (
+    <section className="card space-y-3 p-5 text-sm">
+      <h2 className="font-bold">{t("مفتاح الـ API")}</h2>
+      <p className="text-slate-500">
+        {current
+          ? `${t("المفتاح الحالي بينتهي بـ")} ${current.slice(-4)} · ${
+              saved ? t("محفوظ من هنا") : t("من إعدادات Vercel")
+            }`
+          : t("مفتاح الـ API مش متضاف لسه.")}
+      </p>
+      <p className="text-slate-500">
+        {t("من لوحة ProdSeller اعمل مفتاح من API Manager وحطه هنا. لو سبت الخانة فاضية وحفظت، المفتاح المحفوظ هنا هيتمسح.")}
+      </p>
+      <ActionForm action={saveKey} button={t("احفظ المفتاح")}>
+        <input
+          className="input"
+          name="apiKey"
+          type="password"
+          autoComplete="off"
+          dir="ltr"
+          placeholder="psk_..."
+        />
+      </ActionForm>
+    </section>
+  );
+}
+
 export default async function Suppliers() {
   const { t, num, money, date } = await i18n();
   await requireAdmin();
-  if (!prodsellerConfigured())
+  const [key, settings] = await Promise.all([prodsellerKey(), supplierSettings()]);
+  const keyForm = <KeyForm current={key} saved={Boolean(settings.apiKey)} />;
+  if (!key)
     return (
       <div className="space-y-5">
         <h1 className="text-2xl font-bold">ProdSeller</h1>
-        <section className="card space-y-2 p-5 text-sm">
-          <p>{t("مفتاح الـ API مش متضاف لسه.")}</p>
-          <p>
-            {t(
-              "من لوحة ProdSeller اعمل مفتاح من API Manager، وحطه في Vercel باسم PRODSELLER_API_KEY، وبعدين اعمل Redeploy.",
-            )}
-          </p>
-        </section>
+        {keyForm}
       </div>
     );
 
-  const settings = await supplierSettings();
   const [sellers, categories, imported] = await Promise.all([
     db.sellerProfile.findMany({
       select: { id: true, storeName: true },
@@ -114,6 +144,8 @@ export default async function Suppliers() {
           <div className="text-lg font-bold">{lastSync ? date(lastSync) : "—"}</div>
         </div>
       </section>
+
+      {keyForm}
 
       <section className="card space-y-3 p-5">
         <h2 className="font-bold">{t("الإعدادات")}</h2>

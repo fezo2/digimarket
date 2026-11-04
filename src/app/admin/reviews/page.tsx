@@ -1,5 +1,5 @@
 import { i18n } from "@/lib/prefs";
-import { requireAdmin } from "@/lib/auth";
+import { adminFrom, requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -19,11 +19,12 @@ export default async function Page({
   searchParams: Promise<{ filter?: string; q?: string }>;
 }) {
   const { t, day } = await i18n();
-  await requireAdmin();
+  const admin = await requireAdmin();
   const { filter = "", q = "" } = await searchParams;
   const term = q.trim().slice(0, 100);
   const reviews = await db.review.findMany({
     where: {
+      createdAt: adminFrom(admin),
       ...(FILTERS[filter] ?? {}),
       ...(term
         ? {

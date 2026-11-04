@@ -1,5 +1,5 @@
 import { i18n } from "@/lib/prefs";
-import { requireAdmin } from "@/lib/auth";
+import { adminFrom, requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
@@ -29,7 +29,8 @@ export default async function SellerDetail({
   params: Promise<{ id: string }>;
 }) {
   const { t, money, num, date } = await i18n();
-  await requireAdmin();
+  const admin = await requireAdmin();
+  const from = adminFrom(admin);
   const { id } = await params;
   const seller = await db.sellerProfile.findUnique({
     where: { id },
@@ -53,16 +54,22 @@ export default async function SellerDetail({
   const [balance, sales, openDisputes, refunds, logs] = await Promise.all([
     sellerBalance(id),
     db.orderItem.aggregate({
-      where: { sellerId: id, order: { status: "PAID" } },
+      where: { sellerId: id, order: { status: "PAID", createdAt: from } },
       _sum: { total: true, commissionAmount: true },
       _count: true,
     }),
-    db.dispute.count({ where: { status: "OPEN", orderItem: { sellerId: id } } }),
     db.dispute.count({
-      where: { status: "RESOLVED_REFUND", orderItem: { sellerId: id } },
+      where: { status: "OPEN", createdAt: from, orderItem: { sellerId: id } },
+    }),
+    db.dispute.count({
+      where: {
+        status: "RESOLVED_REFUND",
+        createdAt: from,
+        orderItem: { sellerId: id },
+      },
     }),
     db.auditLog.findMany({
-      where: { targetId: { in: [id, seller.userId] } },
+      where: { targetId: { in: [id, seller.userId] }, createdAt: from },
       orderBy: { createdAt: "desc" },
       take: 30,
     }),

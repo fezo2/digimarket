@@ -1,6 +1,6 @@
 import { i18n } from "@/lib/prefs";
 import Link from "next/link";
-import { requireAdmin } from "@/lib/auth";
+import { adminFrom, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sellerBalance, methodLabels, payoutLabels } from "@/lib/ledger";
 import { SELLER_TIERS } from "@/lib/config";
@@ -12,14 +12,14 @@ export default async function AdminPayouts({
   searchParams: Promise<{ status?: string }>;
 }) {
   const { t, money, date } = await i18n();
-  await requireAdmin();
+  const admin = await requireAdmin();
   const query = await searchParams;
   const status =
     query.status === "PAID" || query.status === "REJECTED"
       ? query.status
       : "REQUESTED";
   const payouts = await db.payout.findMany({
-    where: { status },
+    where: { status, createdAt: adminFrom(admin) },
     orderBy: { createdAt: status === "REQUESTED" ? "asc" : "desc" },
     take: 100,
     include: {

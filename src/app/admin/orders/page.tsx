@@ -3,7 +3,7 @@ import { unreadCounts } from "@/lib/chat";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { confirmRefundPaid, retryDelivery, recordRefund } from "./actions";
-import { requireAdmin } from "@/lib/auth";
+import { adminFrom, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { releaseExpiredOrders } from "@/lib/orders";
 import { orderStatusLabels } from "@/lib/order-snapshot";
@@ -20,6 +20,7 @@ export default async function AdminOrders({
   await releaseExpiredOrders();
   const orders = await db.order.findMany({
     where: {
+      createdAt: adminFrom(actor),
       ...(query.order ? { id: query.order } : {}),
       ...(query.review === "1"
         ? { status: "PAID", items: { some: { deliveredAt: null } } }

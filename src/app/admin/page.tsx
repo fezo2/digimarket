@@ -1,5 +1,5 @@
 import { i18n } from "@/lib/prefs";
-import { requireAdmin } from "@/lib/auth";
+import { adminFrom, requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { db } from "@/lib/db";
 
@@ -31,7 +31,10 @@ async function salesSince(since: Date) {
 
 export default async function AdminHome() {
   const { t, money, num, day } = await i18n();
-  await requireAdmin();
+  const admin = await requireAdmin();
+  const from = adminFrom(admin);
+  // A staff admin's numbers never reach back before their start date.
+  const clamp = (d: Date) => (from && from.gte > d ? from.gte : d);
   const now = Date.now();
   const startOfDay = new Date(new Date().setHours(0, 0, 0, 0));
   const [
@@ -51,26 +54,28 @@ export default async function AdminHome() {
     month,
     daily,
   ] = await Promise.all([
-    db.kycSubmission.count({ where: { status: "PENDING" } }),
+    db.kycSubmission.count({ where: { status: "PENDING", submittedAt: from } }),
     db.product.count({ where: { status: "PENDING_REVIEW" } }),
-    db.manualPayment.count({ where: { status: "SUBMITTED" } }),
-    db.payout.count({ where: { status: "REQUESTED" } }),
-    db.dispute.count({ where: { status: "OPEN" } }),
+    db.manualPayment.count({ where: { status: "SUBMITTED", createdAt: from } }),
+    db.payout.count({ where: { status: "REQUESTED", createdAt: from } }),
+    db.dispute.count({ where: { status: "OPEN", createdAt: from } }),
     db.message.count({
-      where: { flagged: true, createdAt: { gte: new Date(now - 7 * DAY) } },
+      where: { flagged: true, createdAt: { gte: clamp(new Date(now - 7 * DAY)) } },
     }),
-    db.order.count({ where: { status: "PAID", reviewReason: { not: null } } }),
+    db.order.count({
+      where: { status: "PAID", reviewReason: { not: null }, createdAt: from },
+    }),
     db.sellerProfile.count({ where: { salesSuspendedAt: { not: null } } }),
-    db.user.count(),
+    db.user.count({ where: { createdAt: from } }),
     db.sellerProfile.count({ where: { kycStatus: "APPROVED" } }),
     db.product.count({ where: { status: "ACTIVE" } }),
-    salesSince(startOfDay),
-    salesSince(new Date(now - 7 * DAY)),
-    salesSince(new Date(now - 30 * DAY)),
+    salesSince(clamp(startOfDay)),
+    salesSince(clamp(new Date(now - 7 * DAY))),
+    salesSince(clamp(new Date(now - 30 * DAY))),
     db.$queryRaw<{ day: Date; total: bigint }[]>`
       SELECT date_trunc('day', "paidAt") AS day, SUM(total)::bigint AS total
       FROM "Order"
-      WHERE status = 'PAID' AND "paidAt" >= ${new Date(now - 14 * DAY)}
+      WHERE status = 'PAID' AND "paidAt" >= ${clamp(new Date(now - 14 * DAY))}
       GROUP BY 1 ORDER BY 1`,
   ]);
 

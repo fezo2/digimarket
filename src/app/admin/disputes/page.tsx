@@ -1,6 +1,6 @@
 import { i18n } from "@/lib/prefs";
 import Link from "next/link";
-import { requireAdmin } from "@/lib/auth";
+import { adminFrom, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { disputeLabels } from "@/lib/disputes";
 import { sellerBalance } from "@/lib/ledger";
@@ -16,7 +16,10 @@ export default async function Page({
   const user = await requireAdmin();
   const query = await searchParams;
   const disputes = await db.dispute.findMany({
-    where: query.id ? { id: query.id } : {},
+    where: {
+      createdAt: adminFrom(user),
+      ...(query.id ? { id: query.id } : {}),
+    },
     orderBy: [{ status: "asc" }, { createdAt: "asc" }],
     take: 100,
     include: {

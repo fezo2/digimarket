@@ -17,7 +17,10 @@ export async function participant(tx: Tx, userId: string, orderId: string) {
   communityId.parse(orderId);
   communityId.parse(userId);
   const [user, order] = await Promise.all([
-    tx.user.findUnique({ where: { id: userId }, select: { role: true } }),
+    tx.user.findUnique({
+      where: { id: userId },
+      select: { role: true, adminDataFrom: true },
+    }),
     tx.order.findUnique({
       where: { id: orderId },
       select: {
@@ -26,6 +29,7 @@ export async function participant(tx: Tx, userId: string, orderId: string) {
         buyerId: true,
         status: true,
         paidAt: true,
+        createdAt: true,
         items: {
           select: {
             id: true,
@@ -40,6 +44,10 @@ export async function participant(tx: Tx, userId: string, orderId: string) {
     !user ||
     !order ||
     !["PAID", "REFUNDED"].includes(order.status) ||
+    // A staff admin doesn't see orders from before their start date.
+    (user.role === "ADMIN" &&
+      user.adminDataFrom &&
+      order.createdAt < user.adminDataFrom) ||
     (user.role !== "ADMIN" &&
       order.buyerId !== userId &&
       !order.items.some((i) => i.seller.userId === userId))

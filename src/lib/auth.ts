@@ -103,6 +103,27 @@ export async function requireAdmin() {
   return user;
 }
 
+// A staff admin (adminDataFrom set) has every admin tool but only sees
+// records created on or after that date. Null means a full admin.
+export function adminFrom(user: { adminDataFrom: Date | null }) {
+  return user.adminDataFrom ? { gte: user.adminDataFrom } : undefined;
+}
+
+// True when a staff admin is looking at something older than their start.
+export function hiddenFromAdmin(
+  user: { adminDataFrom: Date | null },
+  createdAt: Date,
+) {
+  return Boolean(user.adminDataFrom && createdAt < user.adminDataFrom);
+}
+
+// Managing admins stays with full admins, so staff can't widen their view.
+export async function requireFullAdmin() {
+  const user = await requireAdmin();
+  if (user.adminDataFrom) redirect("/admin");
+  return user;
+}
+
 export async function requireSeller() {
   const user = await requireUser("/seller");
   if (!user.seller) redirect("/seller/join");

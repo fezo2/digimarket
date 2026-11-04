@@ -1,5 +1,5 @@
 import { i18n } from "@/lib/prefs";
-import { requireAdmin } from "@/lib/auth";
+import { adminFrom, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ActionForm } from "@/components/action-form";
 import { announcementVisibility, newAnnouncement } from "../control-actions";
@@ -10,8 +10,9 @@ export async function generateMetadata() {
 
 export default async function News() {
   const { t, date } = await i18n();
-  await requireAdmin();
+  const admin = await requireAdmin();
   const items = await db.announcement.findMany({
+    where: { createdAt: adminFrom(admin) },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
