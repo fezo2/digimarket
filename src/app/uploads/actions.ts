@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { participant } from "@/lib/chat";
 import { r2 } from "@/lib/r2";
 import { z } from "zod";
+import { withinLimit } from "@/lib/account-security";
 export async function createUploadUrl(
   kind: unknown,
   size: unknown,
@@ -20,6 +21,9 @@ export async function createUploadUrl(
     })
     .parse({ kind, size, type, context });
   if (process.env.STORAGE_DRIVER !== "r2") return { local: true } as const;
+  // Each signed URL lets the browser put a file straight into the bucket.
+  if (!(await withinLimit("upload-url:" + user.id, 40, 3600000)))
+    throw new Error("رفعت ملفات كتير، جرّب بعد شوية");
   if (v.kind === "chat") await participant(db, user.id, v.context);
   else if (v.kind === "receipt") {
     if (

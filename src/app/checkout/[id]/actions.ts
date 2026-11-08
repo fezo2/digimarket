@@ -6,6 +6,7 @@ import { PricingError } from "@/lib/pricing";
 import { requireUser, requireVerifiedUser } from "@/lib/auth";
 import { applyCoupon, cancelPendingOrder, preparePayment, OrderError } from "@/lib/orders";
 import { getPaymentProvider } from "@/lib/payments";
+import { withinLimit } from "@/lib/account-security";
 
 export async function changeCoupon(
   id: string,
@@ -15,6 +16,9 @@ export async function changeCoupon(
   const user = await requireUser(`/checkout/${id}`);
   const code = z.string().trim().max(100).safeParse(form.get("code"));
   if (!code.success) return { error: "اكتب كود صحيح" };
+  // Stops guessing sellers' promo codes by trying them one after another.
+  if (code.data && !(await withinLimit("coupon:" + user.id, 15, 3600000)))
+    return { error: "محاولات كتير، جرّب بعد شوية" };
   try {
     await applyCoupon(id, user.id, code.data);
   } catch (error) {

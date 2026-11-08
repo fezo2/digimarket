@@ -46,7 +46,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const { t, cat, num } = await i18n();
   const params = await searchParams;
   const q = params.q?.trim().slice(0, 100) ?? "";
-  const sort = (params.sort && params.sort in SEARCH_SORTS ? params.sort : "relevance") as SearchSort;
+  const sort = (params.sort && Object.hasOwn(SEARCH_SORTS, params.sort) ? params.sort : "relevance") as SearchSort;
 
   const categories = await storeCategories();
   const category = categories.find((c) => c.slug === params.cat);

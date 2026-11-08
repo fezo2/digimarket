@@ -15,7 +15,8 @@ export type PageInfo = {
 export function pageParam(value: string | string[] | undefined) {
   const raw = Array.isArray(value) ? value[0] : value;
   const n = Number(raw);
-  return Number.isInteger(n) && n > 0 ? n : 1;
+  // Capped so a crafted ?page=1e300 can't ask the database for an absurd offset.
+  return Number.isSafeInteger(n) && n > 0 ? Math.min(n, 100_000) : 1;
 }
 
 export function paginate(total: number, perPage: number, requested: string | number | undefined): PageInfo {

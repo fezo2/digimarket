@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { passwordHashFor } from "./site-password";
+import { passwordCheckAllowed } from "./account-security";
 import { enqueueNotice } from "./notifications";
 import { db } from "./db";
 import { sellerBalance } from "./ledger";
@@ -79,6 +80,8 @@ export async function saveDestination(
 ) {
   const value = destinationSchema.parse(input);
   passwordSchema.parse(password);
+  if (!(await passwordCheckAllowed(userId)))
+    throw new WalletError("محاولات كتير، جرّب بعد شوية");
   return db.$transaction(async (tx) => {
     const owner = await tx.sellerProfile.findUnique({
       where: { userId },
@@ -440,6 +443,8 @@ export async function adjustLedger(
     .parse(amount);
   const value = noteSchema.parse(note);
   passwordSchema.parse(password);
+  if (!(await passwordCheckAllowed(actorId)))
+    throw new WalletError("محاولات كتير، جرّب بعد شوية");
   return db.$transaction(async (tx) => {
     const actor = await admin(tx, actorId);
     // Creating money out of nothing stays with the owner (a full admin).
