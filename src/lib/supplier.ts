@@ -317,10 +317,20 @@ export async function fulfilSupplierOrder(
     where: { orderId, supplier: SUPPLIER, order: { status: "PAID" } },
     include: {
       product: { select: { supplierProductId: true } },
-      order: { select: { number: true } },
+      order: { select: { number: true, total: true, paidAmount: true } },
     },
   });
   if (!item || item.deliveredAt) return {};
+  // Spend supplier balance only on a fully paid order: a short manual
+  // transfer would otherwise buy keys that delivery then refuses.
+  if (item.order.paidAmount !== item.order.total) {
+    const reason = "المبلغ المدفوع مختلف عن إجمالي الطلب";
+    await db.order.updateMany({
+      where: { id: orderId, status: "PAID" },
+      data: { reviewReason: reason },
+    });
+    return { error: reason };
+  }
   if (item.supplierError && !opts.retryFailed) return { error: item.supplierError };
   if (item.supplierError)
     await db.orderItem.update({

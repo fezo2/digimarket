@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { db } from "./db";
 import { enqueueNotice } from "./notifications";
+import { STAFF_DENIED, staffMayNotTouch } from "./staff-scope";
 export async function moderateProduct(
   actorId: string,
   input: { id: string; decision: "ACTIVE" | "REJECTED"; reviewNote: string },
@@ -16,10 +17,18 @@ export async function moderateProduct(
   if (v.decision === "REJECTED" && !v.reviewNote)
     throw new Error("اكتب سبب الرفض");
   return db.$transaction(async (tx) => {
-    if (
-      (await tx.user.findUnique({ where: { id: actorId } }))?.role !== "ADMIN"
-    )
+    const actor = await tx.user.findUnique({ where: { id: actorId } });
+    if (actor?.role !== "ADMIN" || actor.suspendedAt)
       throw new Error("غير مسموح");
+    // A staff admin can't approve products of their own store.
+    if (actor.adminDataFrom) {
+      const product = await tx.product.findUnique({
+        where: { id: v.id },
+        select: { seller: { select: { userId: true } } },
+      });
+      if (product && staffMayNotTouch(actor, { userIds: [product.seller.userId] }))
+        throw new Error(STAFF_DENIED);
+    }
     const changed = await tx.product.updateMany({
       where: {
         id: v.id,

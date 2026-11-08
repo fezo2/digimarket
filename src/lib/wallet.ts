@@ -18,6 +18,7 @@ import {
   payoutUnlockAt,
 } from "./wallet-validation";
 import { deliverPaidOrder, lockOrder, releaseOrderStock } from "./orders";
+import { STAFF_DENIED, staffMayNotTouch } from "./staff-scope";
 
 export class WalletError extends Error {}
 type Tx = Prisma.TransactionClient;
@@ -26,8 +27,34 @@ export async function lockSeller(tx: Tx, sellerId: string) {
 }
 async function admin(tx: Tx, actorId: string) {
   const actor = await tx.user.findUnique({ where: { id: actorId } });
-  if (!actor || actor.role !== "ADMIN") throw new WalletError("غير مسموح");
+  if (!actor || actor.role !== "ADMIN" || actor.suspendedAt)
+    throw new WalletError("غير مسموح");
   return actor;
+}
+// A staff admin can't act on an order that is theirs (as buyer or seller) or
+// older than their start date; see staff-scope.ts.
+async function orderInScope(
+  tx: Tx,
+  actor: { id: string; adminDataFrom: Date | null },
+  orderId: string,
+) {
+  if (!actor.adminDataFrom) return;
+  const order = await tx.order.findUnique({
+    where: { id: orderId },
+    select: {
+      buyerId: true,
+      createdAt: true,
+      items: { select: { seller: { select: { userId: true } } } },
+    },
+  });
+  if (
+    order &&
+    staffMayNotTouch(actor, {
+      createdAt: order.createdAt,
+      userIds: [order.buyerId, ...order.items.map((i) => i.seller.userId)],
+    })
+  )
+    throw new WalletError(STAFF_DENIED);
 }
 async function audit(
   tx: Tx,
@@ -176,9 +203,19 @@ export async function processPayout(
     text,
   );
   return db.$transaction(async (tx) => {
-    await admin(tx, actorId);
-    const payout = await tx.payout.findUnique({ where: { id: payoutId } });
+    const actor = await admin(tx, actorId);
+    const payout = await tx.payout.findUnique({
+      where: { id: payoutId },
+      include: { seller: { select: { userId: true } } },
+    });
     if (!payout) throw new WalletError("طلب السحب مش موجود");
+    if (
+      staffMayNotTouch(actor, {
+        createdAt: payout.createdAt,
+        userIds: [payout.seller.userId],
+      })
+    )
+      throw new WalletError(STAFF_DENIED);
     await lockSeller(tx, payout.sellerId);
     const changed = await tx.payout.updateMany({
       where: { id: payoutId, status: "REQUESTED" },
@@ -226,7 +263,7 @@ export async function refundOrder(
   idSchema.parse(orderId);
   const value = noteSchema.parse(note);
   const execute = async (tx: Tx) => {
-    await admin(tx, actorId);
+    await orderInScope(tx, await admin(tx, actorId), orderId);
     const order = await refundPaidOrder(tx, actorId, orderId, value, "order.refunded");
     if (!order) return false;
     await tx.order.update({ where: { id: orderId }, data: { refundPaidAt: new Date() } });
@@ -291,7 +328,7 @@ export async function sellerRefundOrder(
 export async function markRefundPaid(actorId: string, orderId: string) {
   idSchema.parse(orderId);
   return db.$transaction(async (tx) => {
-    await admin(tx, actorId);
+    await orderInScope(tx, await admin(tx, actorId), orderId);
     const changed = await tx.order.updateMany({
       where: { id: orderId, status: "REFUNDED", refundPaidAt: null },
       data: { refundPaidAt: new Date() },
@@ -363,7 +400,9 @@ export async function redeliverOrder(actorId: string, orderId: string) {
     select: { id: true },
   });
   if (resold) {
-    await db.$transaction((tx) => admin(tx, actorId));
+    await db.$transaction(async (tx) =>
+      orderInScope(tx, await admin(tx, actorId), orderId),
+    );
     const { fulfilSupplierOrder } = await import("./supplier");
     const r = await fulfilSupplierOrder(orderId, { retryFailed: true });
     if (r.error) throw new WalletError(r.error);
@@ -375,7 +414,7 @@ export async function redeliverOrder(actorId: string, orderId: string) {
   }
   return db.$transaction(
     async (tx) => {
-      await admin(tx, actorId);
+      await orderInScope(tx, await admin(tx, actorId), orderId);
       const result = await deliverPaidOrder(tx, orderId);
       if (result.error) throw new WalletError(result.error);
       if (result.delivered)
@@ -403,6 +442,8 @@ export async function adjustLedger(
   passwordSchema.parse(password);
   return db.$transaction(async (tx) => {
     const actor = await admin(tx, actorId);
+    // Creating money out of nothing stays with the owner (a full admin).
+    if (actor.adminDataFrom) throw new WalletError(STAFF_DENIED);
     if (!(await bcrypt.compare(password, passwordHashFor(actor, "admin"))))
       throw new WalletError("الباسورد الحالي مش صحيح");
     await lockSeller(tx, sellerId);

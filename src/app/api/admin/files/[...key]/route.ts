@@ -1,4 +1,4 @@
-import { getCurrentUser, hiddenFromAdmin } from "@/lib/auth";
+import { getCurrentUser, hiddenFromAdmin, onAdminPortal } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { privateDownload } from "@/lib/private-download";
 
@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ key: string[] }> },
 ) {
   const user = await getCurrentUser();
-  if (user?.role !== "ADMIN") return notFound();
+  if (user?.role !== "ADMIN" || !(await onAdminPortal())) return notFound();
 
   const key = (await params).key.join("/");
   const createdAt = await ownerDate(key);

@@ -9,6 +9,7 @@ import { manualConfig } from "./payments/config";
 import { normalizeAccount, parseNotice } from "./payments/sms-parse";
 import { siteHref } from "./sites";
 import { pickOrder } from "./auto-payments-pick";
+import { STAFF_DENIED, staffMayNotTouch } from "./staff-scope";
 
 // A transfer can land a while after the 30-minute order window: a matched
 // late payment still revives and delivers the order (see markOrderPaid).
@@ -291,16 +292,41 @@ async function payNoticeOrder(noticeId: string, orderId: string) {
 
 async function requireAdminActor(actorId: string) {
   const actor = await db.user.findUnique({ where: { id: actorId } });
-  if (actor?.role !== "ADMIN") throw new OrderError("غير مسموح");
+  if (actor?.role !== "ADMIN" || actor.suspendedAt)
+    throw new OrderError("غير مسموح");
+  return actor;
 }
 
 // The admin checked the wallet: the money in this SMS really arrived. The
 // notice becomes the new trusted balance, and a held order is paid.
 export async function vouchForNotice(actorId: string, noticeId: string) {
-  await requireAdminActor(actorId);
+  const actor = await requireAdminActor(actorId);
   const notice = await db.paymentNotice.findUnique({ where: { id: noticeId } });
   if (!notice || notice.status === "IGNORED")
     throw new OrderError("الرسالة مش موجودة");
+  // Vouching pays the matched order: a staff admin can't do it for their
+  // own order or one older than their start date.
+  if (actor.adminDataFrom) {
+    const order = notice.orderId
+      ? await db.order.findUnique({
+          where: { id: notice.orderId },
+          select: {
+            buyerId: true,
+            createdAt: true,
+            items: { select: { seller: { select: { userId: true } } } },
+          },
+        })
+      : null;
+    if (
+      staffMayNotTouch(actor, {
+        createdAt: order?.createdAt ?? notice.createdAt,
+        userIds: order
+          ? [order.buyerId, ...order.items.map((i) => i.seller.userId)]
+          : [],
+      })
+    )
+      throw new OrderError(STAFF_DENIED);
+  }
   await db.paymentNotice.update({
     where: { id: noticeId },
     data: {
