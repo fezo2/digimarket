@@ -7,6 +7,7 @@ import { parsePeriod } from "./seller-period";
 import { passwordProblem, strongPassword } from "./password-policy";
 import { passwordHashFor, sitePasswordUpdate } from "./site-password";
 import type { Site } from "./sites";
+import { passwordCheckAllowed } from "./account-security";
 
 export class SellerToolError extends Error {}
 
@@ -54,6 +55,8 @@ export async function changePassword(
   });
   const user = { ...found, hasStore: !!found.seller };
   const current = passwordHashFor(user, site);
+  if (!(await passwordCheckAllowed(userId)))
+    throw new SellerToolError("محاولات كتير، جرّب بعد شوية");
   if (!(await bcrypt.compare(v.current, current)))
     throw new SellerToolError("الباسورد الحالي غلط");
   if (v.current === v.next)

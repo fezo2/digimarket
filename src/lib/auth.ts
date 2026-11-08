@@ -19,6 +19,9 @@ import {
 } from "./session-token";
 
 const MAX_AGE = 60 * 60 * 24 * 30;
+// The admin panel signs in again every 12 hours: a forgotten or stolen admin
+// cookie stops working the same day.
+const ADMIN_MAX_AGE = 60 * 60 * 12;
 
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 12);
@@ -43,23 +46,25 @@ export async function createSession(session: Session) {
     session.sessionVersion !== user.sessionVersion
   )
     redirect("/login");
+  const site = await currentSite();
+  const maxAge = site === "admin" && siteOrigins() ? ADMIN_MAX_AGE : MAX_AGE;
   const token = await new SignJWT({
     userId: session.userId,
     role: session.role,
     sessionVersion: user.sessionVersion,
     // Cookies are per host, so this cookie only ever serves this portal.
-    siteVersion: siteSessionVersion(user, await currentSite()),
+    siteVersion: siteSessionVersion(user, site),
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(`${MAX_AGE}s`)
+    .setExpirationTime(`${maxAge}s`)
     .sign(authSecret());
   (await cookies()).set(COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: MAX_AGE,
+    maxAge,
   });
 }
 

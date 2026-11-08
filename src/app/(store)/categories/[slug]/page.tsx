@@ -91,7 +91,7 @@ export default async function CategoryPage({
   });
   if (!category) notFound();
 
-  const sortKey = (query.sort && query.sort in SORTS ? query.sort : "popular") as keyof typeof SORTS;
+  const sortKey = (query.sort && Object.hasOwn(SORTS, query.sort) ? query.sort : "popular") as keyof typeof SORTS;
   const min = priceParam(query.min);
   const max = priceParam(query.max);
   const where = {

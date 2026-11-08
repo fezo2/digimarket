@@ -102,6 +102,17 @@ test("a staff admin can't serve themselves or reach another admin", async () => 
       denied,
     );
 
+    // Re-typing the password is limited: a stolen cookie can't guess it.
+    for (let i = 0; i < 10; i++)
+      await assert.rejects(
+        wallet.adjustLedger(owner.id, other.seller!.id, 100, "تسوية", "wrong-" + i),
+        /الباسورد الحالي مش صحيح/,
+      );
+    await assert.rejects(
+      wallet.adjustLedger(owner.id, other.seller!.id, 100, "تسوية", "wrong-x"),
+      /محاولات كتير/,
+    );
+
     // Can't mark their own store's payout as paid.
     const payout = await db.payout.create({
       data: {

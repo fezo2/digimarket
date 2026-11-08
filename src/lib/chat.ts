@@ -189,12 +189,17 @@ export async function readChat(userId: string, orderId: string) {
         createdAt: m.createdAt,
         flagged: access.admin && m.flagged,
         hasAttachment: Boolean(m.attachmentKey),
+        // Labelled by who the sender is on this order, so an admin account
+        // that also buys or sells shows as the buyer or seller, never as
+        // "الإدارة" to the other side.
         role:
-          m.sender.role === "ADMIN"
-            ? "الإدارة"
-            : m.senderId === access.order.buyerId
-              ? "المشتري"
-              : "التاجر",
+          m.senderId === access.order.buyerId
+            ? "المشتري"
+            : access.order.items.some((i) => i.seller.userId === m.senderId)
+              ? "التاجر"
+              : m.sender.role === "ADMIN"
+                ? "الإدارة"
+                : "التاجر",
       })),
     };
   });

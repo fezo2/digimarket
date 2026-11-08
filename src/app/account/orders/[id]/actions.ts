@@ -15,12 +15,15 @@ import {
 } from "@/lib/community-action-error";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { withinLimit } from "@/lib/account-security";
 import type { ActionState } from "@/components/action-form";
 export async function sendChat(
   _: ActionState,
   form: FormData,
 ): Promise<ActionState> {
   const user = await requireUser();
+  if (!(await withinLimit("chat:" + user.id, 30, 10 * 60000)))
+    return { error: "بعت رسايل كتير، استنى شوية" };
   try {
     const result = await sendMessage(
       user.id,

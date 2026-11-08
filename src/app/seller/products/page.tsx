@@ -44,8 +44,8 @@ export default async function ProductsPage({
   const { seller } = await requireSeller();
   if (seller.kycStatus !== "APPROVED") return null;
   const query = await searchParams;
-  const tab: Tab = query.tab && query.tab in TABS ? (query.tab as Tab) : "sale";
-  const delivery = query.d && query.d in DELIVERY ? (query.d as DeliveryType) : undefined;
+  const tab: Tab = query.tab && Object.hasOwn(TABS, query.tab) ? (query.tab as Tab) : "sale";
+  const delivery = query.d && Object.hasOwn(DELIVERY, query.d) ? (query.d as DeliveryType) : undefined;
   const q = (query.q ?? "").trim().slice(0, 100);
   const filter: Prisma.ProductWhereInput = {
     sellerId: seller.id,

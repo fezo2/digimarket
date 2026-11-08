@@ -37,7 +37,7 @@ export default async function SellerDashboard({
   const { seller } = await requireSeller();
   const query = await searchParams;
   const period = parsePeriod(query, "30d");
-  const metric: Metric = query.m && query.m in METRICS ? (query.m as Metric) : "gross";
+  const metric: Metric = query.m && Object.hasOwn(METRICS, query.m) ? (query.m as Metric) : "gross";
   const products = await db.product.findMany({
     where: { sellerId: seller.id },
     orderBy: { createdAt: "desc" },

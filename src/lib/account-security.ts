@@ -27,6 +27,12 @@ export async function withinLimit(key: string, max: number, windowMs: number) {
     return true;
   });
 }
+// A signed-in session asking for the current password again (changing it,
+// payout details, ledger adjustments) gets 10 tries per 15 minutes, so a
+// stolen cookie can't be used to guess the password.
+export async function passwordCheckAllowed(userId: string) {
+  return withinLimit("password-confirm:" + userId, 10, 15 * 60000);
+}
 export async function authenticate(
   email: string,
   password: string,
@@ -170,6 +176,8 @@ export async function changePassword(
 ) {
   const weak = passwordProblem(newPassword);
   if (weak) throw new AccountError(weak);
+  if (!(await passwordCheckAllowed(userId)))
+    throw new AccountError("محاولات كتير، جرّب بعد شوية");
   const passwordHash = await bcrypt.hash(newPassword, 12);
   await db.$transaction(async (tx) => {
     await lockKeys(tx, ["password:" + userId]);
