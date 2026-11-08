@@ -11,6 +11,7 @@ import {
 } from "./community-rules";
 import { CommunityError, ParticipantError } from "./community-error";
 import { z } from "zod";
+import { STAFF_DENIED, staffMayNotTouch } from "./staff-scope";
 export async function writeReview(
   userId: string,
   itemId: string,
@@ -110,13 +111,25 @@ export async function moderateReview(
   z.boolean().parse(hide);
   const note = z.string().trim().min(1).max(1000).parse(reason);
   return db.$transaction(async (tx) => {
-    if ((await tx.user.findUnique({ where: { id: userId } }))?.role !== "ADMIN")
+    const actor = await tx.user.findUnique({ where: { id: userId } });
+    if (actor?.role !== "ADMIN" || actor.suspendedAt)
       throw new ParticipantError("غير مسموح");
     const target = await tx.review.findUnique({
       where: { id: reviewId },
-      include: { orderItem: { select: { orderId: true } } },
+      include: {
+        orderItem: { select: { orderId: true } },
+        seller: { select: { userId: true } },
+      },
     });
     if (!target) throw new ParticipantError("التقييم مش موجود");
+    // A staff admin can't hide reviews of their own store, or their own.
+    if (
+      staffMayNotTouch(actor, {
+        createdAt: target.createdAt,
+        userIds: [target.seller.userId, target.buyerId],
+      })
+    )
+      throw new CommunityError(STAFF_DENIED);
     await lockOrder(tx, target.orderItem.orderId);
     await lockSeller(tx, target.sellerId);
     const review = await tx.review.findUniqueOrThrow({

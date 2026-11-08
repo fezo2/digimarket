@@ -7,7 +7,9 @@ import bcrypt from "bcryptjs";
 import { sessionIsCurrent } from "./account-security";
 import { isVerified } from "./email-verification";
 import { db } from "./db";
-import { siteForHost, type Site } from "./sites";
+import { siteForHost, siteOrigins, type Site } from "./sites";
+import { onAdminPortal } from "./portal";
+export { onAdminPortal };
 import { siteSessionVersion } from "./site-password";
 import {
   SESSION_COOKIE as COOKIE,
@@ -108,7 +110,7 @@ export async function currentSite(): Promise<Site> {
 export async function requireAdmin() {
   const user = await requireUser("/admin");
   // On the admin host "/" is the admin panel itself, so send them to sign in.
-  if (user.role !== "ADMIN")
+  if (user.role !== "ADMIN" || !(await onAdminPortal()))
     redirect((await currentSite()) === "admin" ? "/login" : "/");
   return user;
 }
@@ -136,6 +138,8 @@ export async function requireFullAdmin() {
 
 export async function requireSeller() {
   const user = await requireUser("/seller");
+  // Same rule for the seller portal: its own host and its own password.
+  if (siteOrigins() && (await currentSite()) !== "seller") redirect("/");
   if (!user.seller) redirect("/seller/join");
   return { user, seller: user.seller };
 }

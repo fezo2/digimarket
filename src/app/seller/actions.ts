@@ -54,7 +54,7 @@ export async function joinAsSeller(
 const kycSchema = z
   .object({
     type: z.enum(["INDIVIDUAL", "COMPANY"]),
-    fullName: z.string().trim().min(5, "اكتب الاسم كامل زي البطاقة"),
+    fullName: z.string().trim().min(5, "اكتب الاسم كامل زي البطاقة").max(120),
     nationalId: z
       .string()
       .trim()
@@ -63,12 +63,12 @@ const kycSchema = z
       .string()
       .trim()
       .regex(/^01[0125]\d{8}$/, "رقم الموبايل مش صحيح"),
-    companyName: z.string().trim().optional(),
-    commercialRegNo: z.string().trim().optional(),
-    taxCardNo: z.string().trim().optional(),
+    companyName: z.string().trim().max(150).optional(),
+    commercialRegNo: z.string().trim().max(50).optional(),
+    taxCardNo: z.string().trim().max(50).optional(),
     payoutMethod: z.enum(["INSTAPAY", "BANK_TRANSFER", "MOBILE_WALLET"]),
-    payoutAccount: z.string().trim().min(5, "اكتب بيانات استلام الأرباح"),
-    payoutAccountName: z.string().trim().min(3, "اكتب اسم صاحب الحساب"),
+    payoutAccount: z.string().trim().min(5, "اكتب بيانات استلام الأرباح").max(100),
+    payoutAccountName: z.string().trim().min(3, "اكتب اسم صاحب الحساب").max(120),
   })
   .superRefine((v, ctx) => {
     if (v.type === "COMPANY") {

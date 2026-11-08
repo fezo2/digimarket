@@ -6,6 +6,7 @@ import { lockOrder, markOrderPaid, releaseOrderStock } from "./orders";
 import { finalizeUpload } from "./finalize-upload";
 import { deletePrivateFile } from "./storage";
 import { checkMagic, uploadSpec, UploadError } from "./storage-rules";
+import { STAFF_DENIED, staffMayNotTouch } from "./staff-scope";
 
 export class ManualPaymentError extends Error {}
 
@@ -87,9 +88,30 @@ export async function submitManualPayment(
   }
 }
 
-async function requireAdminUser(actorId: string) {
+async function requireAdminUser(actorId: string, paymentId: string) {
   const actor = await db.user.findUnique({ where: { id: actorId } });
-  if (actor?.role !== "ADMIN") throw new ManualPaymentError("غير مسموح");
+  if (actor?.role !== "ADMIN" || actor.suspendedAt)
+    throw new ManualPaymentError("غير مسموح");
+  // A staff admin can't confirm their own purchase, a sale of their own
+  // store, or a transfer older than their start date.
+  if (actor.adminDataFrom) {
+    const order = await db.order.findFirst({
+      where: { manualPayment: { id: paymentId } },
+      select: {
+        buyerId: true,
+        createdAt: true,
+        items: { select: { seller: { select: { userId: true } } } },
+      },
+    });
+    if (
+      order &&
+      staffMayNotTouch(actor, {
+        createdAt: order.createdAt,
+        userIds: [order.buyerId, ...order.items.map((i) => i.seller.userId)],
+      })
+    )
+      throw new ManualPaymentError(STAFF_DENIED);
+  }
 }
 
 export async function confirmManualPayment(
@@ -101,7 +123,7 @@ export async function confirmManualPayment(
   z.string().min(1).max(100).parse(paymentId);
   z.number().int().positive().max(2147483647).parse(receivedAmount);
   const reviewNote = z.string().trim().max(500).parse(note);
-  await requireAdminUser(actorId);
+  await requireAdminUser(actorId, paymentId);
   // Claim the transfer first: the SUBMITTED guard makes confirm and reject
   // mutually exclusive, so a rejected transfer can never mark its order paid.
   const claimed = await db.$transaction(async (tx) => {
@@ -154,7 +176,7 @@ export async function rejectManualPayment(
     .min(1, "اكتب سبب الرفض")
     .max(500)
     .parse(reason);
-  await requireAdminUser(actorId);
+  await requireAdminUser(actorId, paymentId);
   const payment = await db.manualPayment.findUnique({
     where: { id: paymentId },
   });

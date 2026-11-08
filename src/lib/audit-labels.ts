@@ -5,6 +5,8 @@ const LABELS: Record<string, string> = {
   "announcement.shown": "إظهار إعلان",
   "dispute.opened": "فتح شكوى",
   "dispute.resolved": "قرار شكوى",
+  "kyc.approved": "قبول توثيق متجر",
+  "kyc.rejected": "رفض توثيق متجر",
   "ledger.adjustment": "تسوية رصيد",
   "manual_payment.confirmed": "تأكيد تحويل يدوي",
   "manual_payment.rejected": "رفض تحويل يدوي",

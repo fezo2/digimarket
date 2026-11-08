@@ -9,6 +9,7 @@ import { deletePrivateFile } from "./storage";
 import { communityId, disputeReason, maskContact } from "./community-rules";
 import { CommunityError, ParticipantError } from "./community-error";
 import { z } from "zod";
+import { STAFF_DENIED, staffMayNotTouch } from "./staff-scope";
 async function lockBuyerDisputes(
   tx: Prisma.TransactionClient,
   buyerId: string,
@@ -136,13 +137,30 @@ export async function resolveDispute(
   z.boolean().parse(refund);
   const value = z.string().trim().min(1).max(1000).parse(note);
   return db.$transaction(async (tx) => {
-    if ((await tx.user.findUnique({ where: { id: userId } }))?.role !== "ADMIN")
+    const actor = await tx.user.findUnique({ where: { id: userId } });
+    if (actor?.role !== "ADMIN" || actor.suspendedAt)
       throw new ParticipantError("غير مسموح");
     const target = await tx.dispute.findUnique({
       where: { id: disputeId },
-      include: { orderItem: { select: { orderId: true, sellerId: true } } },
+      include: {
+        orderItem: {
+          select: {
+            orderId: true,
+            sellerId: true,
+            seller: { select: { userId: true } },
+            order: { select: { createdAt: true } },
+          },
+        },
+      },
     });
     if (!target) throw new ParticipantError("الشكوى مش موجودة");
+    if (
+      staffMayNotTouch(actor, {
+        createdAt: target.orderItem.order.createdAt,
+        userIds: [target.buyerId, target.orderItem.seller.userId],
+      })
+    )
+      throw new CommunityError(STAFF_DENIED);
     await lockOrder(tx, target.orderItem.orderId);
     await lockBuyerDisputes(tx, target.buyerId);
     await lockSeller(tx, target.orderItem.sellerId);

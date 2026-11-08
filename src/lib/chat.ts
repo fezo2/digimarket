@@ -3,6 +3,7 @@ import { finalizeUpload } from "./finalize-upload";
 import { Prisma } from "@prisma/client";
 import { enqueueNotice } from "./notifications";
 import { db } from "./db";
+import { onAdminPortal } from "./portal";
 import { lockOrder } from "./orders";
 import { communityId, messageBody, maskContact } from "./community-rules";
 import { CommunityError, ParticipantError } from "./community-error";
@@ -40,28 +41,29 @@ export async function participant(tx: Tx, userId: string, orderId: string) {
       },
     }),
   ]);
+  // Admin access to every order's chat only from the admin portal.
+  const admin = user?.role === "ADMIN" && (await onAdminPortal());
   if (
     !user ||
     !order ||
     !["PAID", "REFUNDED"].includes(order.status) ||
     // A staff admin doesn't see orders from before their start date.
-    (user.role === "ADMIN" &&
+    (admin &&
       user.adminDataFrom &&
       order.createdAt < user.adminDataFrom) ||
-    (user.role !== "ADMIN" &&
+    (!admin &&
       order.buyerId !== userId &&
       !order.items.some((i) => i.seller.userId === userId))
   )
     throw new ParticipantError("الطلب مش موجود");
   return {
     order,
-    role:
-      user.role === "ADMIN"
-        ? "الإدارة"
-        : order.buyerId === userId
-          ? "المشتري"
-          : "التاجر",
-    admin: user.role === "ADMIN",
+    role: admin
+      ? "الإدارة"
+      : order.buyerId === userId
+        ? "المشتري"
+        : "التاجر",
+    admin,
   };
 }
 async function sendAllowed(tx: Tx, order: { id: string; paidAt: Date | null }) {
