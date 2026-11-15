@@ -1,7 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { CATALOG_TAG } from "@/lib/storefront";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { moderateProduct } from "@/lib/product-moderation";
@@ -33,5 +34,6 @@ export async function reviewProduct(
   }
   if (!result.count) return { error: "الطلب اتراجع بالفعل أو التاجر مش موثّق" };
   revalidatePath("/", "layout");
+  revalidateTag(CATALOG_TAG);
   redirect("/admin/products");
 }

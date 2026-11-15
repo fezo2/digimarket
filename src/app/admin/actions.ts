@@ -1,7 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { CATALOG_TAG } from "@/lib/storefront";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
@@ -67,4 +68,5 @@ export async function updateCommission(form: FormData) {
   const { id, percent } = commissionSchema.parse(Object.fromEntries(form));
   await db.category.update({ where: { id }, data: { commissionBps: Math.round(percent * 100) } });
   revalidatePath("/admin/categories");
+  revalidateTag(CATALOG_TAG);
 }

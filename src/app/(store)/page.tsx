@@ -7,7 +7,7 @@ import { ProductRowItem, productCardSelect, type ProductCardData } from "@/compo
 import { ProductGrid, ProductScroller, SectionHeader } from "@/components/store-ui";
 import { Icon } from "@/components/icons";
 import { CategoryThumb } from "@/components/category-thumb";
-import { positivePercent, storeCategories } from "@/lib/storefront";
+import { catalogCache, positivePercent, storeCategories } from "@/lib/storefront";
 import { SELLER_TIERS } from "@/lib/config";
 import { SITE_NAME, SITE_NAME_EN } from "@/lib/config";
 import type { Metadata } from "next";
@@ -50,10 +50,9 @@ const FEATURED = [
   "itunes-cards", "canva", "xbox-game-pass", "telegram-premium", "spotify", "windows",
 ];
 
-export default async function HomePage() {
-  const { t, cat, num } = await i18n();
-  const [categories, bestSellers, newest, discounted, topRated, topStores] = await Promise.all([
-    storeCategories(),
+// Cached for crawlers and anonymous visits (see catalogCache).
+const homeLists = catalogCache("home", () =>
+  Promise.all([
     db.product.findMany({
       where: listedProduct,
       orderBy: { soldCount: "desc" },
@@ -91,6 +90,14 @@ export default async function HomePage() {
         _count: { select: { products: true } },
       },
     }),
+  ]),
+);
+
+export default async function HomePage() {
+  const { t, cat, num } = await i18n();
+  const [categories, [bestSellers, newest, discounted, topRated, topStores]] = await Promise.all([
+    storeCategories(),
+    homeLists(),
   ]);
 
   const subcategories = categories.flatMap((c) => c.children);

@@ -3,7 +3,8 @@ import { requireAdmin } from "@/lib/auth";
 import { moderateReview } from "@/lib/reviews";
 import { communityId } from "@/lib/community-rules";
 import { communityActionError } from "@/lib/community-action-error";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { CATALOG_TAG } from "@/lib/storefront";
 import { z } from "zod";
 import type { ActionState } from "@/components/action-form";
 export async function changeVisibility(
@@ -19,6 +20,7 @@ export async function changeVisibility(
       z.string().trim().min(1).max(1000).parse(form.get("reason")),
     );
     revalidatePath("/", "layout");
+    revalidateTag(CATALOG_TAG);
     return { success: changed ? "التقييم اتحدّث" : "التقييم اتعالج قبل كده" };
   } catch (error) {
     return communityActionError(error);

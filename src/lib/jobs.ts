@@ -10,6 +10,7 @@ export const jobs = [
   "supplier-sync",
   "checkout-reminders",
   "indexnow",
+  "hourly",
 ] as const;
 export function cronAuthorization(job: string, header: string | null) {
   if (!jobs.includes(job as (typeof jobs)[number])) return 404;
@@ -39,7 +40,32 @@ export async function cleanupBatch() {
     { timeout: 4000, maxWait: 1000 },
   );
 }
-export async function runJob(job: string) {
+// Every Neon wake-up keeps the database awake for at least 5 minutes, so the
+// periodic work runs together in one call instead of several staggered ones.
+// Notifications are also sent right after they are queued (see
+// notifications.ts) and createOrder releases expired orders itself, so this
+// is a catch-up pass that can safely run only once an hour.
+export async function runHourly(now = new Date()) {
+  const steps: [string, () => Promise<unknown>][] = [
+    ["send-notifications", () => sendNotifications(fetch, 20000)],
+    ["release-expired-orders", () => runJob("release-expired-orders")],
+    ["supplier-sync", () => runJob("supplier-sync")],
+    ["checkout-reminders", () => runJob("checkout-reminders")],
+    ["indexnow", () => runJob("indexnow")],
+  ];
+  if (now.getUTCHours() === 3) steps.push(["cleanup", () => runJob("cleanup")]);
+  const done: Record<string, unknown> = {};
+  for (const [name, step] of steps) {
+    // One failing job must not stop the others.
+    done[name] = await step().catch((error) => {
+      console.error("Cron step failed", { name, error });
+      return "failed";
+    });
+  }
+  return done;
+}
+export async function runJob(job: string): Promise<unknown> {
+  if (job === "hourly") return runHourly();
   if (job === "send-notifications") return sendNotifications();
   if (job === "checkout-reminders")
     return (await import("./checkout-reminders")).sendCheckoutReminders();
