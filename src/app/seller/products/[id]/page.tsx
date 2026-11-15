@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { requireSeller } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ProductForm } from "../product-form";
+import { listStoreCategories } from "@/lib/store-categories";
 import { statusLabels } from "@/lib/product-input";
 
 export default async function EditProductPage({
@@ -28,10 +29,13 @@ export default async function EditProductPage({
     },
   });
   if (!p) notFound();
-  const categories = await db.category.findMany({
-    orderBy: { sortOrder: "asc" },
-    select: { id: true, nameAr: true, nameEn: true, parentId: true },
-  });
+  const [categories, storeCategories] = await Promise.all([
+    db.category.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, nameAr: true, nameEn: true, parentId: true },
+    }),
+    listStoreCategories(seller.id),
+  ]);
   return (
     <>
       <h1 className="text-2xl font-bold">{t("تعديل المنتج")}</h1>
@@ -51,10 +55,12 @@ export default async function EditProductPage({
       )}
       <ProductForm
         categories={categories}
+        storeCategories={storeCategories}
         defaults={{
           id: p.id,
           title: p.title,
           categoryId: p.categoryId,
+          storeCategoryId: p.storeCategoryId ?? "",
           description: p.description,
           imageUrl: p.imageUrl ?? "",
           price: String(p.price / 100),

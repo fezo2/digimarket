@@ -141,6 +141,7 @@ export default async function SellerLayout({
         [
           { href: "/seller", label: t("لوحة التحكم"), icon: "dashboard", exact: true, area: ["ORDERS", "FINANCE"] },
           { href: "/seller/products", label: t("المنتجات"), icon: "products", area: "PRODUCTS" },
+          { href: "/seller/store-categories", label: t("تصنيفات المتجر"), icon: "folder", area: "PRODUCTS" },
           { href: "/seller/sales", label: t("الطلبات"), icon: "orders", area: "ORDERS" },
           { href: "/seller/analytics", label: t("إحصائيات المنتجات"), icon: "chart", area: ["PRODUCTS", "ORDERS"] },
           { href: "/seller/promo-codes", label: t("أكواد الخصم"), icon: "promo", area: "PRODUCTS" },

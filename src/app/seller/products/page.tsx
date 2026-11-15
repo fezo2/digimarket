@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { statusLabels } from "@/lib/product-input";
 import { siteHref } from "@/lib/sites";
 import { ProductAction } from "./action-form";
+import { ProductStoreCategory } from "../store-categories/forms";
+import { listStoreCategories } from "@/lib/store-categories";
 import { Select } from "../auto-select";
 import { Icon } from "../icons";
 import { Menu } from "../shell";
@@ -38,7 +40,7 @@ type Tab = keyof typeof TABS;
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; q?: string; d?: string; page?: string }>;
+  searchParams: Promise<{ tab?: string; q?: string; d?: string; sc?: string; page?: string }>;
 }) {
   const { t, money, num, cat } = await i18n();
   const { seller } = await requireSeller("PRODUCTS");
@@ -47,9 +49,13 @@ export default async function ProductsPage({
   const tab: Tab = query.tab && Object.hasOwn(TABS, query.tab) ? (query.tab as Tab) : "sale";
   const delivery = query.d && Object.hasOwn(DELIVERY, query.d) ? (query.d as DeliveryType) : undefined;
   const q = (query.q ?? "").trim().slice(0, 100);
+  const storeCategories = await listStoreCategories(seller.id);
+  // "none" lists products without a store category.
+  const sc = query.sc === "none" || storeCategories.some((c) => c.id === query.sc) ? query.sc : undefined;
   const filter: Prisma.ProductWhereInput = {
     sellerId: seller.id,
     ...(delivery ? { deliveryType: delivery } : {}),
+    ...(sc ? { storeCategoryId: sc === "none" ? null : sc } : {}),
     ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { id: q }, { slug: q }] } : {}),
   };
   const where = { ...filter, AND: [TABS[tab]] };
@@ -83,7 +89,7 @@ export default async function ProductsPage({
     GROUP BY 1`;
   const sold = new Map(sales.map((r) => [r.productId, r]));
   const n = (v: bigint | undefined) => num(Number(v ?? 0));
-  const params = { tab: query.tab, q: q || undefined, d: delivery };
+  const params = { tab: query.tab, q: q || undefined, d: delivery, sc };
   const tabLabels: Record<Tab, string> = {
     sale: t("معروض للبيع"),
     stopped: t("موقوف"),
@@ -111,6 +117,18 @@ export default async function ProductsPage({
               ...Object.entries(DELIVERY).map(([value, label]) => ({ value, label: t(label) })),
             ]}
           />
+          {storeCategories.length > 0 && (
+            <Select
+              name="sc"
+              label={t("تصنيف المتجر")}
+              value={sc}
+              options={[
+                { value: "", label: t("كل التصنيفات") },
+                { value: "none", label: t("بدون تصنيف") },
+                ...storeCategories.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+            />
+          )}
           <SearchBox value={q} placeholder={t("اسم المنتج أو الكود التعريفي")} />
         </form>
         <Tabs
@@ -126,6 +144,11 @@ export default async function ProductsPage({
                   <th>{t("المنتج")}</th>
                   <th>{t("نوع التسليم")}</th>
                   <th>{t("القسم")}</th>
+                  <th>
+                    <Link className="underline-offset-4 hover:underline" href="/seller/store-categories">
+                      {t("تصنيف المتجر")}
+                    </Link>
+                  </th>
                   <th title={t("آخر شهر / ٣ شهور / ٦ شهور")}>{t("المبيعات")}</th>
                   <th>{t("السعر")}</th>
                   <th>{t("المخزون")}</th>
@@ -150,6 +173,15 @@ export default async function ProductsPage({
                     </td>
                     <td className="whitespace-nowrap">{t(DELIVERY[p.deliveryType])}</td>
                     <td className="whitespace-nowrap text-slate-500">{cat(p.category)}</td>
+                    <td>
+                      {storeCategories.length ? (
+                        <ProductStoreCategory productId={p.id} value={p.storeCategoryId} categories={storeCategories} />
+                      ) : (
+                        <Link className="text-xs text-slate-400 underline-offset-4 hover:underline" href="/seller/store-categories">
+                          {t("+ أضف تصنيف")}
+                        </Link>
+                      )}
+                    </td>
                     <td className="whitespace-nowrap" title={t("الإجمالي: {count}", { count: num(p.soldCount) })}>
                       <span className="font-semibold">{n(sold.get(p.id)?.m1)}</span>
                       <span className="text-slate-400"> / {n(sold.get(p.id)?.m3)} / {n(sold.get(p.id)?.m6)}</span>
@@ -207,10 +239,10 @@ export default async function ProductsPage({
         ) : (
           <Empty
             icon="products"
-            title={q || delivery ? t("مفيش نتايج") : t("مفيش منتجات هنا")}
-            text={tab === "sale" && !q && !delivery ? t("لسه مفيش منتجات. ابدأ بإضافة أول منتج.") : undefined}
+            title={q || delivery || sc ? t("مفيش نتايج") : t("مفيش منتجات هنا")}
+            text={tab === "sale" && !q && !delivery && !sc ? t("لسه مفيش منتجات. ابدأ بإضافة أول منتج.") : undefined}
           >
-            {tab === "sale" && !q && !delivery && (
+            {tab === "sale" && !q && !delivery && !sc && (
               <Link className="btn-primary" href="/seller/products/new">
                 <Icon name="plus" className="size-4" />
                 {t("إضافة منتج")}

@@ -187,6 +187,22 @@ model SellerProfile {
   reviews        Review[]
   replies        SellerReply[]
   staff          SellerStaff[]
+  storeCategories StoreCategory[]
+}
+
+// A seller's own grouping of their products, shown as filters on their store
+// page. Separate from the site-wide Category (which sets commission).
+model StoreCategory {
+  id        String        @id @default(cuid())
+  sellerId  String
+  seller    SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  name      String
+  sortOrder Int           @default(0)
+  createdAt DateTime      @default(now())
+  products  Product[]
+
+  @@unique([sellerId, name])
+  @@index([sellerId, sortOrder])
 }
 
 enum StaffPermission {
@@ -276,6 +292,9 @@ model Product {
   seller          SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   categoryId      String
   category        Category      @relation(fields: [categoryId], references: [id])
+  // The seller's own grouping on their store page (optional).
+  storeCategoryId String?
+  storeCategory   StoreCategory? @relation(fields: [storeCategoryId], references: [id], onDelete: SetNull)
   slug            String        @unique
   title           String
   description     String
@@ -315,6 +334,7 @@ model Product {
   @@unique([supplier, supplierProductId])
   @@index([status, categoryId])
   @@index([sellerId])
+  @@index([storeCategoryId])
 }
 
 // Buyer-facing choice such as duration ("1 month" / "12 months") that can change the price,
