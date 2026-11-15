@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { FAQ_PAGE, FAQS, POLICIES_UPDATED, POLICY_PAGES } from "@/content/policies";
 import { Breadcrumbs } from "@/components/store-ui";
-import { absolute, jsonLd } from "@/lib/seo";
+import { absolute, jsonLd, localized } from "@/lib/seo";
 
 type Props = { params: Promise<{ page: string }> };
 
@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: page.title[lang],
     description: page.description[lang],
-    alternates: { canonical: url },
+    alternates: localized(url, lang),
     openGraph: { url, title: page.title[lang], description: page.description[lang] },
   };
 }

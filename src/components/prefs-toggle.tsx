@@ -15,6 +15,12 @@ export function PrefsToggle({ theme, tone = "light" }: { theme: Theme; tone?: "l
     start(async () => {
       await setPreference(name, value);
       if (name === "theme") document.documentElement.classList.toggle("dark", value === "dark");
+      // A ?lang= in the address would keep overriding the new choice.
+      const url = new URL(window.location.href);
+      if (name === "lang" && url.searchParams.has("lang")) {
+        url.searchParams.delete("lang");
+        router.replace(url.pathname + url.search + url.hash);
+      }
       router.refresh();
     });
   const cls =

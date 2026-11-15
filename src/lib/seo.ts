@@ -11,6 +11,24 @@ export function storeOrigin() {
 
 export const absolute = (path: string) => storeOrigin() + path;
 
+// Image paths like /img/… made absolute for structured data and sitemaps.
+export const absoluteUrl = (url: string) => (/^https?:\/\//.test(url) ? url : absolute(url));
+
+// The English version of a store URL: the same page with ?lang=en.
+export function englishPath(path: string) {
+  return path + (path.includes("?") ? "&" : "?") + "lang=en";
+}
+
+// canonical + hreflang for a page served in Arabic (default) and English.
+// Each language version is its own canonical, and both point at each other.
+export function localized(path: string, lang: "ar" | "en") {
+  const en = englishPath(path);
+  return {
+    canonical: lang === "en" ? en : path,
+    languages: { "ar-EG": path, en, "x-default": path },
+  };
+}
+
 export const BRAND = `${SITE_NAME} ${SITE_NAME_EN}`;
 
 // Meta descriptions: one line, cut on a word near 155 characters.

@@ -3,6 +3,7 @@ const LABELS: Record<string, string> = {
   "announcement.created": "نشر إعلان",
   "announcement.hidden": "إخفاء إعلان",
   "announcement.shown": "إظهار إعلان",
+  "checkout_reminders.settings": "تعديل تذكير الدفع",
   "dispute.opened": "فتح شكوى",
   "dispute.resolved": "قرار شكوى",
   "kyc.approved": "قبول توثيق متجر",
