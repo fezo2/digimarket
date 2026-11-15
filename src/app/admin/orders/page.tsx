@@ -5,7 +5,7 @@ import { i18n } from "@/lib/prefs";
 import { unreadCounts } from "@/lib/chat";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
-import { confirmRefundPaid, retryDelivery, recordRefund } from "./actions";
+import { confirmRefundPaid, retryDelivery, recordRefund, refundViaKashier } from "./actions";
 import { adminFrom, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { releaseExpiredOrders } from "@/lib/orders";
@@ -50,6 +50,7 @@ export default async function AdminOrders({
       paymentRef: true,
       refundNote: true,
       refundPaidAt: true,
+      gatewayRefundRef: true,
       buyer: { select: { name: true, email: true } },
       items: { select: { deliveredAt: true } },
     },
@@ -129,6 +130,7 @@ export default async function AdminOrders({
                   <td>{o.paymentProvider ?? "—"}</td>
                   <td>
                     {o.paymentRef?.startsWith("intent:") ||
+                    o.paymentRef?.startsWith("session:") ||
                     o.paymentRef === "creating"
                       ? t("بانتظار نتيجة الدفع")
                       : (o.paymentRef ?? "—")}
@@ -145,6 +147,19 @@ export default async function AdminOrders({
                         </ActionForm>
                       </>
                     )}
+                    {o.status === "REFUNDED" && !o.refundPaidAt && o.paymentProvider === "kashier" && (
+                      <ActionForm action={refundViaKashier} button={t("رجّع الفلوس عبر كاشير")}>
+                        <input type="hidden" name="id" value={o.id} />
+                        <p className="text-amber-800">
+                          {o.gatewayRefundRef === "pending"
+                            ? t("في استرداد شغال دلوقتي عند كاشير.")
+                            : t("الطلب اتدفع بالكارت. الزرار ده بيرجّع المبلغ لكارت أو محفظة المشتري على طول.")}
+                        </p>
+                      </ActionForm>
+                    )}
+                    {o.status === "REFUNDED" && o.gatewayRefundRef && o.gatewayRefundRef !== "pending" && (
+                      <p className="text-slate-500">{t("رقم عملية الاسترداد في كاشير: ")}<span dir="ltr">{o.gatewayRefundRef}</span></p>
+                    )}
                     {o.status === "REFUNDED" && !o.refundPaidAt && (
                       <ActionForm action={confirmRefundPaid} button={t("حوّلت الفلوس للمشتري")}>
                         <input type="hidden" name="id" value={o.id} />
@@ -154,7 +169,17 @@ export default async function AdminOrders({
                         {o.refundNote && <p className="text-slate-500">{t("السبب: ")}{o.refundNote}</p>}
                       </ActionForm>
                     )}
-                    {o.status === "PAID" && (
+                    {o.status === "PAID" && o.paymentProvider === "kashier" && (
+                      <ActionForm action={refundViaKashier} button={t("رجّع الفلوس عبر كاشير")}>
+                        <input type="hidden" name="id" value={o.id} />
+                        <p>{t("بيخصم البيع من التاجر ويرجّع المبلغ كله لكارت أو محفظة المشتري.")}</p>
+                        <label className="label">
+                          {t("ملاحظة الاسترداد")}
+                          <textarea className="input" name="note" required maxLength={1000} />
+                        </label>
+                      </ActionForm>
+                    )}
+                    {o.status === "PAID" && o.paymentProvider !== "kashier" && (
                       <ActionForm
                         action={recordRefund}
                         button={t("تم رد الفلوس للمشتري")}

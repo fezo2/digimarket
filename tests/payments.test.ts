@@ -214,3 +214,50 @@ test("Kashier config requires a merchant ID, both keys and a valid mode", () => 
   assert.equal(takesCards({ NODE_ENV: "test", PAYMENT_PROVIDER: "kashier" }), true);
   assert.equal(takesCards({ NODE_ENV: "test", PAYMENT_PROVIDER: "manual" }), false);
 });
+
+const kashierEnv = {
+  NODE_ENV: "production",
+  APP_URL: "https://digiegy.com",
+  KASHIER_MERCHANT_ID: "MID-1-2",
+  KASHIER_API_KEY: "api",
+  KASHIER_SECRET_KEY: "secret",
+} as const;
+
+test("manual transfers stay as a second checkout choice next to Kashier", async () => {
+  const { checkoutMethods } = await import("../src/lib/payments/config");
+  assert.deepEqual(
+    checkoutMethods({ ...kashierEnv, PAYMENT_PROVIDER: "kashier", MANUAL_INSTAPAY: "digiegy@instapay" }),
+    ["kashier", "manual"],
+  );
+  assert.deepEqual(checkoutMethods({ ...kashierEnv, PAYMENT_PROVIDER: "kashier" }), ["kashier"]);
+});
+
+test("admins preview Kashier before it is switched on; buyers don't", async () => {
+  const { checkoutMethods } = await import("../src/lib/payments/config");
+  const env = { ...kashierEnv, PAYMENT_PROVIDER: "manual", MANUAL_WALLET: "01012345678" };
+  assert.deepEqual(checkoutMethods(env), ["manual"]);
+  assert.deepEqual(checkoutMethods(env, true), ["manual", "kashier"]);
+  const noKeys = { NODE_ENV: "production", PAYMENT_PROVIDER: "manual", MANUAL_WALLET: "01012345678" } as const;
+  assert.deepEqual(checkoutMethods(noKeys, true), ["manual"]);
+});
+
+test("Kashier settings are read even while manual is the main provider", async () => {
+  const { kashierSettings } = await import("../src/lib/payments/config");
+  assert.equal(kashierSettings({ ...kashierEnv, PAYMENT_PROVIDER: "manual" })?.mode, "test");
+  assert.equal(kashierSettings({ ...kashierEnv, KASHIER_MODE: "live" })?.mode, "live");
+  assert.equal(kashierSettings({ NODE_ENV: "production" }), null);
+});
+
+test("Kashier refund replies are read conservatively", async () => {
+  const { readKashierRefund, kashierFepHost } = await import("../src/lib/payments/kashier");
+  assert.deepEqual(
+    readKashierRefund({ status: "SUCCESS", response: { status: "SUCCESS", transactionId: "TX-1" } }),
+    { status: "SUCCESS", transactionId: "TX-1", message: null },
+  );
+  assert.equal(readKashierRefund({ status: "PENDING" }).status, "PENDING");
+  assert.equal(readKashierRefund({ status: "FAILURE", messages: { ar: "رصيد غير كافي" } }).message, "رصيد غير كافي");
+  assert.equal(readKashierRefund(null).status, "FAILURE");
+  assert.equal(readKashierRefund({ status: "weird" }).status, "FAILURE");
+  assert.equal(kashierFepHost("test"), "https://test-fep.kashier.io");
+  assert.equal(kashierFepHost("live"), "https://fep.kashier.io");
+});

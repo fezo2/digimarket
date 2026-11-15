@@ -14,6 +14,7 @@ const LABELS: Record<string, string> = {
   "order.refunded": "استرداد طلب",
   "order.refunded_by_seller": "استرداد من التاجر",
   "order.refund_paid": "تحويل الاسترداد للمشتري",
+  "order.refund_gateway": "استرداد عبر كاشير",
   "payout.paid": "دفع طلب سحب",
   "payout.rejected": "رفض طلب سحب",
   "product.approved": "قبول منتج",

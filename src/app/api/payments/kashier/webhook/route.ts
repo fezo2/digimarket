@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { paymentConfig } from "@/lib/payments/config";
+import { kashierSettings } from "@/lib/payments/config";
 import { verifyKashierWebhook } from "@/lib/payments/kashier";
 import { confirmKashierPayment } from "@/lib/payments/kashier-confirm";
 
@@ -12,8 +12,10 @@ const body = z.object({
 });
 
 export async function POST(request: Request) {
-  const config = paymentConfig();
-  if (config.name !== "kashier") return new NextResponse(null, { status: 404 });
+  // Works whenever Kashier keys are set, so payments started before a switch
+  // back to manual still get confirmed.
+  const config = kashierSettings();
+  if (!config) return new NextResponse(null, { status: 404 });
   let parsed: z.infer<typeof body>;
   try {
     const text = await request.text();

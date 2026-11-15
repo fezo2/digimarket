@@ -39,6 +39,7 @@ export default async function AdminLayout({
             title: t("الفلوس"),
             items: [
               { href: "/admin/payments", label: t("التحويلات اليدوية"), icon: "💳", count: payments },
+              { href: "/admin/gateway", label: t("بوابة الدفع"), icon: "🏦" },
               { href: "/admin/payouts", label: t("طلبات السحب"), icon: "💸", count: payouts },
               { href: "/admin/orders", label: t("الطلبات"), icon: "🧾" },
               { href: "/admin/orders?repay=1", label: t("مرتجعات للتحويل"), icon: "↩️", count: repay },

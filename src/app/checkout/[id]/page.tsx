@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { releaseExpiredOrders } from "@/lib/orders";
 import { readOrderSnapshot } from "@/lib/order-snapshot";
 import { quote } from "@/lib/pricing";
+import { checkoutMethods } from "@/lib/payments/config";
 import { CancelOrderButton, CheckoutForms, Countdown } from "./checkout-forms";
 
 export default async function Checkout({
@@ -94,6 +95,11 @@ export default async function Checkout({
           id={id}
           coupon={order.coupon?.code ?? ""}
           locked={!!order.paymentProvider}
+          methods={
+            order.paymentProvider
+              ? [order.paymentProvider]
+              : checkoutMethods(process.env, user.role === "ADMIN")
+          }
         />
         <CancelOrderButton id={id} />
       </div>
