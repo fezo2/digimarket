@@ -7,6 +7,8 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   if ((await currentSite()) !== "store")
     return { rules: { userAgent: "*", disallow: "/" } };
   return {
+    // "*" already lets every crawler in, AI search ones included
+    // (OAI-SearchBot, GPTBot, PerplexityBot, ClaudeBot, Google-Extended).
     rules: {
       userAgent: "*",
       allow: "/",

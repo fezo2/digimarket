@@ -9,6 +9,7 @@ export const jobs = [
   "cleanup",
   "supplier-sync",
   "checkout-reminders",
+  "indexnow",
 ] as const;
 export function cronAuthorization(job: string, header: string | null) {
   if (!jobs.includes(job as (typeof jobs)[number])) return 404;
@@ -39,6 +40,8 @@ export async function runJob(job: string) {
   if (job === "send-notifications") return sendNotifications();
   if (job === "checkout-reminders")
     return (await import("./checkout-reminders")).sendCheckoutReminders();
+  if (job === "indexnow")
+    return (await import("./indexnow")).submitRecentChanges();
   if (job === "supplier-sync")
     return (await import("./supplier")).runSupplierJob();
   const deadline = Date.now() + 25000;
