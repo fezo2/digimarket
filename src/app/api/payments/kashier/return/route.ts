@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { paymentConfig } from "@/lib/payments/config";
+import { kashierSettings } from "@/lib/payments/config";
 import { verifyKashierRedirect } from "@/lib/payments/kashier";
 import { confirmKashierPayment } from "@/lib/payments/kashier-confirm";
 
@@ -9,8 +9,10 @@ import { confirmKashierPayment } from "@/lib/payments/kashier-confirm";
 // order to show; payment is confirmed with Kashier's API, never from the query.
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const config = paymentConfig();
-  if (config.name !== "kashier") return new NextResponse(null, { status: 404 });
+  // Works whenever Kashier keys are set, so payments started before a switch
+  // back to manual still get confirmed.
+  const config = kashierSettings();
+  if (!config) return new NextResponse(null, { status: 404 });
   const user = await getCurrentUser();
   if (!user) return NextResponse.redirect(new URL("/login?next=/account", url));
   const id = url.searchParams.get("merchantOrderId");

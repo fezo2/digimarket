@@ -56,6 +56,39 @@ export function takesCards(env: NodeJS.ProcessEnv = process.env) {
   return env.PAYMENT_PROVIDER === "kashier" || env.PAYMENT_PROVIDER === "paymob";
 }
 
+export type PaymentMethod = "test" | "paymob" | "manual" | "kashier";
+
+// The ways a buyer can pay right now. With Kashier switched on, manual
+// InstaPay / wallet transfers stay available as a second choice as long as
+// MANUAL_INSTAPAY or MANUAL_WALLET is still set (remove both to hide it).
+// adminPreview: an admin also sees Kashier while it is not switched on yet
+// (keys set, PAYMENT_PROVIDER still manual), to try it with test cards
+// before buyers do.
+export function checkoutMethods(
+  env: NodeJS.ProcessEnv = process.env,
+  adminPreview = false,
+): PaymentMethod[] {
+  const primary = paymentConfig(env).name;
+  if (primary === "kashier" && optional(() => manualConfig(env))) return ["kashier", "manual"];
+  if (adminPreview && primary !== "kashier" && kashierSettings(env)) return [primary, "kashier"];
+  return [primary];
+}
+
+// Kashier settings whenever they are complete, even while another provider
+// is the main one, so orders already sent to Kashier still get confirmed or
+// refunded after a switch back to manual.
+export function kashierSettings(env: NodeJS.ProcessEnv = process.env) {
+  return optional(() => kashierConfig(env));
+}
+
+function optional<T>(read: () => T): T | null {
+  try {
+    return read();
+  } catch {
+    return null;
+  }
+}
+
 // Kashier: hosted payment sessions. The Payment API Key signs and verifies
 // (order hash, redirects, webhooks); the Secret Key authorizes API calls.
 export function kashierConfig(env: NodeJS.ProcessEnv = process.env) {

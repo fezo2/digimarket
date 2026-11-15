@@ -8,6 +8,24 @@ export function kashierApiHost(mode: "test" | "live") {
   return mode === "live" ? "https://api.kashier.io" : "https://test-api.kashier.io";
 }
 
+// Order operations (refund, void) live on the FEP host.
+export function kashierFepHost(mode: "test" | "live") {
+  return mode === "live" ? "https://fep.kashier.io" : "https://test-fep.kashier.io";
+}
+
+// Refund reply: a top-level status (SUCCESS, PENDING or FAILURE) with the
+// refund transaction under response. Anything else counts as a failure.
+export function readKashierRefund(json: unknown): { status: "SUCCESS" | "PENDING" | "FAILURE"; transactionId: string | null; message: string | null } {
+  const body = (json && typeof json === "object" ? json : {}) as Record<string, unknown>;
+  const response = (body.response && typeof body.response === "object" ? body.response : {}) as Record<string, unknown>;
+  const raw = String(response.status ?? body.status ?? "").toUpperCase();
+  const status = raw === "SUCCESS" || raw === "PENDING" ? raw : "FAILURE";
+  const tx = response.transactionId ?? body.transactionId;
+  const messages = body.messages as { ar?: unknown; en?: unknown } | undefined;
+  const message = typeof messages?.ar === "string" ? messages.ar : typeof messages?.en === "string" ? messages.en : null;
+  return { status, transactionId: typeof tx === "string" && tx ? tx : null, message };
+}
+
 // Kashier sessions take major units with two decimals; orders store piastres.
 export function kashierAmount(piastres: number) {
   return (piastres / 100).toFixed(2);

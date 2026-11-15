@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { db } from "../db";
 import { markOrderPaid } from "../orders";
-import { paymentConfig } from "./config";
+import { kashierSettings } from "./config";
 import { kashierApiHost } from "./kashier";
 
 const lookup = z.object({
@@ -20,8 +20,8 @@ const lookup = z.object({
 // session for this order was created server-side with the order's total, and
 // Kashier allows one order per reference, so the captured amount is ours.
 export async function confirmKashierPayment(orderId: string) {
-  const config = paymentConfig();
-  if (config.name !== "kashier") return false;
+  const config = kashierSettings();
+  if (!config) return false;
   const order = await db.order.findUnique({
     where: { id: orderId },
     select: { id: true, status: true, total: true, paymentProvider: true },

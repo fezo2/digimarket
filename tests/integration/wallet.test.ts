@@ -19,6 +19,9 @@ test("wallet payouts, refunds and redelivery against PostgreSQL", async (t) => {
     refundOrder,
     redeliverOrder,
     adjustLedger,
+    claimGatewayRefund,
+    releaseGatewayRefund,
+    settleGatewayRefund,
   } = await import("../../src/lib/wallet");
   const { sellerBalance } = await import("../../src/lib/ledger");
   const { createOrder, markOrderPaid, releaseExpiredOrders } =
@@ -425,6 +428,43 @@ test("wallet payouts, refunds and redelivery against PostgreSQL", async (t) => {
             .soldCount,
           0,
         );
+      },
+    );
+    await t.test(
+      "Kashier refunds wait for the gateway and are claimed only once",
+      async () => {
+        const s = await seller();
+        const p = await product(s.id, true);
+        const order = await createOrder({
+          buyerId: buyer.id,
+          productId: p.id,
+          quantity: 1,
+          selections: {},
+          textInputs: {},
+        });
+        await db.order.update({
+          where: { id: order.id },
+          data: { status: "PAID", paidAmount: 1, paidAt: new Date(), paymentProvider: "kashier", paymentRef: "KASHIER-ORDER-1" },
+        });
+        assert.equal(await claimGatewayRefund(admin.id, order.id), null);
+        await refundOrder(admin.id, order.id, "Card refund");
+        const refunded = await db.order.findUniqueOrThrow({ where: { id: order.id } });
+        assert.equal(refunded.status, "REFUNDED");
+        assert.equal(refunded.refundPaidAt, null);
+        const claims = await Promise.all([
+          claimGatewayRefund(admin.id, order.id),
+          claimGatewayRefund(admin.id, order.id),
+        ]);
+        assert.equal(claims.filter(Boolean).length, 1);
+        assert.equal(claims.find(Boolean)?.paymentRef, "KASHIER-ORDER-1");
+        await releaseGatewayRefund(order.id);
+        assert.ok(await claimGatewayRefund(admin.id, order.id));
+        assert.equal(await settleGatewayRefund(admin.id, order.id, "TX-9", 1), true);
+        assert.equal(await settleGatewayRefund(admin.id, order.id, "TX-9", 1), false);
+        const done = await db.order.findUniqueOrThrow({ where: { id: order.id } });
+        assert.equal(done.gatewayRefundRef, "TX-9");
+        assert.ok(done.refundPaidAt);
+        assert.equal(await claimGatewayRefund(admin.id, order.id), null);
       },
     );
     await t.test(

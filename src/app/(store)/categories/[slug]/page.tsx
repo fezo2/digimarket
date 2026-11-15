@@ -9,7 +9,7 @@ import { storeCategories } from "@/lib/storefront";
 import { CategoryThumb } from "@/components/category-thumb";
 import { siteHref } from "@/lib/sites";
 import type { Metadata } from "next";
-import { absolute, describe, jsonLd } from "@/lib/seo";
+import { absolute, describe, jsonLd, localized } from "@/lib/seo";
 import { takesCards } from "@/lib/payments/config";
 import { pageParam, paginate } from "@/lib/pagination";
 import { Pager } from "@/components/pager";
@@ -32,7 +32,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ page?: string }>;
 }): Promise<Metadata> {
-  const { t, cat, num } = await i18n();
+  const { t, cat, num, lang } = await i18n();
   const { slug } = await params;
   const page = pageParam((await searchParams).page);
   const category = await db.category.findUnique({
@@ -61,7 +61,7 @@ export async function generateMetadata({
       t("{nameAr} | أسعار وعروض", { nameAr: cat(category) }) +
       (page > 1 ? ` · ${t("صفحة {n}", { n: num(page) })}` : ""),
     description,
-    alternates: { canonical: url },
+    alternates: localized(url, lang),
     // An empty category is a thin page; keep it out of the index (and the
     // sitemap) until its first product is listed.
     robots: listed === 0 ? { index: false, follow: true } : undefined,
