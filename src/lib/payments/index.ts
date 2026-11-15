@@ -2,11 +2,11 @@ import "server-only";
 import { z } from "zod";
 import { db } from "../db";
 import { OrderError } from "../orders";
-import { paymentConfig, type kashierConfig } from "./config";
+import { checkoutMethods, kashierConfig, paymentConfig, type PaymentMethod } from "./config";
 import { kashierAmount, kashierApiHost } from "./kashier";
 
 export interface PaymentProvider {
-  name: "test" | "paymob" | "manual" | "kashier";
+  name: PaymentMethod;
   createPayment(order: {
     id: string;
     number: number;
@@ -38,7 +38,21 @@ export function readKashierSession(value: string | null) {
   }
 }
 
-export function getPaymentProvider(): PaymentProvider {
+// The main provider, or one of the other checkout methods the buyer picked
+// (manual transfer next to Kashier). Anything not on offer is refused.
+export function getPaymentProvider(method?: string, adminPreview = false): PaymentProvider {
+  if (method && method !== paymentConfig().name) {
+    if (!(checkoutMethods(process.env, adminPreview) as string[]).includes(method))
+      throw new OrderError("وسيلة الدفع دي مش متاحة");
+    if (method === "manual")
+      return {
+        name: "manual",
+        async createPayment(order) {
+          return `/pay/manual/${order.id}`;
+        },
+      };
+    if (method === "kashier") return kashierProvider(kashierConfig());
+  }
   const config = paymentConfig();
   if (config.name === "kashier") return kashierProvider(config);
   if (config.name === "manual")

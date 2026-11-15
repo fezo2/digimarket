@@ -4,14 +4,22 @@ import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cancelOrder, changeCoupon, payNow } from "./actions";
 
+const METHOD_LABELS: Record<string, { title: string; hint: string }> = {
+  kashier: { title: "ادفع بالكارت أو المحفظة", hint: "فيزا، ماستركارد، ميزة أو محفظة موبايل. الكود بيوصلك فورًا." },
+  manual: { title: "تحويل إنستاباي أو محفظة", hint: "بتحوّل بنفسك والإدارة بتأكد التحويل قبل التسليم." },
+};
+
 export function CheckoutForms({
   id,
   coupon,
   locked,
+  methods = [],
 }: {
   id: string;
   coupon: string;
   locked: boolean;
+  // Two or more means the buyer picks; one (or none) keeps the single button.
+  methods?: string[];
 }) {
   const { t } = useI18n();
   const [couponState, couponAction, couponPending] = useActionState(
@@ -54,13 +62,30 @@ export function CheckoutForms({
           </p>
         )}
       </form>
-      <form action={paymentAction}>
-        <button
-          className="btn-primary w-full"
-          disabled={couponPending || paymentPending}
-        >
-          {paymentPending ? t("بنجهّز الدفع…") : t("ادفع دلوقتي")}
-        </button>
+      <form action={paymentAction} className="space-y-3">
+        {methods.length > 1 ? (
+          methods.map((m, i) => (
+            <button
+              key={m}
+              name="method"
+              value={m}
+              className={`${i === 0 ? "btn-primary" : "btn-outline"} flex w-full flex-col items-center gap-0.5 py-3`}
+              disabled={couponPending || paymentPending}
+            >
+              <span>{paymentPending ? t("بنجهّز الدفع…") : t(METHOD_LABELS[m]?.title ?? "ادفع دلوقتي")}</span>
+              {METHOD_LABELS[m] && <span className="text-xs font-normal opacity-80">{t(METHOD_LABELS[m].hint)}</span>}
+            </button>
+          ))
+        ) : (
+          <button
+            name="method"
+            value={methods[0] ?? ""}
+            className="btn-primary w-full"
+            disabled={couponPending || paymentPending}
+          >
+            {paymentPending ? t("بنجهّز الدفع…") : t("ادفع دلوقتي")}
+          </button>
+        )}
         {paymentState?.error && (
           <p role="alert" className="text-red-700">
             {t(paymentState.error)}
