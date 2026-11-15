@@ -23,7 +23,7 @@ export default async function SellerOrders({
 }) {
   const { t, money, num, day, time } = await i18n();
   const query = await searchParams;
-  const { seller } = await requireSeller();
+  const { seller } = await requireSeller("ORDERS");
   const filter = Object.fromEntries(FILTERS.map((k) => [k, query[k] || undefined])) as SalesFilter;
   const period = parsePeriod(filter, "all");
   const where = {

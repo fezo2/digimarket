@@ -11,7 +11,7 @@ const PER_PAGE = 20;
 export default async function Page({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const { t } = await i18n();
   const query = await searchParams;
-  const { seller } = await requireSeller();
+  const { seller } = await requireSeller("ORDERS");
   const where = { orderItem: { sellerId: seller.id } };
   const info = paginate(await db.dispute.count({ where }), PER_PAGE, query.page);
   const disputes = await db.dispute.findMany({

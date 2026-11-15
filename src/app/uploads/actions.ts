@@ -2,6 +2,8 @@
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { participant } from "@/lib/chat";
+import { chatActorId } from "@/lib/seller-staff-db";
+import { canAccess, sellerAccessOf } from "@/lib/seller-staff";
 import { r2 } from "@/lib/r2";
 import { z } from "zod";
 import { withinLimit } from "@/lib/account-security";
@@ -24,7 +26,8 @@ export async function createUploadUrl(
   // Each signed URL lets the browser put a file straight into the bucket.
   if (!(await withinLimit("upload-url:" + user.id, 40, 3600000)))
     throw new Error("رفعت ملفات كتير، جرّب بعد شوية");
-  if (v.kind === "chat") await participant(db, user.id, v.context);
+  if (v.kind === "chat")
+    await participant(db, await chatActorId(user, v.context), v.context);
   else if (v.kind === "receipt") {
     if (
       !(await db.order.findFirst({
@@ -39,23 +42,23 @@ export async function createUploadUrl(
     )
       throw new Error("غير مسموح");
   } else {
-    if (
-      !user.seller ||
-      (v.kind === "product" && user.seller.kycStatus !== "APPROVED")
-    )
+    // Product files: the owner or staff with products; KYC: the owner only.
+    const access = sellerAccessOf(user);
+    const seller =
+      access && canAccess(access, v.kind === "product" ? "PRODUCTS" : "OWNER")
+        ? access.seller
+        : null;
+    if (!seller || (v.kind === "product" && seller.kycStatus !== "APPROVED"))
       throw new Error("غير مسموح");
     if (
       v.kind === "product" &&
       v.context &&
       !(await db.product.findFirst({
-        where: { id: v.context, sellerId: user.seller.id },
+        where: { id: v.context, sellerId: seller.id },
       }))
     )
       throw new Error("غير مسموح");
-    if (
-      v.kind === "kyc" &&
-      ["APPROVED", "PENDING"].includes(user.seller.kycStatus)
-    )
+    if (v.kind === "kyc" && ["APPROVED", "PENDING"].includes(seller.kycStatus))
       throw new Error("غير مسموح");
   }
   return {

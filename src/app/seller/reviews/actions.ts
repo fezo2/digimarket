@@ -10,10 +10,10 @@ export async function sendReply(
   _: ActionState,
   form: FormData,
 ): Promise<ActionState> {
-  const { user } = await requireSeller();
+  const { seller } = await requireSeller("MESSAGES");
   try {
     await replyReview(
-      user.id,
+      seller.userId,
       communityId.parse(form.get("reviewId")),
       z.string().trim().min(1).max(1000).parse(form.get("reply")),
     );

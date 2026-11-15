@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { ActionForm } from "@/components/action-form";
-import { userLogout, userProfile, userSuspension } from "../../control-actions";
+import { userLogout, userProfile, userSuspension, userTwoFactorReset } from "../../control-actions";
 import { AuditList } from "../../audit-list";
 
 export async function generateMetadata() {
@@ -156,6 +156,21 @@ export default async function UserDetail({
           <ActionForm action={userLogout} button={t("خروج من كل الأجهزة")}>
             <input type="hidden" name="userId" value={user.id} />
           </ActionForm>
+          {user.twoFactorEnabledAt && (
+            <div className="space-y-2 border-t pt-4">
+              <p className="text-sm text-slate-600">
+                {t("التحقق بخطوتين مفعّل من {when}.", { when: date(user.twoFactorEnabledAt) })}
+              </p>
+              {!admin.adminDataFrom && (
+                <ActionForm action={userTwoFactorReset} button={t("إلغاء التحقق بخطوتين")}>
+                  <input type="hidden" name="userId" value={user.id} />
+                  <p className="text-xs text-slate-500">
+                    {t("استخدمه بس لو صاحب الحساب ضيّع موبايله والأكواد الاحتياطية واتأكدت من هويته.")}
+                  </p>
+                </ActionForm>
+              )}
+            </div>
+          )}
         </section>
       </div>
 

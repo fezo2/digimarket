@@ -78,6 +78,7 @@ export default async function AdminLayout({
               ...(admin.adminDataFrom
                 ? []
                 : [{ href: "/admin/admins", label: t("حسابات الأدمن"), icon: "🔑" }]),
+              { href: "/admin/security", label: t("أمان حسابي"), icon: "🔒" },
             ],
           },
         ]}

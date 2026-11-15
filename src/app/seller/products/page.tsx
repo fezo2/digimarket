@@ -41,7 +41,7 @@ export default async function ProductsPage({
   searchParams: Promise<{ tab?: string; q?: string; d?: string; page?: string }>;
 }) {
   const { t, money, num, cat } = await i18n();
-  const { seller } = await requireSeller();
+  const { seller } = await requireSeller("PRODUCTS");
   if (seller.kycStatus !== "APPROVED") return null;
   const query = await searchParams;
   const tab: Tab = query.tab && Object.hasOwn(TABS, query.tab) ? (query.tab as Tab) : "sale";

@@ -11,7 +11,8 @@ export async function generateMetadata() {
 export default async function JoinPage() {
   const { t, num } = await i18n();
   const user = await requireVerifiedUser("/seller/join");
-  if (user.seller) redirect("/seller");
+  // Owners and staff already have an office.
+  if (user.seller || user.staffOf) redirect("/seller");
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">

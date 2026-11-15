@@ -30,7 +30,8 @@ export default async function Page({
   params: Promise<{ orderId: string }>;
 }) {
   const { t, money, num, date } = await i18n();
-  const { user, seller } = await requireSeller();
+  const { seller, staff } = await requireSeller("ORDERS");
+  const may = (p: "FINANCE" | "MESSAGES") => !staff || staff.permissions.includes(p);
   const id = communityId.safeParse((await params).orderId);
   if (!id.success) notFound();
   const order = await db.order.findFirst({
@@ -200,7 +201,9 @@ export default async function Page({
 
       <section className="card space-y-3 p-5">
         <h2 className="text-lg font-bold">{t("استرداد الفلوس")}</h2>
-        {order.status === "PAID" && order._count.items === 0 ? (
+        {order.status === "PAID" && order._count.items === 0 && !may("FINANCE") ? (
+          <p className="text-sm text-slate-600">{t("الاسترداد محتاج صلاحية المالية، كلّم صاحب المتجر.")}</p>
+        ) : order.status === "PAID" && order._count.items === 0 ? (
           <ActionForm action={refundSale} button={t("رجّع الفلوس للمشتري")}>
             <input type="hidden" name="id" value={id.data} />
             <p className="text-sm text-slate-600">
@@ -240,7 +243,9 @@ export default async function Page({
         <SellerReviewList sellerId={seller.id} orderId={id.data} />
       </section>
 
-      <OrderChat userId={user.id} orderId={id.data} replies={replies} />
+      {may("MESSAGES") && (
+        <OrderChat userId={seller.userId} orderId={id.data} replies={replies} />
+      )}
     </div>
   );
 }

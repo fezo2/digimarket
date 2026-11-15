@@ -22,7 +22,9 @@ export default async function SellerMessages({
   searchParams: Promise<{ q?: string; unread?: string; open?: string; page?: string }>;
 }) {
   const { t, num, day, time } = await i18n();
-  const { user, seller } = await requireSeller();
+  const { seller } = await requireSeller("MESSAGES");
+  // Staff answer as the store, so the store owner's account is the reader.
+  const me = seller.userId;
   const { q = "", unread, open, page } = await searchParams;
   const term = q.trim().slice(0, 100);
   const threads = await db.$queryRaw<
@@ -39,10 +41,10 @@ export default async function SellerMessages({
   >`
     SELECT o.id AS "orderId", o.number, u.email, last.body,
       (SELECT i.title FROM "OrderItem" i WHERE i."orderId" = o.id AND i."sellerId" = ${seller.id} LIMIT 1) AS title,
-      last."senderId" = ${user.id} AS "fromMe", last."createdAt" AS at,
+      last."senderId" = ${me} AS "fromMe", last."createdAt" AS at,
       (SELECT count(*) FROM "Message" m
-        LEFT JOIN "OrderRead" r ON r."orderId" = m."orderId" AND r."userId" = ${user.id}
-        WHERE m."orderId" = o.id AND m."senderId" <> ${user.id}
+        LEFT JOIN "OrderRead" r ON r."orderId" = m."orderId" AND r."userId" = ${me}
+        WHERE m."orderId" = o.id AND m."senderId" <> ${me}
           AND (r."lastReadAt" IS NULL OR m."createdAt" > r."lastReadAt")) AS unread
     FROM "Order" o
     JOIN "User" u ON u.id = o."buyerId"
@@ -142,7 +144,7 @@ export default async function SellerMessages({
                   {t("تفاصيل الطلب")}
                 </Link>
               </div>
-              <OrderChat userId={user.id} orderId={current.orderId} replies={replies} />
+              <OrderChat userId={me} orderId={current.orderId} replies={replies} />
             </div>
           ) : (
             <div className="grid h-full place-items-center p-6 text-center text-slate-500">

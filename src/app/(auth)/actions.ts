@@ -29,6 +29,14 @@ import {
   requireUser,
 } from "@/lib/auth";
 import { changePassword, toolError } from "@/lib/seller-tools";
+import {
+  TwoFactorError,
+  clearTwoFactorTicket,
+  issueTwoFactorTicket,
+  readTwoFactorTicket,
+  twoFactorOn,
+  spendSecondFactor,
+} from "@/lib/two-factor";
 import type { ActionState } from "@/components/action-form";
 import { SITE_HOME, safeRedirectPath } from "@/lib/sites";
 
@@ -170,6 +178,16 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
   if (!user) return { error: "الإيميل أو الباسورد غلط" };
   if (adminSite && user.role !== "ADMIN")
     return { error: "الحساب ده مش حساب إدارة" };
+  // Two-step sign in turned on: the session waits for the app's code.
+  if (twoFactorOn(user)) {
+    await issueTwoFactorTicket({
+      userId: user.id,
+      role: user.role,
+      sessionVersion: user.sessionVersion,
+      next: safeRedirectPath(form.get("next")),
+    });
+    redirect("/login/2fa");
+  }
   if (adminSite)
     after(() => alertAdmin(`🔐 دخول جديد على لوحة الإدارة\n${user.email} · ${where}`));
   await createSession({
@@ -178,6 +196,40 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
     sessionVersion: user.sessionVersion,
   });
   redirect(await safeNext(form.get("next")));
+}
+
+// The second step: a code from the authenticator app or a backup code.
+export async function confirmTwoFactorLogin(
+  _: FormState,
+  form: FormData,
+): Promise<FormState> {
+  const ticket = await readTwoFactorTicket();
+  if (!ticket) return { error: "الخطوة دي انتهت، سجّل دخول من الأول" };
+  const user = await db.user.findUnique({ where: { id: ticket.userId } });
+  if (!user || user.suspendedAt || user.sessionVersion !== ticket.sessionVersion) {
+    await clearTwoFactorTicket();
+    return { error: "الخطوة دي انتهت، سجّل دخول من الأول" };
+  }
+  const adminSite = (await currentSite()) === "admin";
+  if (adminSite && user.role !== "ADMIN")
+    return { error: "الحساب ده مش حساب إدارة" };
+  try {
+    await spendSecondFactor(user.id, String(form.get("code") ?? ""));
+  } catch (e) {
+    if (e instanceof TwoFactorError) return { error: e.message };
+    throw e;
+  }
+  await clearTwoFactorTicket();
+  if (adminSite) {
+    const where = `${await clientIp()} ${(await headers()).get("x-vercel-ip-country") ?? ""}`.trim();
+    after(() => alertAdmin(`🔐 دخول جديد على لوحة الإدارة\n${user.email} · ${where}`));
+  }
+  await createSession({
+    userId: user.id,
+    role: user.role,
+    sessionVersion: user.sessionVersion,
+  });
+  redirect(await safeNext(ticket.next));
 }
 
 export async function logout() {

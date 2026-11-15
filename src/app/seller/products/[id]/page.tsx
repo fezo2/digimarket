@@ -14,7 +14,7 @@ export default async function EditProductPage({
   searchParams: Promise<{ saved?: string }>;
 }) {
   const { t } = await i18n();
-  const { seller } = await requireSeller();
+  const { seller } = await requireSeller("PRODUCTS");
   if (seller.kycStatus !== "APPROVED") return null;
   const { id } = await params;
   const p = await db.product.findFirst({

@@ -1,6 +1,7 @@
 "use server";
 import { requireUser } from "@/lib/auth";
 import { sendMessage } from "@/lib/chat";
+import { chatActorId } from "@/lib/seller-staff-db";
 import { writeReview } from "@/lib/reviews";
 import { openDispute, closeDispute } from "@/lib/disputes";
 import {
@@ -25,11 +26,13 @@ export async function sendChat(
   if (!(await withinLimit("chat:" + user.id, 30, 10 * 60000)))
     return { error: "بعت رسايل كتير، استنى شوية" };
   try {
+    const orderId = communityId.parse(form.get("orderId"));
     const result = await sendMessage(
-      user.id,
-      communityId.parse(form.get("orderId")),
+      await chatActorId(user, orderId),
+      orderId,
       messageBody.parse(form.get("body")),
       optionalImage(form),
+      user.id,
     );
     revalidatePath("/", "layout");
     return {

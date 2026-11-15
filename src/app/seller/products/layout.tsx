@@ -9,7 +9,7 @@ export default async function ProductsLayout({
   children: React.ReactNode;
 }) {
   const { t } = await i18n();
-  const { seller } = await requireSeller();
+  const { seller } = await requireSeller("PRODUCTS");
   return (
     <Page>
       {seller.kycStatus === "APPROVED" ? (

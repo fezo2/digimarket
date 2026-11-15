@@ -135,6 +135,32 @@ export async function forceLogout(actorId: string, userId: string) {
   });
 }
 
+// Lost phone and backup codes: a full admin turns two-step sign in off after
+// checking who is asking. Staff admins can't, so it can't be used to take
+// over an account from inside the team.
+export async function resetUserTwoFactor(actorId: string, userId: string) {
+  id.parse(userId);
+  return db.$transaction(async (tx) => {
+    const actor = await adminActor(tx, actorId);
+    if (actor.adminDataFrom) throw new AdminControlError(STAFF_DENIED);
+    allowed(actor, (await userTarget(tx, userId)).scope);
+    const changed = await tx.user.updateMany({
+      where: { id: userId, twoFactorEnabledAt: { not: null } },
+      data: {
+        twoFactorSecret: null,
+        twoFactorPendingSecret: null,
+        twoFactorEnabledAt: null,
+        twoFactorLastStep: null,
+        twoFactorBackupCodes: [],
+        sessionVersion: { increment: 1 },
+      },
+    });
+    if (!changed.count) return false;
+    await audit(tx, actorId, "user.2fa_reset", userId);
+    return true;
+  });
+}
+
 export const profileInput = z.object({
   name: z.string().trim().min(2, "الاسم قصير").max(100),
   phone: z

@@ -9,7 +9,7 @@ import type { ActionState } from "@/components/action-form";
 const field = (form: FormData, name: string) => String(form.get(name) ?? "");
 
 export async function addPromo(_: ActionState, form: FormData): Promise<ActionState> {
-  const { seller } = await requireSeller();
+  const { seller } = await requireSeller("PRODUCTS");
   try {
     await createPromo(seller.id, {
       code: field(form, "code"),
@@ -32,7 +32,7 @@ const manage = z.object({
 });
 
 export async function managePromo(_: ActionState, form: FormData): Promise<ActionState> {
-  const { seller } = await requireSeller();
+  const { seller } = await requireSeller("PRODUCTS");
   const v = manage.safeParse({ id: form.get("id"), operation: form.get("operation") });
   if (!v.success) return { error: "طلب مش صحيح" };
   try {

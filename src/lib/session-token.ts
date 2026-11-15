@@ -26,6 +26,8 @@ export async function readSessionToken(
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, authSecret());
+    // Other signed tokens (sign-in steps) are never a session.
+    if (payload.purpose !== undefined) return null;
     return {
       userId: String(payload.userId),
       role: payload.role as Role,

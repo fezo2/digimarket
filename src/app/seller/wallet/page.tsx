@@ -22,7 +22,7 @@ export default async function FinancePage({
   searchParams: Promise<{ p?: string; from?: string; to?: string; type?: string; q?: string; page?: string }>;
 }) {
   const { t, money, date, day, time } = await i18n();
-  const { seller } = await requireSeller();
+  const { seller, staff } = await requireSeller("FINANCE");
   const query = await searchParams;
   const period = parsePeriod(query, "all");
   const type = query.type && query.type in ledgerLabels ? (query.type as LedgerType) : undefined;
@@ -85,9 +85,11 @@ export default async function FinancePage({
               <p className="mt-1 text-xs text-amber-700">{t("مبلغ مجمّد بسبب شكوى: ")}{money(frozen)}</p>
             )}
           </div>
-          <Link href="/seller/wallet/withdraw" className="btn-primary px-6">
-            {t("سحب")}
-          </Link>
+          {!staff && (
+            <Link href="/seller/wallet/withdraw" className="btn-primary px-6">
+              {t("سحب")}
+            </Link>
+          )}
         </section>
         <section className="card p-6">
           <p className="text-sm text-slate-500" title={t("أرباح لسه في فترة الضمان، بتتحول للرصيد المتاح تلقائياً")}>

@@ -14,7 +14,7 @@ export default async function SellerAnalytics({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const { t } = await i18n();
-  const { seller } = await requireSeller();
+  const { seller } = await requireSeller(["PRODUCTS", "ORDERS"]);
   return (
     <Page>
       <ProductAnalyticsView
