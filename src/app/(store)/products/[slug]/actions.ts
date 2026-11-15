@@ -1,17 +1,19 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { PricingError } from "@/lib/pricing";
-import { requireVerifiedUser } from "@/lib/auth";
+import { getSession, requireVerifiedUser } from "@/lib/auth";
 import { createOrder, OrderError } from "@/lib/orders";
 import { db } from "@/lib/db";
 import { isListed } from "@/lib/catalog";
 import { readCart, writeCart } from "@/lib/cart";
 import { addLine } from "@/lib/cart-lines";
+import { recordProductEvent, visitorKey } from "@/lib/product-analytics";
+import { VISITOR_COOKIE } from "@/lib/visitor";
 
 type State = { error?: string; added?: boolean } | undefined;
 
@@ -57,6 +59,8 @@ export async function buyProduct(
       return { error: error.message };
     throw error;
   }
+  // "Buy now" skips the cart; it still counts as the cart step of the funnel.
+  await countCartAdd(productId);
   redirect(`/checkout/${id}`);
 }
 
@@ -93,6 +97,25 @@ export async function addToCart(
   );
   if (!next) return { error: "السلة مليانة، اشتري أو امسح منتجات منها الأول" };
   await writeCart(next);
+  await countCartAdd(p.id);
   revalidatePath("/", "layout");
   return { added: true };
+}
+
+// Cart step (add to cart or buy now) for the admin and seller analytics (src/lib/product-analytics.ts).
+async function countCartAdd(productId: string) {
+  const [h, jar, session] = await Promise.all([headers(), cookies(), getSession()]);
+  if (session?.role === "ADMIN") return;
+  const agent = h.get("user-agent");
+  await recordProductEvent({
+    productId,
+    kind: "CART",
+    agent,
+    userId: session?.userId,
+    visitor: visitorKey({
+      cookie: jar.get(VISITOR_COOKIE)?.value,
+      ip: h.get("x-forwarded-for")?.split(",")[0].trim(),
+      agent,
+    }),
+  });
 }

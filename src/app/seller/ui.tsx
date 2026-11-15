@@ -31,6 +31,7 @@ export function Panel({ children, className = "" }: { children: React.ReactNode;
 
 const LABELS: Record<PeriodKey, string> = {
   all: "كل الوقت",
+  "24h": "آخر ٢٤ ساعة",
   today: "النهارده",
   yesterday: "امبارح",
   "7d": "٧ أيام",

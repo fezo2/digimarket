@@ -117,6 +117,8 @@ model User {
   twoFactorEnabledAt     DateTime?
   twoFactorLastStep      Int?
   twoFactorBackupCodes   String[] @default([])
+  // Buyer turned off "you left something at checkout" reminders.
+  checkoutRemindersOffAt DateTime?
 
   seller   SellerProfile?
   staffOf  SellerStaff?
@@ -305,6 +307,7 @@ model Product {
   quantityDiscounts QuantityDiscount[]
   orderItems        OrderItem[]
   reviews           Review[]
+  events            ProductEvent[]
 
   @@unique([supplier, supplierProductId])
   @@index([status, categoryId])
@@ -393,6 +396,9 @@ model Order {
   // When the buyer actually got the money back. Admin refunds are recorded
   // after paying; seller refunds wait here until the admin transfers.
   refundPaidAt    DateTime?
+  // Kashier refunds: "pending" while the refund call runs, then Kashier's
+  // refund transaction id.
+  gatewayRefundRef String?
   reviewReason    String?
   paidAmount      Int?
   // Where the buyer checked out from, shown on the seller's order page.
@@ -404,10 +410,14 @@ model Order {
   // so a forwarded transfer SMS can be matched to this order on its own.
   payFrom         String?
   payAmount       Int?
+  // Set once the buyer was reminded about this unpaid order (or it was
+  // folded into a reminder about a newer one), so nobody is nagged twice.
+  reminderSentAt  DateTime?
 
   @@index([status, expiresAt])
   @@index([paymentProvider, payAmount])
   @@index([buyerId, createdAt])
+  @@index([status, reminderSentAt, createdAt])
 }
 
 model OrderItem {
@@ -725,4 +735,37 @@ model SupplierSettings {
   multiplierBps Int @default(25000) // 25000 = store price is 2.5x the cost
   apiKey    String? // ProdSeller key saved from the admin panel; env is the fallback
   updatedAt DateTime @updatedAt
+}
+
+// Abandoned checkout reminders (one row, id = "default"). No row means the
+// defaults below apply.
+model CheckoutReminderSettings {
+  id           String   @id
+  enabled      Boolean  @default(true)
+  delayMinutes Int      @default(60) // wait this long after the order was opened
+  updatedAt    DateTime @updatedAt
+}
+
+enum ProductEventKind {
+  VIEW
+  CART
+}
+
+// Storefront funnel signals that orders can't tell us: a product page seen,
+// an add to the cart. One row per visitor, product, kind and Cairo day, so a
+// refresh or a second visit the same day never counts twice. Checkouts and
+// sales come from Order / OrderItem instead. Rows older than 400 days are
+// removed by the cleanup job (src/lib/jobs.ts).
+model ProductEvent {
+  id        BigInt           @id @default(autoincrement())
+  productId String
+  product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  kind      ProductEventKind
+  // Random per-browser id (dm_vid cookie), or a salted hash of IP + browser.
+  visitor   String
+  day       DateTime         @db.Date
+  createdAt DateTime         @default(now())
+
+  @@unique([productId, kind, visitor, day])
+  @@index([createdAt, kind])
 }

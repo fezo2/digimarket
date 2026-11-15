@@ -33,6 +33,7 @@ export async function changeCoupon(
 export async function payNow(
   id: string,
   previousState: { error?: string } | undefined,
+  form?: FormData,
 ) {
   const user = await requireVerifiedUser(`/checkout/${id}`);
   void previousState;
@@ -40,7 +41,11 @@ export async function payNow(
   if (!parsed.success) return { error: "الطلب مش صحيح" };
   let url: string;
   try {
-    const provider = getPaymentProvider();
+    const method = form?.get("method");
+    const provider = getPaymentProvider(
+      typeof method === "string" ? method : undefined,
+      user.role === "ADMIN",
+    );
     const order = await preparePayment(id, user.id, provider.name);
     url = await provider.createPayment(order);
   } catch (error) {

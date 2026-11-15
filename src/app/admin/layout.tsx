@@ -33,12 +33,16 @@ export default async function AdminLayout({
       <PortalNav
         groups={[
           {
-            items: [{ href: "/admin", label: t("نظرة عامة"), icon: "📊", exact: true }],
+            items: [
+              { href: "/admin", label: t("نظرة عامة"), icon: "📊", exact: true },
+              { href: "/admin/analytics", label: t("تحليلات المنتجات"), icon: "📈" },
+            ],
           },
           {
             title: t("الفلوس"),
             items: [
               { href: "/admin/payments", label: t("التحويلات اليدوية"), icon: "💳", count: payments },
+              { href: "/admin/gateway", label: t("بوابة الدفع"), icon: "🏦" },
               { href: "/admin/payouts", label: t("طلبات السحب"), icon: "💸", count: payouts },
               { href: "/admin/orders", label: t("الطلبات"), icon: "🧾" },
               { href: "/admin/orders?repay=1", label: t("مرتجعات للتحويل"), icon: "↩️", count: repay },
@@ -66,6 +70,7 @@ export default async function AdminLayout({
             items: [
               { href: "/admin/categories", label: t("الأقسام والعمولات"), icon: "🗂️" },
               { href: "/admin/news", label: t("إعلانات للتجار"), icon: "📢" },
+              { href: "/admin/reminders", label: t("تذكير الدفع"), icon: "🔔" },
               { href: "/admin/suppliers", label: t("ProdSeller"), icon: "⚡" },
               { href: "/admin/audit", label: t("سجل الإجراءات"), icon: "📜" },
               ...(admin.adminDataFrom

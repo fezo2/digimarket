@@ -9,6 +9,7 @@ import { logout } from "@/app/(auth)/actions";
 import { isVerified } from "@/lib/email-verification";
 import { paginate } from "@/lib/pagination";
 import { Pager } from "@/components/pager";
+import { toggleCheckoutReminders } from "./reminder-actions";
 
 const PER_PAGE = 15;
 
@@ -70,6 +71,20 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         )}
         <Pager {...info} params={query} className="mt-4" />
       </div>
+      <form action={toggleCheckoutReminders} className="card flex flex-wrap items-center gap-3 p-6">
+        <input type="hidden" name="off" value={user.checkoutRemindersOffAt ? "0" : "1"} />
+        <div className="flex-1">
+          <p className="font-semibold">{t("تذكير الدفع")}</p>
+          <p className="text-sm text-slate-500">
+            {user.checkoutRemindersOffAt
+              ? t("مقفول: مش هنفكّرك بالطلبات اللي ماكملتش دفعها.")
+              : t("شغال: لو فتحت طلب ومادفعتش، هنبعتلك إيميل واحد نفكّرك بيه.")}
+          </p>
+        </div>
+        <button className="btn-outline">
+          {user.checkoutRemindersOffAt ? t("شغّل التذكير") : t("اقفل التذكير")}
+        </button>
+      </form>
       {!user.seller && (
         <div className="card flex flex-wrap items-center gap-3 p-6">
           <p className="flex-1">{t("عندك منتجات رقمية عايز تبيعها؟")}</p>

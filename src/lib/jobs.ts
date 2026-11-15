@@ -8,6 +8,7 @@ export const jobs = [
   "send-notifications",
   "cleanup",
   "supplier-sync",
+  "checkout-reminders",
 ] as const;
 export function cronAuthorization(job: string, header: string | null) {
   if (!jobs.includes(job as (typeof jobs)[number])) return 404;
@@ -29,13 +30,18 @@ export async function cleanupBatch() {
       await tx.$executeRaw`DELETE FROM "PendingSignup" WHERE id IN (SELECT id FROM "PendingSignup" WHERE "expiresAt" < (NOW() AT TIME ZONE 'UTC') LIMIT 100)`;
       await tx.$executeRaw`DELETE FROM "LoginAttempt" WHERE id IN (SELECT id FROM "LoginAttempt" WHERE "createdAt" < (NOW() AT TIME ZONE 'UTC') - INTERVAL '1 day' LIMIT 100)`;
       await tx.$executeRaw`DELETE FROM "TelegramLinkToken" WHERE token IN (SELECT token FROM "TelegramLinkToken" WHERE "expiresAt" < (NOW() AT TIME ZONE 'UTC') LIMIT 100)`;
-      return reads + tokens;
+      // Funnel history: a bit over a year is plenty for "vs last year".
+      const events =
+        await tx.$executeRaw`DELETE FROM "ProductEvent" WHERE id IN (SELECT id FROM "ProductEvent" WHERE "createdAt" < (NOW() AT TIME ZONE 'UTC') - INTERVAL '400 days' LIMIT 1000)`;
+      return reads + tokens + events;
     },
     { timeout: 4000, maxWait: 1000 },
   );
 }
 export async function runJob(job: string) {
   if (job === "send-notifications") return sendNotifications();
+  if (job === "checkout-reminders")
+    return (await import("./checkout-reminders")).sendCheckoutReminders();
   if (job === "supplier-sync")
     return (await import("./supplier")).runSupplierJob();
   const deadline = Date.now() + 25000;
