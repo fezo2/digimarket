@@ -1,5 +1,6 @@
 "use server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { CATALOG_TAG } from "@/lib/storefront";
 import { requireAdmin } from "@/lib/auth";
 import {
   adminActionError,
@@ -28,6 +29,7 @@ async function run(
   try {
     const changed = await work(admin.id);
     revalidatePath("/", "layout");
+    revalidateTag(CATALOG_TAG);
     return { success: changed ? done : again };
   } catch (error) {
     return adminActionError(error);

@@ -4,11 +4,7 @@
   ],
   "crons": [
     {
-      "path": "/api/cron/release-expired-orders",
-      "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/cron/cleanup",
+      "path": "/api/cron/hourly",
       "schedule": "0 3 * * *"
     }
   ]

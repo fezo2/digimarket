@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
 import { listedProduct } from "@/lib/catalog";
+import { catalogCache } from "@/lib/storefront";
 import { absolute, absoluteUrl, englishPath } from "@/lib/seo";
 
 // Built per request: the build machine may not reach the database.
@@ -8,23 +9,32 @@ export const dynamic = "force-dynamic";
 
 const INFO_PAGES = ["about", "faq", "contact", "terms", "refunds", "privacy"];
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [products, categories, stores] = await Promise.all([
-    db.product.findMany({
-      where: listedProduct,
-      select: { slug: true, updatedAt: true, imageUrl: true },
-      orderBy: { soldCount: "desc" },
-      take: 45000,
-    }),
+// Cached (see catalogCache), so crawlers fetching it don't wake the database.
+// Dates are kept as strings: the cache stores JSON.
+const sitemapData = catalogCache("sitemap", async () => {
+  const [products, categories, stores, counts] = await Promise.all([
+    db.product
+      .findMany({
+        where: listedProduct,
+        select: { slug: true, updatedAt: true, imageUrl: true },
+        orderBy: { soldCount: "desc" },
+        take: 45000,
+      })
+      .then((rows) => rows.map((p) => ({ ...p, updatedAt: p.updatedAt.toISOString() }))),
     db.category.findMany({ select: { id: true, slug: true, parentId: true } }),
     db.sellerProfile.findMany({
       where: { kycStatus: "APPROVED", salesSuspendedAt: null },
       select: { slug: true },
     }),
+    db.product.groupBy({ by: ["categoryId"], where: listedProduct, _count: true }),
   ]);
+  return { products, categories, stores, counts };
+});
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const { products, categories, stores, counts } = await sitemapData();
   // Only categories with listed products (counting their subcategories):
   // empty ones are noindex until something is for sale in them.
-  const counts = await db.product.groupBy({ by: ["categoryId"], where: listedProduct, _count: true });
   const has = new Set(counts.filter((c) => c._count > 0).map((c) => c.categoryId));
   const filled = categories.filter(
     (c) => has.has(c.id) || categories.some((child) => child.parentId === c.id && has.has(child.id)),
@@ -38,7 +48,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
     ...products.map((p) => ({
       url: absolute(`/products/${encodeURIComponent(p.slug)}`),
-      lastModified: p.updatedAt,
+      lastModified: new Date(p.updatedAt),
       changeFrequency: "weekly" as const,
       priority: 0.7,
       images: p.imageUrl ? [absoluteUrl(p.imageUrl)] : undefined,

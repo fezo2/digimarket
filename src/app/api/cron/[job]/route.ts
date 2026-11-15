@@ -1,6 +1,7 @@
 import { cronAuthorization, runJob } from "@/lib/jobs";
 export const runtime = "nodejs";
-export const maxDuration = 30;
+// "hourly" runs every job in a row.
+export const maxDuration = 60;
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ job: string }> },

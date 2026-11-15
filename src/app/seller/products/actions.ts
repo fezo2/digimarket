@@ -3,7 +3,8 @@
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { CATALOG_TAG } from "@/lib/storefront";
 import { requireSeller } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { productInput } from "@/lib/product-input";
@@ -30,6 +31,7 @@ async function lockSeller(tx: Prisma.TransactionClient, id: string) {
 function refresh() {
   revalidatePath("/seller/products", "layout");
   revalidatePath("/", "layout");
+  revalidateTag(CATALOG_TAG);
 }
 function failure(error: unknown): State {
   if (error instanceof ProductError || error instanceof UploadError)

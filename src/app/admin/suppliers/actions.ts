@@ -1,5 +1,6 @@
 "use server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { CATALOG_TAG } from "@/lib/storefront";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import {
@@ -36,6 +37,7 @@ export async function saveSettings(
       multiplier: text(form, "multiplier"),
     });
     revalidatePath("/", "layout");
+    revalidateTag(CATALOG_TAG);
     return { success: "الإعدادات اتحفظت والأسعار اتحدثت" };
   } catch (error) {
     return fail(error);
@@ -51,6 +53,7 @@ export async function saveKey(
     const key = text(form, "apiKey");
     await saveSupplierKey(admin.id, key);
     revalidatePath("/", "layout");
+    revalidateTag(CATALOG_TAG);
     return { success: key.trim() ? "المفتاح اتحفظ" : "المفتاح اتمسح" };
   } catch (error) {
     return fail(error);
@@ -69,6 +72,7 @@ export async function importProducts(
       .map((id) => ({ id, categoryId: text(form, `cat_${id}`) }));
     const count = await importSupplierProducts(admin.id, picks);
     revalidatePath("/", "layout");
+    revalidateTag(CATALOG_TAG);
     return { success: `اتضاف ${count} منتج للمتجر` };
   } catch (error) {
     return fail(error);
@@ -80,6 +84,7 @@ export async function syncNow(): Promise<ActionState> {
   try {
     const changed = await syncSupplierProducts();
     revalidatePath("/", "layout");
+    revalidateTag(CATALOG_TAG);
     return { success: `اتحدّث ${changed} منتج` };
   } catch (error) {
     return fail(error);
@@ -91,6 +96,7 @@ export async function recategorize(): Promise<ActionState> {
   try {
     const changed = await recategorizeSupplierProducts(admin.id);
     revalidatePath("/", "layout");
+    revalidateTag(CATALOG_TAG);
     return { success: `اتنقل ${changed} منتج لقسمه الصح` };
   } catch (error) {
     return fail(error);

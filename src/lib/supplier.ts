@@ -255,6 +255,17 @@ export async function syncSupplierProducts() {
           multiplierBps: settings.multiplierBps,
         })
       : product.price;
+    const dropCompare =
+      product.compareAtPrice !== null && product.compareAtPrice <= price;
+    // Unchanged rows aren't rewritten: a write bumps updatedAt, which would
+    // resubmit every imported product to IndexNow and cost database time.
+    if (
+      (cost || null) === product.supplierCostMills &&
+      stock === product.supplierStock &&
+      price === product.price &&
+      !dropCompare
+    )
+      continue;
     await db.product.update({
       where: { id: product.id },
       data: {
@@ -262,13 +273,13 @@ export async function syncSupplierProducts() {
         supplierStock: stock,
         supplierSyncedAt: new Date(),
         price,
-        ...(product.compareAtPrice !== null && product.compareAtPrice <= price
-          ? { compareAtPrice: null }
-          : {}),
+        ...(dropCompare ? { compareAtPrice: null } : {}),
       },
     });
-    if (price !== product.price || stock !== product.supplierStock) changed++;
+    changed++;
   }
+  // One statement marks the rest as checked (raw SQL leaves updatedAt alone).
+  await db.$executeRaw`UPDATE "Product" SET "supplierSyncedAt" = NOW() AT TIME ZONE 'UTC' WHERE supplier = ${SUPPLIER}`;
   return changed;
 }
 

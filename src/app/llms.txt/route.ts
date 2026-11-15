@@ -1,7 +1,7 @@
 import { currentSite } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listedProduct } from "@/lib/catalog";
-import { storeCategories } from "@/lib/storefront";
+import { catalogCache, storeCategories } from "@/lib/storefront";
 import { SITE_NAME, SITE_NAME_EN } from "@/lib/config";
 import { absolute, describe } from "@/lib/seo";
 import { FAQS, POLICY_PAGES } from "@/content/policies";
@@ -13,16 +13,21 @@ export const dynamic = "force-dynamic";
 
 const egp = (piasters: number) => `${(piasters / 100).toLocaleString("en-US")} EGP`;
 
+// Cached (see catalogCache): AI crawlers fetch this often.
+const topProducts = catalogCache("llms-products", () =>
+  db.product.findMany({
+    where: listedProduct,
+    orderBy: { soldCount: "desc" },
+    take: 100,
+    select: { slug: true, title: true, price: true, description: true, seller: { select: { storeName: true } } },
+  }),
+);
+
 export async function GET() {
   if ((await currentSite()) !== "store") return new Response(null, { status: 404 });
   const [categories, products] = await Promise.all([
     storeCategories(),
-    db.product.findMany({
-      where: listedProduct,
-      orderBy: { soldCount: "desc" },
-      take: 100,
-      select: { slug: true, title: true, price: true, description: true, seller: { select: { storeName: true } } },
-    }),
+    topProducts(),
   ]);
   const link = (title: string, path: string, note?: string) =>
     `- [${title}](${absolute(path)})${note ? `: ${note}` : ""}`;

@@ -14,7 +14,8 @@ import {
   communityActionError,
   optionalImage,
 } from "@/lib/community-action-error";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { CATALOG_TAG } from "@/lib/storefront";
 import { z } from "zod";
 import { withinLimit } from "@/lib/account-security";
 import type { ActionState } from "@/components/action-form";
@@ -35,6 +36,7 @@ export async function sendChat(
       user.id,
     );
     revalidatePath("/", "layout");
+    revalidateTag(CATALOG_TAG);
     return {
       success: result.flagged
         ? "مش مسموح بمشاركة وسائل تواصل خارج الموقع"
@@ -59,6 +61,7 @@ export async function submitReview(
       z.enum(["create", "edit"]).parse(form.get("mode")),
     );
     revalidatePath("/", "layout");
+    revalidateTag(CATALOG_TAG);
     return { success: "التقييم اتحفظ" };
   } catch (error) {
     return communityActionError(error);
@@ -77,6 +80,7 @@ export async function submitDispute(
       optionalImage(form),
     );
     revalidatePath("/", "layout");
+    revalidateTag(CATALOG_TAG);
     return { success: "الشكوى اتفتحت" };
   } catch (error) {
     return communityActionError(error);
@@ -93,6 +97,7 @@ export async function solveDispute(
       communityId.parse(form.get("disputeId")),
     );
     revalidatePath("/", "layout");
+    revalidateTag(CATALOG_TAG);
     return { success: changed ? "الشكوى اتقفلت" : "الشكوى اتعالجت قبل كده" };
   } catch (error) {
     return communityActionError(error);

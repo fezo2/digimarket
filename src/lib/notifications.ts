@@ -1,5 +1,6 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
+import { after } from "next/server";
 import { z } from "zod";
 import { db } from "./db";
 import { formatEGP } from "./money";
@@ -57,6 +58,24 @@ export async function enqueueNotice(
       payload: JSON.stringify(payloadSchema.parse(payload)),
     },
   });
+  sendSoon();
+}
+// Sends the queue once the current response is done (and the caller's
+// transaction has committed), so Telegram doesn't wait for the hourly cron
+// and the database doesn't need a cron waking it every minute. Outside a
+// request (scripts, tests) there is nothing to hook into, and the cron's
+// catch-up pass sends it instead.
+// Several sends in one request are harmless: rows are claimed with SKIP LOCKED.
+function sendSoon() {
+  try {
+    after(async () => {
+      await sendNotifications(fetch, 20000).catch((error) =>
+        console.error("Sending notifications failed; the cron retries", error),
+      );
+    });
+  } catch {
+    // No request scope.
+  }
 }
 export function noticeText(event: NoticeEvent, raw: string) {
   const p = payloadSchema.parse(JSON.parse(raw));
