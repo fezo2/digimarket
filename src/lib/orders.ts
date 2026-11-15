@@ -8,6 +8,7 @@ import { quote } from "./pricing";
 import { formatEGP } from "./money";
 import { readOrderSnapshot } from "./order-snapshot";
 import { SELLER_TIERS } from "./config";
+import { earnAffiliateCommission, referralFor } from "./affiliate";
 
 export class OrderError extends Error {}
 type Tx = Prisma.TransactionClient;
@@ -19,6 +20,8 @@ const orderInput = z.object({
   textInputs: z.record(z.string(), z.string().trim().max(2000)),
   buyerIp: z.string().max(64).optional(),
   buyerCountry: z.string().max(8).optional(),
+  // The visitor's ref cookie; checked against the fraud rules below.
+  affiliateCode: z.string().max(40).optional(),
 });
 
 export async function lockOrder(tx: Tx, id: string) {
@@ -180,9 +183,11 @@ export async function createOrder(input: z.input<typeof orderInput>) {
       quantity: v.quantity,
       commissionBps: p.seller.commissionBps ?? p.category.commissionBps,
     });
+    const referral = await referralFor(tx, v.affiliateCode, v.buyerId, p.seller);
     const order = await tx.order.create({
       data: {
         buyerId: v.buyerId,
+        affiliateId: referral?.affiliateId,
         buyerIp: v.buyerIp,
         buyerCountry: v.buyerCountry,
         subtotal: q.subtotal,
@@ -206,6 +211,7 @@ export async function createOrder(input: z.input<typeof orderInput>) {
               p.deliveryType === "UNIQUE_CODES" ? null : p.deliveryContent,
             instructions: p.instructions,
             supplier: p.supplier,
+            affiliateBps: referral?.bps ?? 0,
           },
         },
       },
@@ -528,7 +534,7 @@ export async function deliverPaidOrder(
       where: { id: order.couponId },
       data: { usedCount: { increment: 1 } },
     });
-  await tx.ledgerEntry.create({
+  const saleEntry = await tx.ledgerEntry.create({
     data: {
       sellerId: item.sellerId,
       type: "SALE",
@@ -542,6 +548,7 @@ export async function deliverPaidOrder(
       note: `طلب #${order.number}`,
     },
   });
+  await earnAffiliateCommission(tx, order, item, saleEntry.availableAt);
   await tx.order.updateMany({
     where: { id: orderId, status: "PAID" },
     data: { reviewReason: null },

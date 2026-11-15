@@ -1,7 +1,8 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { AFFILIATE_COOKIE } from "@/lib/affiliate-rules";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -50,6 +51,7 @@ export async function buyProduct(
         textInputs,
         buyerIp: ip || undefined,
         buyerCountry: country || undefined,
+        affiliateCode: (await cookies()).get(AFFILIATE_COOKIE)?.value,
       })
     ).id;
   } catch (error) {

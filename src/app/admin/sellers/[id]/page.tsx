@@ -218,6 +218,15 @@ export default async function SellerDetail({
                 defaultValue={seller.holdDays ?? ""}
               />
             </label>
+            <label className="label">
+              {t("عمولة المسوّقين % (فاضي = نسبة البرنامج، 0 = مقفول للمتجر ده)")}
+              <input
+                className="input"
+                name="affiliate"
+                dir="ltr"
+                defaultValue={seller.affiliateBps === null ? "" : String(seller.affiliateBps / 100)}
+              />
+            </label>
             {seller.commissionBps !== null && (
               <p className="text-sm text-slate-500">
                 {t("العمولة الحالية: ")}{formatBps(seller.commissionBps)}

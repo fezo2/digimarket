@@ -16,6 +16,10 @@ import { releaseExpiredOrders } from "@/lib/orders";
 import { SELLER_TIERS } from "@/lib/config";
 import type { Metadata } from "next";
 import { absolute, describe, jsonLd } from "@/lib/seo";
+import { getCurrentUser } from "@/lib/auth";
+import { affiliateSettings, trackAffiliateClick } from "@/lib/affiliate";
+import { affiliateCommission, affiliateRateFor } from "@/lib/affiliate-rules";
+import { CopyField } from "@/components/copy-field";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +30,7 @@ const DELIVERY_LABEL = {
   LINK: "رابط التفعيل يظهر فوراً بعد الدفع",
 } as const;
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams?: Promise<{ ref?: string | string[] }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { t, money } = await i18n();
@@ -56,6 +60,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({
   params,
+  searchParams,
 }: Props) {
   const { t, cat, num, money } = await i18n();
   const { slug } = await params;
@@ -74,6 +79,9 @@ export default async function ProductPage({
     },
   });
   if (!product || !isListed(product)) notFound();
+  const ref = (await searchParams)?.ref;
+  if (typeof ref === "string") await trackAffiliateClick(ref);
+  const share = await affiliateShare(product);
 
   // A resold product shows the supplier's stock (null = unknown, allow).
   const available = product.supplier
@@ -277,6 +285,28 @@ export default async function ProductPage({
             )}
           </div>
 
+          {share && (
+            <div className="card space-y-2 p-4">
+              <p className="flex items-center gap-2 font-bold">
+                <Icon name="bolt" className="h-4 w-4 text-brand-600" />
+                {t("شارك واكسب")}
+              </p>
+              {share.link ? (
+                <>
+                  <p className="text-sm text-slate-600">
+                    {t("لينكك للمنتج ده. هتاخد حوالي {amount} من كل عملية شراء بيه.", { amount: money(share.amount) })}
+                  </p>
+                  <CopyField value={share.link} />
+                </>
+              ) : (
+                <p className="text-sm text-slate-600">
+                  {t("انشر لينك المنتج ده واكسب حوالي {amount} من كل بيعة.", { amount: money(share.amount) })}{" "}
+                  <Link href="/account/affiliate" className="font-semibold text-brand-600">{t("اشترك في برنامج الإحالة")}</Link>
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="card p-4">
             <Link href={`/stores/${product.seller.slug}`} className="group flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-lg font-bold text-brand-700">
@@ -351,4 +381,36 @@ export default async function ProductPage({
       {inStock && <MobileBuyBar price={money(product.price)} label={t("اشتري دلوقتي")} target="buy" />}
     </div>
   );
+}
+
+// What sharing this product pays (at its base price), and the visitor's own
+// link when they are an affiliate. Null when the program is off for it.
+async function affiliateShare(product: {
+  slug: string;
+  price: number;
+  seller: { userId: string; affiliateBps: number | null; commissionBps: number | null };
+  category: { commissionBps: number };
+}) {
+  const settings = await affiliateSettings();
+  if (!settings.enabled) return null;
+  const user = await getCurrentUser();
+  if (user?.id === product.seller.userId) return null;
+  const affiliate = user
+    ? await db.affiliate.findUnique({ where: { userId: user.id }, select: { code: true, rateBps: true, suspendedAt: true } })
+    : null;
+  if (affiliate?.suspendedAt) return null;
+  const bps = affiliateRateFor({
+    platformBps: settings.rateBps,
+    sellerBps: product.seller.affiliateBps,
+    affiliateBps: affiliate?.rateBps ?? null,
+  });
+  const commission = Math.floor(
+    (product.price * (product.seller.commissionBps ?? product.category.commissionBps)) / 10000,
+  );
+  const amount = affiliateCommission(product.price, commission, bps);
+  if (!amount) return null;
+  const link = affiliate
+    ? absolute(`/products/${encodeURIComponent(product.slug)}?ref=${affiliate.code}`)
+    : null;
+  return { amount, link };
 }

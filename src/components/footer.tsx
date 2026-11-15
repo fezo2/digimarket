@@ -51,6 +51,7 @@ export async function Footer() {
           <p className="mb-3 font-bold text-slate-900">{t("للمشترين")}</p>
           <ul className="space-y-2">
             <li><Link href="/account" className="hover:text-brand-600">{t("مشترياتي")}</Link></li>
+            <li><Link href="/account/affiliate" className="hover:text-brand-600">{t("برنامج الإحالة")}</Link></li>
             <li><Link href="/search" className="hover:text-brand-600">{t("كل المنتجات")}</Link></li>
             <li><Link href="/pages/refunds" className="hover:text-brand-600">{t("سياسة الاسترداد")}</Link></li>
           </ul>

@@ -44,6 +44,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         <p className="text-sm text-slate-500"><span dir="ltr">{user.email}</span></p>
         <div className="mt-1 flex items-center gap-4">
           <Link href="/account/security" className="text-sm font-semibold text-brand-600">{t("تغيير الباسورد")}</Link>
+          <Link href="/account/affiliate" className="text-sm font-semibold text-brand-600">{t("برنامج الإحالة")}</Link>
           {/* The header's log-out button is hidden on phones. */}
           <form action={logout} className="md:hidden">
             <button className="text-sm font-semibold text-red-600">{t("خروج")}</button>
