@@ -71,6 +71,11 @@ export async function saveProduct(_: State, form: FormData): Promise<State> {
     };
   }
   const v = parsed.data;
+  // Kept out of productInput: it only groups products on the store page,
+  // so changing it must not send the product back to review.
+  const storeCategoryId = String(form.get("storeCategoryId") ?? "") || null;
+  if (storeCategoryId && !idInput.safeParse(storeCategoryId).success)
+    return { error: "اختار تصنيف صحيح" };
   let savedId = "";
   let uploadedFileKey: string | undefined;
   try {
@@ -115,6 +120,14 @@ export async function saveProduct(_: State, form: FormData): Promise<State> {
         if (id && !old) throw new ProductError("المنتج غير موجود");
         if (!(await tx.category.findUnique({ where: { id: v.categoryId } })))
           throw new ProductError("اختار قسم صحيح");
+        if (
+          storeCategoryId &&
+          !(await tx.storeCategory.findFirst({
+            where: { id: storeCategoryId, sellerId: seller.id },
+            select: { id: true },
+          }))
+        )
+          throw new ProductError("اختار تصنيف صحيح");
         let content: string | null =
           v.deliveryType === "UNIQUE_CODES" ? null : v.deliveryContent;
         if (v.deliveryType === "FILE") {
@@ -151,6 +164,7 @@ export async function saveProduct(_: State, form: FormData): Promise<State> {
           title: v.title,
           slug,
           categoryId: v.categoryId,
+          storeCategoryId,
           description: v.description,
           imageUrl,
           price: v.price,
@@ -254,6 +268,7 @@ export async function manageProduct(_: State, form: FormData): Promise<State> {
         data: {
           sellerId: seller.id,
           categoryId: p.categoryId,
+          storeCategoryId: p.storeCategoryId,
           title: `${p.title} (نسخة)`,
           slug: `${slugify(p.title)}-${uniqueSuffix()}`,
           description: p.description,

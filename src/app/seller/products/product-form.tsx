@@ -18,6 +18,7 @@ export type Defaults = {
   id: string;
   title: string;
   categoryId: string;
+  storeCategoryId: string;
   description: string;
   imageUrl: string;
   price: string;
@@ -34,9 +35,11 @@ export type Defaults = {
 
 export function ProductForm({
   categories,
+  storeCategories,
   defaults,
 }: {
   categories: { id: string; nameAr: string; nameEn: string; parentId: string | null }[];
+  storeCategories: { id: string; name: string }[];
   defaults?: Defaults;
 }) {
   const { t, cat } = useI18n();
@@ -115,6 +118,30 @@ export function ProductForm({
               </optgroup>
             ))}
         </select>
+      </div>
+      <div>
+        <label className="label" htmlFor="storeCategoryId">
+          {t("تصنيف المتجر (اختياري)")}
+        </label>
+        <select
+          id="storeCategoryId"
+          name="storeCategoryId"
+          className="input"
+          defaultValue={defaults?.storeCategoryId ?? ""}
+        >
+          <option value="">{t("بدون تصنيف")}</option>
+          {storeCategories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-slate-500">
+          {t("بيظهر كفلتر في صفحة متجرك بس. ")}
+          <a className="underline underline-offset-4" href="/seller/store-categories" target="_blank">
+            {t("إدارة التصنيفات")}
+          </a>
+        </p>
       </div>
       <div>
         <label className="label" htmlFor="description">

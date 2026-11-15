@@ -2,6 +2,7 @@ import { i18n } from "@/lib/prefs";
 import { reviewPercent } from "@/lib/community-rules";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import Link from "next/link";
 import { ProductCard, productCardSelect } from "@/components/product-card";
 import { SELLER_TIERS } from "@/lib/config";
 import type { Metadata } from "next";
@@ -36,24 +37,40 @@ export async function generateMetadata({
 
 export default async function StorePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ c?: string }>;
 }) {
-  const { t } = await i18n();
+  const { t, num } = await i18n();
   const { slug } = await params;
+  const { c } = await searchParams;
   const store = await db.sellerProfile.findUnique({
     where: { slug: decodeURIComponent(slug) },
     include: {
       products: {
         where: { status: "ACTIVE", salesEnabled: true },
-        select: productCardSelect,
+        select: { ...productCardSelect, storeCategoryId: true },
         orderBy: { soldCount: "desc" },
+      },
+      storeCategories: {
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        select: { id: true, name: true },
       },
     },
   });
   if (!store || store.kycStatus !== "APPROVED") notFound();
   // A suspended store keeps its page but lists nothing until the admin lifts it.
   if (store.salesSuspendedAt) store.products = [];
+
+  // The seller's own categories, filtered in memory from the one query above.
+  const counts = new Map<string, number>();
+  for (const p of store.products)
+    if (p.storeCategoryId) counts.set(p.storeCategoryId, (counts.get(p.storeCategoryId) ?? 0) + 1);
+  const tabs = store.storeCategories.filter((x) => counts.has(x.id));
+  const current = tabs.find((x) => x.id === c);
+  const shown = current ? store.products.filter((p) => p.storeCategoryId === current.id) : store.products;
+  const base = `/stores/${encodeURIComponent(store.slug)}`;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -99,8 +116,32 @@ export default async function StorePage({
           </p>
         )}
       </div>
+      {tabs.length > 0 && (
+        <nav
+          aria-label={t("تصنيفات المتجر")}
+          className="card no-scrollbar mb-4 flex items-center gap-1 overflow-x-auto p-1.5 text-sm lg:flex-wrap"
+        >
+          {[{ id: "", name: t("الكل"), count: store.products.length }, ...tabs.map((x) => ({ ...x, count: counts.get(x.id) ?? 0 }))].map(
+            (x) => {
+              const on = (current?.id ?? "") === x.id;
+              return (
+                <Link
+                  key={x.id || "all"}
+                  href={x.id ? `${base}?c=${x.id}` : base}
+                  scroll={false}
+                  aria-current={on ? "page" : undefined}
+                  className={`shrink-0 rounded-lg px-3 py-1.5 whitespace-nowrap ${on ? "bg-brand-600 font-semibold text-white" : "text-slate-600 hover:bg-slate-50"}`}
+                >
+                  <span dir="auto">{x.name}</span>
+                  <span className={`ms-1.5 text-xs tabular-nums ${on ? "text-white/80" : "text-slate-400"}`}>{num(x.count)}</span>
+                </Link>
+              );
+            },
+          )}
+        </nav>
+      )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {store.products.map((p) => (
+        {shown.map((p) => (
           <ProductCard key={p.slug} product={p} />
         ))}
       </div>
