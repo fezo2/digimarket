@@ -110,6 +110,8 @@ model User {
   adminNote       String?
   // Staff admin: sees only records created on or after this moment.
   adminDataFrom   DateTime?
+  // Buyer turned off "you left something at checkout" reminders.
+  checkoutRemindersOffAt DateTime?
 
   seller   SellerProfile?
   orders   Order[]
@@ -375,10 +377,14 @@ model Order {
   // so a forwarded transfer SMS can be matched to this order on its own.
   payFrom         String?
   payAmount       Int?
+  // Set once the buyer was reminded about this unpaid order (or it was
+  // folded into a reminder about a newer one), so nobody is nagged twice.
+  reminderSentAt  DateTime?
 
   @@index([status, expiresAt])
   @@index([paymentProvider, payAmount])
   @@index([buyerId, createdAt])
+  @@index([status, reminderSentAt, createdAt])
 }
 
 model OrderItem {
@@ -696,6 +702,15 @@ model SupplierSettings {
   multiplierBps Int @default(25000) // 25000 = store price is 2.5x the cost
   apiKey    String? // ProdSeller key saved from the admin panel; env is the fallback
   updatedAt DateTime @updatedAt
+}
+
+// Abandoned checkout reminders (one row, id = "default"). No row means the
+// defaults below apply.
+model CheckoutReminderSettings {
+  id           String   @id
+  enabled      Boolean  @default(true)
+  delayMinutes Int      @default(60) // wait this long after the order was opened
+  updatedAt    DateTime @updatedAt
 }
 
 enum ProductEventKind {

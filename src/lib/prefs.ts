@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
-import { siteForHost } from "./sites";
+import { LANG_HEADER, siteForHost } from "./sites";
 import { toolsFor, type Lang, type Theme } from "./i18n";
 
 export const LANG_COOKIE = "dm_lang";
@@ -10,10 +10,13 @@ export const THEME_COOKIE = "dm_theme";
 // The visitor's language and theme, from cookies set by the header toggles.
 export const getPrefs = cache(async () => {
   const jar = await cookies();
-  const lang: Lang = jar.get(LANG_COOKIE)?.value === "en" ? "en" : "ar";
+  const head = await headers();
+  // A ?lang= in the URL (search engines follow those, without cookies) wins.
+  const picked = head.get(LANG_HEADER) ?? jar.get(LANG_COOKIE)?.value;
+  const lang: Lang = picked === "en" ? "en" : "ar";
   // The seller portal opens dark until the seller picks otherwise.
   const saved = jar.get(THEME_COOKIE)?.value;
-  const fallback = siteForHost((await headers()).get("host")) === "seller" ? "dark" : "light";
+  const fallback = siteForHost(head.get("host")) === "seller" ? "dark" : "light";
   const theme: Theme = saved === "dark" || saved === "light" ? saved : fallback;
   return { lang, theme };
 });

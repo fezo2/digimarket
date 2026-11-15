@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, readSessionToken } from "@/lib/session-token";
-import { PATH_HEADER, siteForHost, siteForPath, siteOrigins } from "@/lib/sites";
+import { LANG_HEADER, PATH_HEADER, siteForHost, siteForPath, siteOrigins } from "@/lib/sites";
 import { contentSecurityPolicy } from "@/lib/csp";
 import { corsVerdict } from "@/lib/cors";
 
@@ -20,7 +20,26 @@ export async function middleware(req: NextRequest) {
   const csp = contentSecurityPolicy(btoa(crypto.randomUUID()));
   const res = await route(req, csp);
   res.headers.set("Content-Security-Policy", csp);
+  // The seller and admin portals stay out of search engines, files included.
+  if (siteOrigins() && siteForHost(req.headers.get("host")) !== "store")
+    res.headers.set("X-Robots-Tag", "noindex, nofollow");
+  // A ?lang= link also remembers the choice for the visitor's next pages.
+  const lang = urlLang(req);
+  if (lang && req.cookies.get(LANG_COOKIE)?.value !== lang)
+    res.cookies.set(LANG_COOKIE, lang, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
   return res;
+}
+
+const LANG_COOKIE = "dm_lang";
+
+function urlLang(req: NextRequest) {
+  const value = req.nextUrl.searchParams.get("lang");
+  return value === "en" || value === "ar" ? value : null;
 }
 
 async function route(req: NextRequest, csp: string) {
@@ -30,6 +49,10 @@ async function route(req: NextRequest, csp: string) {
   request.headers.set("Content-Security-Policy", csp);
   // Lets the root layout drop the store header inside the seller portal.
   request.headers.set(PATH_HEADER, pathname);
+  // Never trust a language header sent by the client; only the URL sets it.
+  request.headers.delete(LANG_HEADER);
+  const lang = urlLang(req);
+  if (lang) request.headers.set(LANG_HEADER, lang);
   const origins = siteOrigins();
   // Build redirects from the configured origin, not the internal request URL.
   const base = origins

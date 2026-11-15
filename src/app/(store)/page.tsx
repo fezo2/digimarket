@@ -11,11 +11,14 @@ import { positivePercent, storeCategories } from "@/lib/storefront";
 import { SELLER_TIERS } from "@/lib/config";
 import { SITE_NAME, SITE_NAME_EN } from "@/lib/config";
 import type { Metadata } from "next";
-import { absolute, jsonLd } from "@/lib/seo";
+import { absolute, jsonLd, localized } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { alternates: { canonical: "/" } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { lang } = await i18n();
+  return { alternates: localized("/", lang) };
+}
 
 const STRUCTURED = [
   {
