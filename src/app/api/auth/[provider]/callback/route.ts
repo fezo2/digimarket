@@ -14,6 +14,7 @@ import {
 } from "@/lib/oauth";
 import { portalOrigin } from "@/lib/oauth-origin";
 import { db } from "@/lib/db";
+import { issueTwoFactorTicket } from "@/lib/two-factor";
 import { SITE_HOME, safeRedirectPath } from "@/lib/sites";
 
 type Params = { params: Promise<{ provider: string }> };
@@ -65,13 +66,26 @@ async function handle(req: NextRequest, { params }: Params, values: URLSearchPar
     return fail("failed");
   }
 
+  // Two-step sign in turned on: Google/Apple counts as the password only.
+  if (result.user.twoFactorEnabledAt) {
+    await issueTwoFactorTicket({
+      userId: result.user.id,
+      role: result.user.role,
+      sessionVersion: result.user.sessionVersion,
+      next: safeRedirectPath(saved.next),
+    });
+    const res = NextResponse.redirect(`${origin}/login/2fa`, 303);
+    res.cookies.delete({ name: OAUTH_COOKIE, path: "/api/auth" });
+    return res;
+  }
+
   await createSession({
     userId: result.user.id,
     role: result.user.role,
     sessionVersion: result.user.sessionVersion,
   });
   const next =
-    site === "seller" && !(await hasStore(result.user.id))
+    site === "seller" && !(await hasStoreAccess(result.user.id))
       ? "/seller/join"
       : safeRedirectPath(saved.next) ?? "/";
   const res = NextResponse.redirect(
@@ -82,6 +96,11 @@ async function handle(req: NextRequest, { params }: Params, values: URLSearchPar
   return res;
 }
 
-async function hasStore(userId: string) {
-  return !!(await db.sellerProfile.findUnique({ where: { userId }, select: { id: true } }));
+// Owners and staff go to the office; everyone else to opening a store.
+async function hasStoreAccess(userId: string) {
+  const [own, staff] = await Promise.all([
+    db.sellerProfile.findUnique({ where: { userId }, select: { id: true } }),
+    db.sellerStaff.findUnique({ where: { userId }, select: { id: true } }),
+  ]);
+  return Boolean(own || staff);
 }

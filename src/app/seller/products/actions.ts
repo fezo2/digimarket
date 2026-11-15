@@ -43,7 +43,7 @@ function failure(error: unknown): State {
 }
 
 export async function saveProduct(_: State, form: FormData): Promise<State> {
-  const { user, seller } = await requireSeller();
+  const { user, seller } = await requireSeller("PRODUCTS");
   if (seller.kycStatus !== "APPROVED")
     return { error: "لازم توثّق حسابك الأول" };
   const id = String(form.get("id") ?? "");
@@ -213,7 +213,7 @@ export async function saveProduct(_: State, form: FormData): Promise<State> {
 }
 
 export async function manageProduct(_: State, form: FormData): Promise<State> {
-  const { seller } = await requireSeller();
+  const { seller } = await requireSeller("PRODUCTS");
   if (seller.kycStatus !== "APPROVED")
     return { error: "لازم توثّق حسابك الأول" };
   const parsed = z
@@ -304,7 +304,7 @@ export async function manageProduct(_: State, form: FormData): Promise<State> {
 }
 
 export async function manageStock(_: State, form: FormData): Promise<State> {
-  const { seller } = await requireSeller();
+  const { seller } = await requireSeller("PRODUCTS");
   if (seller.kycStatus !== "APPROVED")
     return { error: "لازم توثّق حسابك الأول" };
   const parsed = z

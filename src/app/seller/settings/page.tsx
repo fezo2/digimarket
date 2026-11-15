@@ -1,9 +1,9 @@
+import Link from "next/link";
 import { i18n } from "@/lib/prefs";
 import { TelegramForm } from "./telegram-form";
 import { requireSeller } from "@/lib/auth";
 import { StoreProfileForm } from "../store-profile-form";
 import { db } from "@/lib/db";
-import { PasswordForm } from "@/components/password-form";
 import { RepliesSection } from "./replies";
 
 export default async function SettingsPage() {
@@ -29,7 +29,10 @@ export default async function SettingsPage() {
         <TelegramForm linked={!!seller.telegramLinkedAt} />
       )}
       <RepliesSection replies={replies} />
-      <PasswordForm />
+      <Link href="/seller/security" className="card block p-6 hover:bg-slate-50">
+        <p className="font-bold">{t("أمان حسابي")}</p>
+        <p className="text-sm text-slate-500">{t("الباسورد والتحقق بخطوتين")}</p>
+      </Link>
     </div>
   );
 }

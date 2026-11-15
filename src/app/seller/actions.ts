@@ -25,7 +25,8 @@ export async function joinAsSeller(
   form: FormData,
 ): Promise<FormState> {
   const user = await requireVerifiedUser("/seller/join");
-  if (user.seller) redirect("/seller");
+  // Owners and staff already have an office.
+  if (user.seller || user.staffOf) redirect("/seller");
 
   const parsed = joinSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };

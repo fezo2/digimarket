@@ -9,6 +9,12 @@ import { isVerified } from "./email-verification";
 import { db } from "./db";
 import { siteForHost, siteOrigins, type Site } from "./sites";
 import { onAdminPortal } from "./portal";
+import {
+  canAccess,
+  sellerAccessOf,
+  sellerHome,
+  type SellerArea,
+} from "./seller-staff";
 export { onAdminPortal };
 import { siteSessionVersion } from "./site-password";
 import {
@@ -83,7 +89,7 @@ export const getCurrentUser = cache(async function getCurrentUser() {
   if (!session) return null;
   const user = await db.user.findUnique({
     where: { id: session.userId },
-    include: { seller: true },
+    include: { seller: true, staffOf: { include: { seller: true } } },
   });
   return user &&
     !user.suspendedAt &&
@@ -141,10 +147,15 @@ export async function requireFullAdmin() {
   return user;
 }
 
-export async function requireSeller() {
+// The seller office for the store's owner or one of its staff. Staff only
+// get the areas the owner gave them; the default "OWNER" keeps a page owner
+// only, so a new page is closed to staff until it says otherwise.
+export async function requireSeller(area: SellerArea = "OWNER") {
   const user = await requireUser("/seller");
   // Same rule for the seller portal: its own host and its own password.
   if (siteOrigins() && (await currentSite()) !== "seller") redirect("/");
-  if (!user.seller) redirect("/seller/join");
-  return { user, seller: user.seller };
+  const access = sellerAccessOf(user);
+  if (!access) redirect("/seller/join");
+  if (!canAccess(access, area)) redirect(sellerHome(access));
+  return { user, seller: access.seller, staff: access.staff };
 }

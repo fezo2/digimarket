@@ -110,8 +110,16 @@ model User {
   adminNote       String?
   // Staff admin: sees only records created on or after this moment.
   adminDataFrom   DateTime?
+  // Optional two-step sign in with an authenticator app. The pending secret
+  // waits for the first code; backup codes are stored hashed and used once.
+  twoFactorSecret        String?
+  twoFactorPendingSecret String?
+  twoFactorEnabledAt     DateTime?
+  twoFactorLastStep      Int?
+  twoFactorBackupCodes   String[] @default([])
 
   seller   SellerProfile?
+  staffOf  SellerStaff?
   orders   Order[]
   reviews  Review[]
   messages Message[]
@@ -173,6 +181,28 @@ model SellerProfile {
   coupons        Coupon[]
   reviews        Review[]
   replies        SellerReply[]
+  staff          SellerStaff[]
+}
+
+enum StaffPermission {
+  PRODUCTS
+  ORDERS
+  MESSAGES
+  FINANCE
+}
+
+// An employee account working in someone else's store. A user can work for
+// one store at a time and can't own a store while they do.
+model SellerStaff {
+  id          String            @id @default(cuid())
+  sellerId    String
+  seller      SellerProfile     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  userId      String            @unique
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissions StaffPermission[]
+  createdAt   DateTime          @default(now())
+
+  @@index([sellerId])
 }
 
 // Canned chat answers a seller drops into an order conversation.

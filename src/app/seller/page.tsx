@@ -34,7 +34,7 @@ export default async function SellerDashboard({
   searchParams: Promise<{ p?: string; from?: string; to?: string; product?: string; m?: string }>;
 }) {
   const { t, money, num, day, lang } = await i18n();
-  const { seller } = await requireSeller();
+  const { seller, staff } = await requireSeller(["ORDERS", "FINANCE"]);
   const query = await searchParams;
   const period = parsePeriod(query, "30d");
   const metric: Metric = query.m && Object.hasOwn(METRICS, query.m) ? (query.m as Metric) : "gross";
@@ -141,7 +141,7 @@ export default async function SellerDashboard({
       {banner && (
         <div className={`flex flex-wrap items-center gap-3 rounded-2xl p-4 text-sm ${banner.cls}`}>
           <p className="flex-1">{t(banner.text)}</p>
-          {banner.cta && <Link href="/seller/kyc" className="btn-primary">{t("وثّق حسابك")}</Link>}
+          {banner.cta && !staff && <Link href="/seller/kyc" className="btn-primary">{t("وثّق حسابك")}</Link>}
         </div>
       )}
       {seller.salesSuspendedAt && (

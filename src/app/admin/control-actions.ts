@@ -5,6 +5,7 @@ import {
   adminActionError,
   createAnnouncement,
   forceLogout,
+  resetUserTwoFactor,
   setAnnouncementActive,
   setPayoutsFrozen,
   setSalesSuspended,
@@ -50,6 +51,17 @@ export async function userLogout(
   return run(
     (a) => forceLogout(a, text(form, "userId")),
     "اتعمل خروج من كل الأجهزة",
+  );
+}
+
+export async function userTwoFactorReset(
+  _: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  return run(
+    (a) => resetUserTwoFactor(a, text(form, "userId")),
+    "التحقق بخطوتين اتلغى، وخرج من كل الأجهزة",
+    "التحقق بخطوتين مش مفعّل على الحساب ده",
   );
 }
 

@@ -109,12 +109,14 @@ export async function sendMessage(
   orderId: string,
   body: string,
   image?: File | string,
+  // Who uploaded the image, when staff send as the store.
+  uploaderId = userId,
 ) {
   const value = messageBody.parse(
     messageBody.parse(body).replace(/^(?:\[النظام\]\s*)+/u, ""),
   );
   await participant(db, userId, orderId);
-  const attachmentKey = await saveChatImage(orderId, image, userId);
+  const attachmentKey = await saveChatImage(orderId, image, uploaderId);
   try {
     return await db.$transaction(async (tx) => {
       await lockOrder(tx, orderId);

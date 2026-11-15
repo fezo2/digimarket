@@ -5,7 +5,7 @@ import { ProductForm } from "../product-form";
 
 export default async function NewProductPage() {
   const { t } = await i18n();
-  const { seller } = await requireSeller();
+  const { seller } = await requireSeller("PRODUCTS");
   if (seller.kycStatus !== "APPROVED") return null;
   const categories = await db.category.findMany({
     orderBy: { sortOrder: "asc" },

@@ -5,7 +5,7 @@ import { salesWhere, toCsv } from "@/lib/seller-tools";
 const egp = (piasters: number) => (piasters / 100).toFixed(2);
 
 export async function GET(req: Request) {
-  const { seller } = await requireSeller();
+  const { seller } = await requireSeller("ORDERS");
   const p = new URL(req.url).searchParams;
   const items = await db.orderItem.findMany({
     where: salesWhere(

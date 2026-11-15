@@ -8,7 +8,7 @@ export default async function Page({
   searchParams: Promise<{ filter?: string }>;
 }) {
   const { t } = await i18n();
-  const { seller } = await requireSeller();
+  const { seller } = await requireSeller("MESSAGES");
   const query = await searchParams;
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-6">

@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { privateDownload } from "@/lib/private-download";
 import { attachmentKey } from "@/lib/chat";
+import { chatActorId } from "@/lib/seller-staff-db";
 import { communityId } from "@/lib/community-rules";
 import { z } from "zod";
 export const runtime = "nodejs";
@@ -14,7 +15,7 @@ export async function GET(
       .object({ itemId: communityId, messageId: communityId })
       .parse(await params);
     return await privateDownload(
-      await attachmentKey(user.id, v.itemId, v.messageId),
+      await attachmentKey(await chatActorId(user, v.itemId), v.itemId, v.messageId),
       true,
     );
   } catch {

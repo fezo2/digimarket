@@ -10,11 +10,14 @@ import { siteHref } from "@/lib/sites";
 import type { ActionState } from "@/components/action-form";
 
 export async function refundSale(_: ActionState, form: FormData): Promise<ActionState> {
-  const { user } = await requireSeller();
+  const { seller, staff } = await requireSeller("ORDERS");
+  // Refunds take money from the balance, so staff also need finance.
+  if (staff && !staff.permissions.includes("FINANCE"))
+    return { error: "مش مسموح لك بالاسترداد" };
   const id = String(form.get("id") ?? "");
   try {
     if (form.get("confirm") !== "on") return { error: "أكّد إنك عاوز ترجّع الفلوس" };
-    const order = await sellerRefundOrder(user.id, id, String(form.get("note") ?? ""));
+    const order = await sellerRefundOrder(seller.userId, id, String(form.get("note") ?? ""));
     if (!order) return { error: "الطلب ده اتردّ قبل كده أو مش مدفوع" };
     revalidatePath(`/seller/sales/${id}`);
     revalidatePath("/seller/sales");

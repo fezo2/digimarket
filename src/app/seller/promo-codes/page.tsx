@@ -19,7 +19,7 @@ export default async function PromoCodesPage({
   searchParams: Promise<{ new?: string }>;
 }) {
   const { t, money, num, day } = await i18n();
-  const { seller } = await requireSeller();
+  const { seller } = await requireSeller("PRODUCTS");
   const adding = (await searchParams).new === "1";
   const [codes, sales] = await Promise.all([
     db.coupon.findMany({ where: { sellerId: seller.id }, orderBy: [{ active: "desc" }, { code: "asc" }] }),
