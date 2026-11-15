@@ -11,6 +11,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { BuyBox } from "@/components/product-pricing";
 import { MobileBuyBar } from "@/components/mobile-buy-bar";
+import { ViewTracker } from "@/components/view-tracker";
 import { takesCards } from "@/lib/payments/config";
 import { releaseExpiredOrders } from "@/lib/orders";
 import { SELLER_TIERS } from "@/lib/config";
@@ -379,6 +380,7 @@ export default async function ProductPage({
         </section>
       )}
       {inStock && <MobileBuyBar price={money(product.price)} label={t("اشتري دلوقتي")} target="buy" />}
+      <ViewTracker productId={product.id} />
     </div>
   );
 }

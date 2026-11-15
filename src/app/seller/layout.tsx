@@ -116,6 +116,7 @@ export default async function SellerLayout({
         { href: "/seller", label: t("لوحة التحكم"), icon: "dashboard", exact: true },
         { href: "/seller/products", label: t("المنتجات"), icon: "products" },
         { href: "/seller/sales", label: t("الطلبات"), icon: "orders" },
+        { href: "/seller/analytics", label: t("إحصائيات المنتجات"), icon: "chart" },
         { href: "/seller/promo-codes", label: t("أكواد الخصم"), icon: "promo" },
         { href: "/seller/messages", label: t("الرسائل"), icon: "chats", count: unread },
         { href: "/seller/wallet", label: t("المالية"), icon: "finance" },

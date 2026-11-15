@@ -34,7 +34,10 @@ export default async function AdminLayout({
       <PortalNav
         groups={[
           {
-            items: [{ href: "/admin", label: t("نظرة عامة"), icon: "📊", exact: true }],
+            items: [
+              { href: "/admin", label: t("نظرة عامة"), icon: "📊", exact: true },
+              { href: "/admin/analytics", label: t("تحليلات المنتجات"), icon: "📈" },
+            ],
           },
           {
             title: t("الفلوس"),

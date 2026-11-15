@@ -1,5 +1,6 @@
 // Line icons for the seller portal (24px grid, drawn with currentColor).
 const PATHS = {
+  chart: "M3 3v18h18M7 15l4-4 3 3 5-6",
   dashboard: "M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z",
   products: "M3 5h18M3 12h18M3 19h18M7 5v14",
   orders: "M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8",

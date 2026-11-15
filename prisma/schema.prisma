@@ -280,6 +280,7 @@ model Product {
   quantityDiscounts QuantityDiscount[]
   orderItems        OrderItem[]
   reviews           Review[]
+  events            ProductEvent[]
 
   @@unique([supplier, supplierProductId])
   @@index([status, categoryId])
@@ -805,4 +806,28 @@ model CheckoutReminderSettings {
   enabled      Boolean  @default(true)
   delayMinutes Int      @default(60) // wait this long after the order was opened
   updatedAt    DateTime @updatedAt
+}
+
+enum ProductEventKind {
+  VIEW
+  CART
+}
+
+// Storefront funnel signals that orders can't tell us: a product page seen,
+// an add to the cart. One row per visitor, product, kind and Cairo day, so a
+// refresh or a second visit the same day never counts twice. Checkouts and
+// sales come from Order / OrderItem instead. Rows older than 400 days are
+// removed by the cleanup job (src/lib/jobs.ts).
+model ProductEvent {
+  id        BigInt           @id @default(autoincrement())
+  productId String
+  product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  kind      ProductEventKind
+  // Random per-browser id (dm_vid cookie), or a salted hash of IP + browser.
+  visitor   String
+  day       DateTime         @db.Date
+  createdAt DateTime         @default(now())
+
+  @@unique([productId, kind, visitor, day])
+  @@index([createdAt, kind])
 }
