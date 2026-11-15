@@ -269,7 +269,10 @@ export async function refundOrder(
     await orderInScope(tx, await admin(tx, actorId), orderId);
     const order = await refundPaidOrder(tx, actorId, orderId, value, "order.refunded");
     if (!order) return false;
-    await tx.order.update({ where: { id: orderId }, data: { refundPaidAt: new Date() } });
+    // Card payments go back through the gateway, so a Kashier order waits in
+    // the "refunds to pay" queue until Kashier confirms the refund.
+    if (order.paymentProvider !== "kashier")
+      await tx.order.update({ where: { id: orderId }, data: { refundPaidAt: new Date() } });
     return true;
   };
   return transaction ? execute(transaction) : db.$transaction(execute);
@@ -338,6 +341,49 @@ export async function markRefundPaid(actorId: string, orderId: string) {
     });
     if (!changed.count) return false;
     await audit(tx, actorId, "order.refund_paid", orderId);
+    return true;
+  });
+}
+
+// Gateway refunds (Kashier): the order is claimed first so a double click or
+// two admins can't send the same refund twice, then released or settled.
+export async function claimGatewayRefund(actorId: string, orderId: string) {
+  idSchema.parse(orderId);
+  return db.$transaction(async (tx) => {
+    await orderInScope(tx, await admin(tx, actorId), orderId);
+    const claimed = await tx.order.updateMany({
+      where: {
+        id: orderId,
+        status: "REFUNDED",
+        refundPaidAt: null,
+        gatewayRefundRef: null,
+        paymentProvider: "kashier",
+      },
+      data: { gatewayRefundRef: "pending" },
+    });
+    if (!claimed.count) return null;
+    return tx.order.findUniqueOrThrow({
+      where: { id: orderId },
+      select: { id: true, number: true, paymentRef: true, paidAmount: true, total: true, refundNote: true },
+    });
+  });
+}
+
+export async function releaseGatewayRefund(orderId: string) {
+  await db.order.updateMany({
+    where: { id: orderId, gatewayRefundRef: "pending" },
+    data: { gatewayRefundRef: null },
+  });
+}
+
+export async function settleGatewayRefund(actorId: string, orderId: string, reference: string, amount: number) {
+  return db.$transaction(async (tx) => {
+    const changed = await tx.order.updateMany({
+      where: { id: orderId, gatewayRefundRef: "pending" },
+      data: { gatewayRefundRef: reference, refundPaidAt: new Date() },
+    });
+    if (!changed.count) return false;
+    await audit(tx, actorId, "order.refund_gateway", orderId, { amount, reference });
     return true;
   });
 }
