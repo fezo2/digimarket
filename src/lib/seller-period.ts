@@ -1,7 +1,7 @@
 // Date ranges for the seller portal's "Today / 7 days / 30 days / …" tabs.
 // Every boundary is a Cairo midnight, because that is the day sellers see.
 
-export const PERIODS = ["all", "today", "yesterday", "7d", "30d", "6m", "range"] as const;
+export const PERIODS = ["all", "24h", "today", "yesterday", "7d", "30d", "6m", "range"] as const;
 export type PeriodKey = (typeof PERIODS)[number];
 
 export type Period = {
@@ -12,7 +12,7 @@ export type Period = {
   // The equal-length window right before, for "% vs previous period".
   prevFrom: Date | null;
   prevTo: Date | null;
-  bucket: "day" | "month";
+  bucket: "hour" | "day" | "month";
   // Echoed back into the date inputs.
   fromDay: string;
   toDay: string;
@@ -40,6 +40,11 @@ function wall(at: Date) {
 export function cairoDay(at: Date) {
   const { y, m, d } = wall(at);
   return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+// "2026-10-27 14" for the Cairo hour that contains `at`.
+export function cairoHour(at: Date) {
+  return `${cairoDay(at)} ${String(wall(at).h).padStart(2, "0")}`;
 }
 
 // The UTC instant of Cairo midnight at the start of y-m-d (month is 1-based,
@@ -77,6 +82,10 @@ export function parsePeriod(
   let to = now;
   let bucket: Period["bucket"] = "day";
   switch (key) {
+    case "24h":
+      from = new Date(now.getTime() - DAY);
+      bucket = "hour";
+      break;
     case "today":
       from = start(0);
       break;
@@ -128,6 +137,13 @@ export function periodSlots(period: Period, firstSale?: Date | null) {
   const from = period.from ?? firstSale ?? period.to;
   const slots: { key: string; start: Date }[] = [];
   const f = wall(from);
+  if (period.bucket === "hour") {
+    // Whole Cairo hours; keys match cairoHour(x).
+    const first = Math.floor(from.getTime() / 3600000) * 3600000;
+    for (let at = first; at < period.to.getTime() && slots.length < 48; at += 3600000)
+      slots.push({ key: cairoHour(new Date(at)), start: new Date(at) });
+    return slots;
+  }
   if (period.bucket === "month") {
     for (let i = 0; i < 36; i++) {
       const start = cairoMidnight(f.y, f.m + i, 1);
