@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { ProductCard, productCardSelect } from "@/components/product-card";
 import { SELLER_TIERS } from "@/lib/config";
 import type { Metadata } from "next";
-import { describe } from "@/lib/seo";
+import { describe, localized } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const { t } = await i18n();
+  const { t, lang } = await i18n();
   const { slug } = await params;
   const store = await db.sellerProfile.findUnique({
     where: { slug: decodeURIComponent(slug) },
@@ -28,7 +28,7 @@ export async function generateMetadata({
   return {
     title: store.storeName,
     description,
-    alternates: { canonical: url },
+    alternates: localized(url, lang),
     openGraph: { url, title: store.storeName, description },
     robots: store.salesSuspendedAt ? { index: false } : undefined,
   };

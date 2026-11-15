@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
 import { listedProduct } from "@/lib/catalog";
-import { absolute } from "@/lib/seo";
+import { absolute, absoluteUrl, englishPath } from "@/lib/seo";
 
 // Built per request: the build machine may not reach the database.
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [products, categories, stores] = await Promise.all([
     db.product.findMany({
       where: listedProduct,
-      select: { slug: true, updatedAt: true },
+      select: { slug: true, updatedAt: true, imageUrl: true },
       orderBy: { soldCount: "desc" },
       take: 45000,
     }),
@@ -29,7 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const filled = categories.filter(
     (c) => has.has(c.id) || categories.some((child) => child.parentId === c.id && has.has(child.id)),
   );
-  return [
+  const entries: MetadataRoute.Sitemap = [
     { url: absolute("/"), changeFrequency: "daily", priority: 1 },
     ...filled.map((c) => ({
       url: absolute(`/categories/${encodeURIComponent(c.slug)}`),
@@ -41,6 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: p.updatedAt,
       changeFrequency: "weekly" as const,
       priority: 0.7,
+      images: p.imageUrl ? [absoluteUrl(p.imageUrl)] : undefined,
     })),
     ...stores.map((s) => ({
       url: absolute(`/stores/${encodeURIComponent(s.slug)}`),
@@ -49,4 +50,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
     ...INFO_PAGES.map((page) => ({ url: absolute(`/pages/${page}`), priority: 0.3 })),
   ];
+  // Every page also has an English version at ?lang=en (see localized()).
+  return entries.map((entry) => {
+    const path = entry.url.slice(absolute("").length) || "/";
+    return {
+      ...entry,
+      alternates: {
+        languages: { "ar-EG": entry.url, en: absolute(englishPath(path)), "x-default": entry.url },
+      },
+    };
+  });
 }

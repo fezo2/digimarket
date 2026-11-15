@@ -6,6 +6,8 @@ export type Site = "store" | "seller" | "admin";
 
 // Request header the middleware fills with the page path.
 export const PATH_HEADER = "x-dm-path";
+// Language picked by a ?lang= link (hreflang URLs), read before the cookie.
+export const LANG_HEADER = "x-dm-lang";
 
 // Holds the id of a sign-up waiting for its emailed code.
 export const SIGNUP_COOKIE = "dm_signup";
