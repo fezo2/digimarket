@@ -15,7 +15,7 @@ import { takesCards } from "@/lib/payments/config";
 import { releaseExpiredOrders } from "@/lib/orders";
 import { SELLER_TIERS } from "@/lib/config";
 import type { Metadata } from "next";
-import { absolute, describe, jsonLd } from "@/lib/seo";
+import { absolute, absoluteUrl, describe, jsonLd, localized } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +29,7 @@ const DELIVERY_LABEL = {
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { t, money } = await i18n();
+  const { t, money, lang } = await i18n();
   const { slug } = await params;
   const product = await db.product.findUnique({
     where: { slug: decodeURIComponent(slug) },
@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: product.title,
     description,
-    alternates: { canonical: url },
+    alternates: localized(url, lang),
     openGraph: {
       type: "website",
       url,
@@ -99,7 +99,7 @@ export default async function ProductPage({
       name: product.title,
       description: describe(product.description, 500),
       url,
-      image: product.imageUrl ?? undefined,
+      image: product.imageUrl ? absoluteUrl(product.imageUrl) : undefined,
       sku: product.id,
       category: product.category.nameAr,
       offers: {
