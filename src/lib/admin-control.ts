@@ -260,6 +260,13 @@ export const termsInput = z.object({
     .regex(/^\d{0,2}$/, "اكتب عدد أيام من 0 لـ 60")
     .transform((v) => (v ? Number(v) : null))
     .refine((v) => v === null || v <= 60, "اكتب عدد أيام من 0 لـ 60"),
+  // Affiliate share on this store's sales: empty = platform default, 0 = off.
+  affiliate: z
+    .string()
+    .trim()
+    .regex(/^(\d{1,2}(\.\d{1,2})?|100)?$/, "اكتب نسبة من 0 لـ 100")
+    .transform((v) => (v ? Math.round(Number(v) * 100) : null))
+    .optional(),
 });
 
 export async function setSellerTerms(
@@ -274,17 +281,16 @@ export async function setSellerTerms(
     allowed(actor, await sellerTarget(tx, sellerId));
     const before = await tx.sellerProfile.findUnique({
       where: { id: sellerId },
-      select: { commissionBps: true, holdDays: true },
+      select: { commissionBps: true, holdDays: true, affiliateBps: true },
     });
     if (!before) throw new AdminControlError("المتجر مش موجود");
-    await tx.sellerProfile.update({
-      where: { id: sellerId },
-      data: { commissionBps: v.commission, holdDays: v.holdDays },
-    });
-    await audit(tx, actorId, "seller.terms_changed", sellerId, {
-      before,
-      after: { commissionBps: v.commission, holdDays: v.holdDays },
-    });
+    const after = {
+      commissionBps: v.commission,
+      holdDays: v.holdDays,
+      affiliateBps: v.affiliate === undefined ? before.affiliateBps : v.affiliate,
+    };
+    await tx.sellerProfile.update({ where: { id: sellerId }, data: after });
+    await audit(tx, actorId, "seller.terms_changed", sellerId, { before, after });
     return true;
   });
 }

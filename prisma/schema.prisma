@@ -119,6 +119,7 @@ model User {
   messages Message[]
   disputes Dispute[]
   oauthAccounts OAuthAccount[]
+  affiliate     Affiliate?
 }
 
 // A Google or Apple identity linked to a user. Apple sends the email only on
@@ -166,6 +167,8 @@ model SellerProfile {
   payoutsFrozenReason String?
   commissionBps       Int?
   holdDays            Int?
+  // Affiliate rate on this store's sales; null = platform default, 0 = off.
+  affiliateBps        Int?
 
   kycSubmissions KycSubmission[]
   products       Product[]
@@ -380,11 +383,15 @@ model Order {
   // so a forwarded transfer SMS can be matched to this order on its own.
   payFrom         String?
   payAmount       Int?
+  // The affiliate whose link brought the buyer (last click, from the ref cookie).
+  affiliateId     String?
+  affiliate       Affiliate?     @relation(fields: [affiliateId], references: [id])
   // Set once the buyer was reminded about this unpaid order (or it was
   // folded into a reminder about a newer one), so nobody is nagged twice.
   reminderSentAt  DateTime?
 
   @@index([status, expiresAt])
+  @@index([affiliateId, createdAt])
   @@index([paymentProvider, payAmount])
   @@index([buyerId, createdAt])
   @@index([status, reminderSentAt, createdAt])
@@ -417,8 +424,12 @@ model OrderItem {
   supplierOrderId  String?
   supplierAttempt  Int           @default(0)
   supplierError    String?
+  // Affiliate rate copied at checkout; the commission is earned on delivery
+  // out of the platform's commission (never more than commissionAmount).
+  affiliateBps     Int           @default(0)
 
   stockItems StockItem[]
+  affiliateEntries AffiliateEntry[]
   review     Review?
   disputes   Dispute[]
   ledger     LedgerEntry[]
@@ -705,6 +716,87 @@ model SupplierSettings {
   multiplierBps Int @default(25000) // 25000 = store price is 2.5x the cost
   apiKey    String? // ProdSeller key saved from the admin panel; env is the fallback
   updatedAt DateTime @updatedAt
+}
+
+
+enum AffiliateEntryType {
+  COMMISSION
+  REVERSAL
+  PAYOUT
+  ADJUSTMENT
+}
+
+// Anyone with an account can share product links with ?ref=<code> and earn a
+// share of each sale they bring. The platform pays it out of its commission.
+model Affiliate {
+  id               String        @id @default(cuid())
+  userId           String        @unique
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code             String        @unique
+  // Personal rate set by the admin; null = the store or platform rate.
+  rateBps          Int?
+  clicks           Int           @default(0)
+  suspendedAt      DateTime?
+  suspendReason    String?
+  payoutMethod     PayoutMethod?
+  payoutAccount    String?
+  payoutHolderName String?
+  payoutUpdatedAt  DateTime?
+  createdAt        DateTime      @default(now())
+
+  orders  Order[]
+  entries AffiliateEntry[]
+  payouts AffiliatePayout[]
+}
+
+// Same rules as LedgerEntry: balance = sum(amount), withdrawable once
+// availableAt has passed (the hold).
+model AffiliateEntry {
+  id          String             @id @default(cuid())
+  affiliateId String
+  affiliate   Affiliate          @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  type        AffiliateEntryType
+  amount      Int
+  availableAt DateTime           @default(now())
+  orderItemId String?
+  orderItem   OrderItem?         @relation(fields: [orderItemId], references: [id])
+  payoutId    String?
+  payout      AffiliatePayout?   @relation(fields: [payoutId], references: [id])
+  note        String?
+  createdAt   DateTime           @default(now())
+
+  @@index([affiliateId, createdAt])
+  @@index([orderItemId])
+}
+
+model AffiliatePayout {
+  id            String         @id @default(cuid())
+  affiliateId   String
+  affiliate     Affiliate      @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  amount        Int
+  method        PayoutMethod
+  account       String
+  holderName    String
+  status        PayoutStatus   @default(REQUESTED)
+  reference     String?
+  rejectReason  String?
+  processedById String?
+  createdAt     DateTime       @default(now())
+  processedAt   DateTime?
+  entries       AffiliateEntry[]
+
+  @@index([status, createdAt])
+  @@index([affiliateId, createdAt])
+}
+
+// One row (id = "default"), edited from /admin/affiliates.
+model AffiliateSettings {
+  id          String   @id
+  enabled     Boolean  @default(true)
+  rateBps     Int      @default(500) // 500 = 5% of the order total
+  holdDays    Int      @default(7) // earliest release after delivery
+  minPayout   Int      @default(20000) // piasters (EGP 200)
+  updatedAt   DateTime @updatedAt
 }
 
 // Abandoned checkout reminders (one row, id = "default"). No row means the

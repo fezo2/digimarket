@@ -101,6 +101,7 @@ export async function sellerTerms(
       setSellerTerms(a, text(form, "sellerId"), {
         commission: text(form, "commission"),
         holdDays: text(form, "holdDays"),
+        affiliate: text(form, "affiliate"),
       }),
     "الشروط اتحفظت",
   );

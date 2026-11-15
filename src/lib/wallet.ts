@@ -20,6 +20,7 @@ import {
 } from "./wallet-validation";
 import { deliverPaidOrder, lockOrder, releaseOrderStock } from "./orders";
 import { STAFF_DENIED, staffMayNotTouch } from "./staff-scope";
+import { reverseAffiliateCommission } from "./affiliate";
 
 export class WalletError extends Error {}
 type Tx = Prisma.TransactionClient;
@@ -430,6 +431,7 @@ async function refundPaidOrder(
           note: `استرداد طلب #${order.number}`,
         },
       });
+    await reverseAffiliateCommission(tx, item.id, `استرداد طلب #${order.number}`);
     if (item.deliveredAt)
       await tx.product.update({
         where: { id: item.productId },

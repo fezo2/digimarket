@@ -3,6 +3,7 @@ import { SESSION_COOKIE, readSessionToken } from "@/lib/session-token";
 import { LANG_HEADER, PATH_HEADER, siteForHost, siteForPath, siteOrigins } from "@/lib/sites";
 import { contentSecurityPolicy } from "@/lib/csp";
 import { corsVerdict } from "@/lib/cors";
+import { AFFILIATE_COOKIE, AFFILIATE_COOKIE_DAYS, normalizeRefCode } from "@/lib/affiliate-rules";
 
 const PROTECTED = ["/account", "/seller", "/admin"];
 
@@ -32,6 +33,7 @@ export async function middleware(req: NextRequest) {
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
     });
+  rememberReferral(req, res);
   return res;
 }
 
@@ -40,6 +42,20 @@ const LANG_COOKIE = "dm_lang";
 function urlLang(req: NextRequest) {
   const value = req.nextUrl.searchParams.get("lang");
   return value === "en" || value === "ar" ? value : null;
+}
+
+// A store link carrying ?ref=<code> credits that affiliate for purchases in
+// the next 30 days (the last link clicked wins). Checked at checkout.
+function rememberReferral(req: NextRequest, res: NextResponse) {
+  const code = normalizeRefCode(req.nextUrl.searchParams.get("ref"));
+  if (!code || siteForHost(req.headers.get("host")) !== "store") return;
+  res.cookies.set(AFFILIATE_COOKIE, code, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: req.nextUrl.protocol === "https:",
+    path: "/",
+    maxAge: AFFILIATE_COOKIE_DAYS * 86400,
+  });
 }
 
 async function route(req: NextRequest, csp: string) {
