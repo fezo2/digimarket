@@ -74,6 +74,22 @@ export function checkoutMethods(
   return [primary];
 }
 
+// Who may try Kashier before it is switched on: admins, plus the accounts
+// listed in KASHIER_PREVIEW_EMAILS (comma separated). The list lets the store
+// owner test with an ordinary buyer account, since an admin who owns a store
+// cannot buy from it.
+export function kashierPreview(
+  user: { role: string; email: string },
+  env: NodeJS.ProcessEnv = process.env,
+) {
+  if (user.role === "ADMIN") return true;
+  const emails = (env.KASHIER_PREVIEW_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return emails.includes(user.email.trim().toLowerCase());
+}
+
 // Kashier settings whenever they are complete, even while another provider
 // is the main one, so orders already sent to Kashier still get confirmed or
 // refunded after a switch back to manual.
