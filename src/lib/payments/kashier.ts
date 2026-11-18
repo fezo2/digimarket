@@ -26,6 +26,20 @@ export function readKashierRefund(json: unknown): { status: "SUCCESS" | "PENDING
   return { status, transactionId: typeof tx === "string" && tx ? tx : null, message };
 }
 
+// A refund must name the successful "pay" (or "capture") transaction and
+// its amount; Kashier answers 500 to a refund without them. Picks it from
+// the order lookup's transactions list.
+export function kashierPaidTransaction(transactions: unknown): { id: string; amount: number; currency: string } | null {
+  if (!Array.isArray(transactions)) return null;
+  for (const t of transactions as Record<string, unknown>[]) {
+    const op = String(t?.operation ?? "").toLowerCase();
+    if ((op === "pay" || op === "capture") && String(t.status ?? "").toUpperCase() === "SUCCESS" &&
+        typeof t.transactionId === "string" && t.transactionId && typeof t.amount === "number" && t.amount > 0)
+      return { id: t.transactionId, amount: t.amount, currency: typeof t.currency === "string" && t.currency ? t.currency : "EGP" };
+  }
+  return null;
+}
+
 // Kashier sessions take major units with two decimals; orders store piastres.
 export function kashierAmount(piastres: number) {
   return (piastres / 100).toFixed(2);

@@ -1,6 +1,6 @@
 import "server-only";
 import { kashierSettings } from "./config";
-import { kashierFepHost, readKashierRefund } from "./kashier";
+import { kashierApiHost, kashierFepHost, kashierPaidTransaction, readKashierRefund } from "./kashier";
 import { claimGatewayRefund, releaseGatewayRefund, settleGatewayRefund } from "../wallet";
 
 export class GatewayRefundError extends Error {}
@@ -20,18 +20,39 @@ export async function refundThroughKashier(actorId: string, orderId: string) {
   }
   let result: ReturnType<typeof readKashierRefund>;
   try {
+    // Kashier needs the paid transaction's id and amount to refund it.
+    const lookup = await fetch(
+      `${kashierApiHost(config.mode)}/v3/payment/orders?${new URLSearchParams({ search: orderId })}`,
+      {
+        headers: { Authorization: config.secretKey },
+        signal: AbortSignal.timeout(15000),
+        cache: "no-store",
+      },
+    );
+    if (!lookup.ok) {
+      console.error("Kashier order lookup failed", { status: lookup.status });
+      throw new Error("Kashier order lookup failed");
+    }
+    const found = ((await lookup.json()) as { data?: { orderId?: unknown; transactions?: unknown }[] })
+      .data?.find((o) => o.orderId === order.paymentRef);
+    const paid = kashierPaidTransaction(found?.transactions);
+    if (!paid) throw new GatewayRefundError("ملقيناش عملية الدفع عند كاشير. راجع لوحة كاشير");
     const response = await fetch(
-      `${kashierFepHost(config.mode)}/v3/orders/${encodeURIComponent(order.paymentRef)}`,
+      `${kashierFepHost(config.mode)}/v3/orders/${encodeURIComponent(order.paymentRef)}?api-version=2`,
       {
         method: "PUT",
         headers: { Authorization: config.secretKey, "Content-Type": "application/json" },
         signal: AbortSignal.timeout(20000),
         cache: "no-store",
-        // No amount: Kashier refunds whatever is left on the order in full.
+        // Full refund of the paid transaction (what the Kashier dashboard sends).
         body: JSON.stringify({
           apiOperation: "REFUND",
           reason: (order.refundNote ?? `Order #${order.number}`).slice(0, 200),
-          transaction: {},
+          transaction: {
+            amount: paid.amount,
+            currency: paid.currency,
+            targetTransactionId: paid.id,
+          },
         }),
       },
     );
