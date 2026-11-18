@@ -237,6 +237,12 @@ function kashierProvider(
               failureRedirect: true,
               serverWebhook: `${config.appUrl}/api/payments/kashier/webhook`,
               description: `طلب #${order.number}`,
+              // Required by Kashier ("customer" is required); the reference
+              // ties saved cards to one buyer.
+              customer: {
+                email: order.buyer.email,
+                reference: current.buyerId,
+              },
               manualCapture: false,
               brandColor: "#6d28d9",
             }),
