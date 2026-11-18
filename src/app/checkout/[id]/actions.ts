@@ -6,6 +6,7 @@ import { PricingError } from "@/lib/pricing";
 import { requireUser, requireVerifiedUser } from "@/lib/auth";
 import { applyCoupon, cancelPendingOrder, preparePayment, OrderError } from "@/lib/orders";
 import { getPaymentProvider } from "@/lib/payments";
+import { kashierPreview } from "@/lib/payments/config";
 import { withinLimit } from "@/lib/account-security";
 
 export async function changeCoupon(
@@ -44,7 +45,7 @@ export async function payNow(
     const method = form?.get("method");
     const provider = getPaymentProvider(
       typeof method === "string" ? method : undefined,
-      user.role === "ADMIN",
+      kashierPreview(user),
     );
     const order = await preparePayment(id, user.id, provider.name);
     url = await provider.createPayment(order);

@@ -241,6 +241,15 @@ test("admins preview Kashier before it is switched on; buyers don't", async () =
   assert.deepEqual(checkoutMethods(noKeys, true), ["manual"]);
 });
 
+test("listed buyer emails can preview Kashier too", async () => {
+  const { kashierPreview } = await import("../src/lib/payments/config");
+  const env = { KASHIER_PREVIEW_EMAILS: " Owner@Example.com , other@example.com" } as unknown as NodeJS.ProcessEnv;
+  assert.equal(kashierPreview({ role: "BUYER", email: "owner@example.com" }, env), true);
+  assert.equal(kashierPreview({ role: "BUYER", email: "someone@example.com" }, env), false);
+  assert.equal(kashierPreview({ role: "ADMIN", email: "x@example.com" }, {} as NodeJS.ProcessEnv), true);
+  assert.equal(kashierPreview({ role: "BUYER", email: "owner@example.com" }, {} as NodeJS.ProcessEnv), false);
+});
+
 test("Kashier settings are read even while manual is the main provider", async () => {
   const { kashierSettings } = await import("../src/lib/payments/config");
   assert.equal(kashierSettings({ ...kashierEnv, PAYMENT_PROVIDER: "manual" })?.mode, "test");
