@@ -257,6 +257,18 @@ test("Kashier settings are read even while manual is the main provider", async (
   assert.equal(kashierSettings({ NODE_ENV: "production" }), null);
 });
 
+test("Kashier refunds target the successful pay transaction", async () => {
+  const { kashierPaidTransaction } = await import("../src/lib/payments/kashier");
+  const txs = [
+    { transactionId: "TX-1", operation: "3dsecure_verify", status: "SUCCESS", amount: 2, currency: "EGP" },
+    { transactionId: "TX-2", operation: "pay", status: "FAILURE", amount: 2, currency: "EGP" },
+    { transactionId: "TX-4", operation: "pay", status: "SUCCESS", amount: 2, currency: "EGP" },
+  ];
+  assert.deepEqual(kashierPaidTransaction(txs), { id: "TX-4", amount: 2, currency: "EGP" });
+  assert.equal(kashierPaidTransaction([{ transactionId: "TX-1", operation: "refund", status: "SUCCESS", amount: 2 }]), null);
+  assert.equal(kashierPaidTransaction(undefined), null);
+});
+
 test("Kashier refund replies are read conservatively", async () => {
   const { readKashierRefund, kashierFepHost } = await import("../src/lib/payments/kashier");
   assert.deepEqual(
